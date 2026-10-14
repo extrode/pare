@@ -249,6 +249,75 @@ public sealed class BuildIntegrationTests : IDisposable
     }
 
     [Fact]
+    public void Sources_are_watch_items()
+    {
+        Project(items: """<TypeScriptSource Include="src/a.ts" />""");
+        Put("wwwroot/app.ts", "let a: T;");
+        Put("src/a.ts", "let a: T;");
+
+        var (exit, output) = Run("msbuild", "-nologo", "-getItem:Watch");
+
+        Assert.True(exit == 0, output);
+        Assert.Contains(Path.Combine("wwwroot", "app.ts"), output);
+        Assert.Contains(Path.Combine("src", "a.ts"), output);
+    }
+
+    [Fact]
+    public async Task Dotnet_watch_without_hot_reload_restrips_an_edited_source()
+    {
+        Project(sdk: "Microsoft.NET.Sdk.Web");
+        Put("Program.cs", "System.Console.WriteLine(\"ready\");\nawait System.Threading.Tasks.Task.Delay(-1);\n");
+        Put("wwwroot/app.ts", "let a: number = 1;");
+        var start = new ProcessStartInfo("dotnet", ["watch", "--no-hot-reload", "--non-interactive"])
+        {
+            WorkingDirectory = _dir.FullName,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        foreach (var key in start.Environment.Keys.Where(k => k.StartsWith("MSBuild", StringComparison.OrdinalIgnoreCase)).ToList())
+            start.Environment.Remove(key);
+        var output = new System.Text.StringBuilder();
+        int starts = 0;
+        using var watch = new Process { StartInfo = start };
+        watch.OutputDataReceived += (_, e) =>
+        {
+            lock (output)
+                output.AppendLine(e.Data);
+            if (e.Data == "ready")
+                Interlocked.Increment(ref starts);
+        };
+        watch.ErrorDataReceived += (_, e) => { lock (output) output.AppendLine(e.Data); };
+        watch.Start();
+        watch.BeginOutputReadLine();
+        watch.BeginErrorReadLine();
+        try
+        {
+            async Task Until(Func<bool> done)
+            {
+                var deadline = DateTime.UtcNow.AddSeconds(120);
+                while (!done())
+                {
+                    lock (output)
+                        Assert.True(DateTime.UtcNow < deadline && !watch.HasExited, output.ToString());
+                    await Task.Delay(200, TestContext.Current.CancellationToken);
+                }
+            }
+
+            await Until(() => Volatile.Read(ref starts) == 1);
+            Assert.Equal("let a         = 1;", File.ReadAllText(P("wwwroot/app.js")));
+
+            File.WriteAllText(P("wwwroot/app.ts"), "let b: string = \"edited\";");
+            await Until(() => Volatile.Read(ref starts) == 2);
+            Assert.Equal("let b         = \"edited\";", File.ReadAllText(P("wwwroot/app.js")));
+        }
+        finally
+        {
+            watch.Kill(entireProcessTree: true);
+            watch.WaitForExit();
+        }
+    }
+
+    [Fact]
     public async Task Sample_app_builds_serves_and_runs_in_a_browser()
     {
         string sample = Path.Combine(RepoRoot, "samples", "WebApp");
