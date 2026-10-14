@@ -67,12 +67,13 @@ an htmx call to a minimal API. It references the package from a local feed, as a
 
 ```sh
 scripts/pack-local.sh               # pack into tmp/feed as 0.1.0-dev.<time>, re-restore the sample
-dotnet run --project samples/WebApp
+dotnet run --project samples/WebApp   # http://localhost:5180, Development
 dotnet publish samples/WebApp -c Release -r osx-arm64 -o tmp/sample-aot
 ```
 
 Generated `.js` is gitignored next to its source (`samples/WebApp/.gitignore`). The Web SDK
 publishes root `tsconfig.json` and `nuget.config`; the sample marks them `CopyToPublishDirectory="Never"`.
+The launch profile avoids port 5000, which macOS AirPlay Receiver also listens on.
 
 ## Library
 
