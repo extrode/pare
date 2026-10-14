@@ -64,6 +64,9 @@ public class StripTests
     [InlineData("export { type A, b };", "export {         b };")]
     [InlineData("export type * from \"x\";", "                       ")]
     [InlineData("let u: unique symbol;", "let u               ;")]
+    [InlineData("try {} catch (e: unknown) {}", "try {} catch (e         ) {}")]
+    [InlineData("export as namespace N;", "                      ")]
+    [InlineData("import type x = require(\"y\");", "                             ")]
     [InlineData("function f(x): asserts x is T {}", "function f(x)                 {}")]
     [InlineData("function f(x): x is T {}", "function f(x)         {}")]
     [InlineData("let m: { [K in keyof T]: T[K] extends infer U ? U : never };",
