@@ -47,6 +47,8 @@ public class StripTests
     [InlineData("declare global {}", "                 ")]
     [InlineData("declare module \"x\" {}", "                     ")]
     [InlineData("namespace N { type X = 1 }", "                          ")]
+    [InlineData("namespace N { declare namespace I { type T = 1 } }", "                                                  ")]
+    [InlineData("namespace N { export declare interface I {} declare type T = 1 }", "                                                                ")]
     [InlineData("import type { A } from \"x\";", "                           ")]
     [InlineData("import { type A, b } from \"x\";", "import {         b } from \"x\";")]
     [InlineData("class C { public a; private b; protected c; readonly d; override e; }",
@@ -85,6 +87,10 @@ public class StripTests
     [InlineData("const enum E { A }", DiagnosticCode.Enum, 0)]
     [InlineData("namespace N { export const x = 1; }", DiagnosticCode.NamespaceWithValues, 0)]
     [InlineData("module M { f(); }", DiagnosticCode.NamespaceWithValues, 0)]
+    [InlineData("namespace N { export declare function f(): void }", DiagnosticCode.NamespaceWithValues, 0)]
+    [InlineData("namespace N { declare let x: number; }", DiagnosticCode.NamespaceWithValues, 0)]
+    [InlineData("namespace N { declare namespace I { const x: number } }", DiagnosticCode.NamespaceWithValues, 0)]
+    [InlineData("namespace N { export declare const enum E { A } }", DiagnosticCode.NamespaceWithValues, 0)]
     [InlineData("class C { constructor(private x) {} }", DiagnosticCode.ParameterProperty, 22)]
     [InlineData("import x = require(\"y\");", DiagnosticCode.ImportEquals, 0)]
     [InlineData("import x = N.y;", DiagnosticCode.ImportEquals, 0)]
@@ -127,6 +133,7 @@ public class StripTests
     [Fact]
     public void Declarations_inside_declare_are_not_rejected()
     {
+        const string source = "declare namespace N { const x = 1; enum E {} }";
         Assert.Equal(new string(' ', source.Length), Strip(source));
     }
 
