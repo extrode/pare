@@ -138,6 +138,36 @@ internal static class Corpus
         return units;
     }
 
+    /// <summary>
+    /// The files a type stripper should handle: every unit of a case with no TS1xxx baseline,
+    /// minus declaration files, jsx cases and untyped <c>node_modules</c> files.
+    /// </summary>
+    public static IEnumerable<(string Relative, string Name, string Text)> StripUnits()
+    {
+        foreach (var relative in Cases())
+        {
+            if (HasSyntaxErrorBaseline(relative))
+                continue;
+            var text = File.ReadAllText(Path.Combine(Root!, relative));
+            bool jsx = HasDirective(text, "jsx");
+            foreach (var (name, unit) in Units(relative, text))
+            {
+                if (!IsScript(name) || (jsx && name.Contains(".js", StringComparison.OrdinalIgnoreCase)))
+                    continue;
+                // Declaration files are ambient; a stripper never emits them.
+                if (name.EndsWith(".d.ts", StringComparison.OrdinalIgnoreCase) ||
+                    name.EndsWith(".d.mts", StringComparison.OrdinalIgnoreCase) ||
+                    name.EndsWith(".d.cts", StringComparison.OrdinalIgnoreCase) ||
+                    name.Contains(".d.", StringComparison.OrdinalIgnoreCase) && name.EndsWith(".ts", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                // Untyped packages: TypeScript never parses these, and many hold prose.
+                if (name.Contains("/node_modules/", StringComparison.Ordinal) && !name.EndsWith(".ts", StringComparison.Ordinal))
+                    continue;
+                yield return (relative, name, unit);
+            }
+        }
+    }
+
     public static bool IsScript(string name) =>
         name.EndsWith(".ts", StringComparison.OrdinalIgnoreCase) ||
         name.EndsWith(".mts", StringComparison.OrdinalIgnoreCase) ||
