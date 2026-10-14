@@ -16,6 +16,7 @@ internal static class Program
           Strips .ts, .mts and .cts files to .js, .mjs and .cjs next to each source, or under
           --outdir with the directory structure kept. Directories are searched recursively;
           .d.ts files and node_modules are skipped. Relative './x.ts' imports become './x.js'.
+          An existing .js output is replaced.
 
           --outdir dir  write output under dir, mirroring the inputs' common directory
           --check-only  report diagnostics, write nothing
