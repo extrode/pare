@@ -1,0 +1,11 @@
+<Project>
+  <!-- Central Package Management. Extrode.Pare (the core library) has no package references and
+       must keep none; everything here is test, benchmark or tooling only. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <NoWarn>$(NoWarn);NU1507</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="xunit.v3" Version="4.0.1" />
+  </ItemGroup>
+</Project>
