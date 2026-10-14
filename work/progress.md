@@ -129,7 +129,9 @@ convention). Update at the end of every session.
 Order from the 2026-10-15 fable consult:
 
 1. ~~Browser check of `samples/WebApp`~~: done 2026-10-15 (headless Chromium).
-2. **v0.1 release prep:** `LICENSE` + package metadata (license choice is the user's), tag 0.1.0.
+2. **v0.1 release prep:** license done 2026-10-15 (user: pick from islamiclicense.org; ISL-P 1.2
+   WITH ISL-OE 1.2, Licensor `Extrode (extrode.com)`), package metadata done. Left: tag 0.1.0
+   (release on `main`: user's call).
 3. ~~M5 tsgo differential and `scripts/get-tsc.cs`~~: done 2026-10-15, 99.96%, all triaged.
 4. ~~**Dev loop:**~~ done 2026-10-15 for `dotnet watch --no-hot-reload` (see below). Default
    hot reload mode still needs M8 (user's call: `Watch` items now, M8 later).

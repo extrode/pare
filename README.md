@@ -105,3 +105,11 @@ The output differs from the input only by spaces, except for:
   an erased statement or class member when the previous line could otherwise merge with the next,
   or at the end of an erased `as`/`satisfies` type when the next line starts with `(`, `[` or a
   template
+
+## License
+
+Pare is licensed under the Islamic Software License - Permissive (ISL-P) v1.2 WITH the Output
+Exception (ISL-OE) v1.2: a source-available, ethically restricted license rooted in Islamic
+principles. It is not an OSI-approved open-source license. The Output Exception lets you ship the
+JavaScript Pare generates as part of your own work. See [LICENSE.md](LICENSE.md), including the
+ethical use restrictions in Sections 4 and 5, and [NOTICE.md](NOTICE.md).

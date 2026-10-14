@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- License: Islamic Software License - Permissive (ISL-P) 1.2 WITH the Output Exception (ISL-OE)
+  1.2 (`LICENSE.md`, `NOTICE.md`). The package carries both files, the README and author metadata.
 - Solution scaffold, public API sketch (`TypeStripper.Strip`, `Diagnostic`, `IDiagnosticSink`),
   `pare --stdin` CLI publishing as NativeAOT, CI on Linux, Windows and macOS.
 - Lexer for all JS and TS tokens: templates, regex and `>` rescans, contextual keywords,

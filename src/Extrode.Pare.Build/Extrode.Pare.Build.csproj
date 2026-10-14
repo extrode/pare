@@ -6,6 +6,10 @@
     <PackageId>Extrode.Pare.Build</PackageId>
     <Description>Strips TypeScript type syntax to JavaScript during dotnet build. No Node.</Description>
     <DevelopmentDependency>true</DevelopmentDependency>
+    <!-- ISL-P 1.2 WITH ISL-OE 1.2 is not an SPDX list expression, so the file ships instead. -->
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>typescript;type-stripping;msbuild;aspnetcore;nativeaot</PackageTags>
     <BuildOutputTargetFolder>tasks</BuildOutputTargetFolder>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);_PareCoreInPackage</TargetsForTfmSpecificBuildOutput>
@@ -21,6 +25,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="build\*" Pack="true" PackagePath="build" />
+    <None Include="..\..\LICENSE.md;..\..\NOTICE.md;..\..\README.md" Pack="true" PackagePath="" Visible="false" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Extrode.Pare.Tests" />
