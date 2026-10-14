@@ -96,7 +96,7 @@ public class StripCorpusTests(ITestOutputHelper output)
         public void Report(in Diagnostic diagnostic) => Items.Add(diagnostic);
     }
 
-    private static readonly ParserOptions JsOptions = new()
+    internal static readonly ParserOptions JsOptions = new()
     {
         EcmaVersion = EcmaVersion.Latest,
         ExperimentalESFeatures = ExperimentalESFeatures.Decorators | ExperimentalESFeatures.SourcePhaseImports |
@@ -124,87 +124,69 @@ public class StripCorpusTests(ITestOutputHelper output)
         var trace = Environment.GetEnvironmentVariable("PARE_CORPUS_TRACE");
         var parser = new Parser(JsOptions);
 
-        foreach (var relative in Corpus.Cases())
+        foreach (var (relative, name, unit) in Corpus.StripUnits())
         {
-            if (Corpus.HasSyntaxErrorBaseline(relative))
-                continue;
-            var text = File.ReadAllText(Path.Combine(Corpus.Root!, relative));
-            bool jsx = Corpus.HasDirective(text, "jsx");
-            foreach (var (name, unit) in Corpus.Units(relative, text))
+            eligible++;
+            if (trace is not null)
+                File.WriteAllText(trace, $"{relative} ({name})");
+            string where = $"{relative} ({name})";
+
+            var sink = new Sink();
+            var buffer = new ArrayBufferWriter<char>();
+            if (!TypeStripper.Strip(unit, buffer, sink))
             {
-                if (!Corpus.IsScript(name) || (jsx && name.Contains(".js", StringComparison.OrdinalIgnoreCase)))
-                    continue;
-                // Declaration files are ambient; a stripper never emits them.
-                if (name.EndsWith(".d.ts", StringComparison.OrdinalIgnoreCase) ||
-                    name.EndsWith(".d.mts", StringComparison.OrdinalIgnoreCase) ||
-                    name.EndsWith(".d.cts", StringComparison.OrdinalIgnoreCase) ||
-                    name.Contains(".d.", StringComparison.OrdinalIgnoreCase) && name.EndsWith(".ts", StringComparison.OrdinalIgnoreCase))
-                    continue;
-                // Untyped packages: TypeScript never parses these, and many hold prose.
-                if (name.Contains("/node_modules/", StringComparison.Ordinal) && !name.EndsWith(".ts", StringComparison.Ordinal))
-                    continue;
-                eligible++;
-                if (trace is not null)
-                    File.WriteAllText(trace, $"{relative} ({name})");
-                string where = $"{relative} ({name})";
-
-                var sink = new Sink();
-                var buffer = new ArrayBufferWriter<char>();
-                if (!TypeStripper.Strip(unit, buffer, sink))
+                var syntax = sink.Items.FirstOrDefault(d => d.Code == DiagnosticCode.SyntaxError);
+                if (syntax.Code != DiagnosticCode.SyntaxError)
                 {
-                    var syntax = sink.Items.FirstOrDefault(d => d.Code == DiagnosticCode.SyntaxError);
-                    if (syntax.Code != DiagnosticCode.SyntaxError)
-                    {
-                        rejected++;
-                    }
-                    else if (SyntaxDeviations.ContainsKey(Path.GetFileName(relative)))
-                    {
-                        deviations++;
-                    }
-                    else
-                    {
-                        var at = SourceLocation.FromOffset(unit, syntax.Start);
-                        syntaxErrors.Add($"{where}:{at.Line}:{at.Column}  {Truncate(LineAt(unit, at.Line).Trim())}");
-                    }
+                    rejected++;
+                }
+                else if (SyntaxDeviations.ContainsKey(Path.GetFileName(relative)))
+                {
+                    deviations++;
+                }
+                else
+                {
+                    var at = SourceLocation.FromOffset(unit, syntax.Start);
+                    syntaxErrors.Add($"{where}:{at.Line}:{at.Column}  {Truncate(LineAt(unit, at.Line).Trim())}");
+                }
+                continue;
+            }
+            stripped++;
+            var js = buffer.WrittenSpan.ToString();
+
+            if (PositionMoved(unit, js) is int offset)
+            {
+                var at = SourceLocation.FromOffset(unit, offset);
+                moved.Add($"{where}:{at.Line}:{at.Column}");
+            }
+
+            bool isJs = name.EndsWith(".js", StringComparison.OrdinalIgnoreCase) ||
+                name.EndsWith(".mjs", StringComparison.OrdinalIgnoreCase) ||
+                name.EndsWith(".cjs", StringComparison.OrdinalIgnoreCase);
+            // TS8xxx: "... can only be used in TypeScript files", so the .js holds TS syntax.
+            if (isJs && !Corpus.HasBaselineCode(relative, "TS8") && !JsDeviations.ContainsKey(Path.GetFileName(relative)))
+            {
+                jsFiles++;
+                if (js != unit)
+                    jsChanged.Add($"{where}:{FirstDifference(unit, js)}");
+            }
+
+            var error = ParseError(parser, js);
+            if (error is not null)
+            {
+                // Input JS that Acornima rejects too is a checker-level error in the corpus.
+                if (isJs && ParseError(parser, unit) is not null)
+                {
+                    jsInvalidBoth++;
                     continue;
                 }
-                stripped++;
-                var js = buffer.WrittenSpan.ToString();
-
-                if (PositionMoved(unit, js) is int offset)
+                if (InvalidDeviations.ContainsKey(Path.GetFileName(relative)) ||
+                    AcceptedErrors.Any(e => error.Contains(e, StringComparison.Ordinal)))
                 {
-                    var at = SourceLocation.FromOffset(unit, offset);
-                    moved.Add($"{where}:{at.Line}:{at.Column}");
+                    acceptedInvalid++;
+                    continue;
                 }
-
-                bool isJs = name.EndsWith(".js", StringComparison.OrdinalIgnoreCase) ||
-                    name.EndsWith(".mjs", StringComparison.OrdinalIgnoreCase) ||
-                    name.EndsWith(".cjs", StringComparison.OrdinalIgnoreCase);
-                // TS8xxx: "... can only be used in TypeScript files", so the .js holds TS syntax.
-                if (isJs && !Corpus.HasBaselineCode(relative, "TS8") && !JsDeviations.ContainsKey(Path.GetFileName(relative)))
-                {
-                    jsFiles++;
-                    if (js != unit)
-                        jsChanged.Add($"{where}:{FirstDifference(unit, js)}");
-                }
-
-                var error = ParseError(parser, js);
-                if (error is not null)
-                {
-                    // Input JS that Acornima rejects too is a checker-level error in the corpus.
-                    if (isJs && ParseError(parser, unit) is not null)
-                    {
-                        jsInvalidBoth++;
-                        continue;
-                    }
-                    if (InvalidDeviations.ContainsKey(Path.GetFileName(relative)) ||
-                        AcceptedErrors.Any(e => error.Contains(e, StringComparison.Ordinal)))
-                    {
-                        acceptedInvalid++;
-                        continue;
-                    }
-                    invalidOutput.Add($"{where}: {error}");
-                }
+                invalidOutput.Add($"{where}: {error}");
             }
         }
 

@@ -537,8 +537,9 @@ internal ref partial struct Parser
                 int stmtStart = Start;
                 bool empty = T == TokenKind.Semicolon;
                 var declared = DeclaredKeyword();
+                bool function = StartsFunction();
                 ParseStatement();
-                if (!empty && (!ErasedWhole(mark, stmtStart) || DeclaresValue(declared)))
+                if (!empty && (!ErasedWhole(mark, stmtStart) || function || DeclaresValue(declared)))
                     hasValues = true;
             }
             Expect(TokenKind.CloseBrace);
@@ -561,7 +562,6 @@ internal ref partial struct Parser
         EraseStatement(start, PrevEnd, prevEnd);
     }
 
-    /// <summary>The statement parsed since <paramref name="mark"/> was erased as a single range.</summary>
     /// <summary>
     /// The keyword after <c>declare</c> or <c>export declare</c> at the current token, else
     /// <see cref="Keyword.None"/>.
@@ -593,6 +593,26 @@ internal ref partial struct Parser
         _ => true,
     };
 
+    /// <summary>
+    /// <c>[export] [async] function</c> at the current token. An overload signature without a body
+    /// is erased whole, yet TypeScript's <c>getModuleInstanceStateWorker</c> counts every function
+    /// declaration as a value.
+    /// </summary>
+    private readonly bool StartsFunction()
+    {
+        int skip = K == Keyword.Export ? 1 : 0;
+        var first = skip == 0 ? _lex.Save() : Peek();
+        if (first.Kind != TokenKind.Identifier)
+            return false;
+        if (first.Keyword == Keyword.Function)
+            return true;
+        if (first.Keyword != Keyword.Async)
+            return false;
+        var second = skip == 0 ? Peek() : Peek2();
+        return second.Kind == TokenKind.Identifier && second.Keyword == Keyword.Function && !IsLineBreak(second);
+    }
+
+    /// <summary>The statement parsed since <paramref name="mark"/> was erased as a single range.</summary>
     private readonly bool ErasedWhole(int mark, int start)
     {
         if (_edits.Count != mark + 1)

@@ -119,7 +119,7 @@ Order from the 2026-10-15 fable consult:
 
 1. ~~Browser check of `samples/WebApp`~~: done 2026-10-15 (headless Chromium).
 2. **v0.1 release prep:** `LICENSE` + package metadata (license choice is the user's), tag 0.1.0.
-3. **M5 tsgo differential**, and `scripts/get-tsgo.cs` (PareTypeCheck assumes `tsgo` on PATH).
+3. ~~M5 tsgo differential and `scripts/get-tsgo.cs`~~: done 2026-10-15, 99.96%, all triaged.
 4. **Dev loop:** check whether `dotnet watch` rebuilds on a `wwwroot/**/*.ts` edit; if not,
    `Watch` items or M8 middleware.
 5. **M7 perf**, with bench rows for the pathological nesting shapes.
@@ -139,7 +139,8 @@ assets (v0.2, retires the publish and overwrite questions); a core `Extrode.Pare
 
 `StripCorpusTests` (2026-10-14, ~27 s debug): of 13,935 files with no TS1xxx baseline (jsx,
 `.d.ts` and untyped `node_modules` skipped), 11,753 strip, 2,172 are rejected under section 6,
-10 are named deviations, **0 syntax errors, 0 moved characters**. All 1,048 plain `.js` files
+10 are named deviations, **0 syntax errors, 0 moved characters**. (2026-10-15: 11,737 strip,
+2,188 rejected, after namespaces with bodiless functions became rejections.) All 1,048 plain `.js` files
 come back byte-identical, apart from 2 named deviations that contain TS syntax. Every output is
 parsed by Acornima. 229 fail, and each falls under either a named class of early error that
 TypeScript reports from the checker (duplicate declarations, `super` misuse, private names
@@ -148,6 +149,8 @@ check against tsgo is still M5.
 
 ## Deviations from the handoff
 
+- Differential emit uses `module: preserve`, not handoff 10.4's `esnext`: `esnext` turns `.cts`
+  into CommonJS and adds `export {}`; `preserve` keeps module syntax as written, like a stripper.
 - tsgo: TypeScript 7 shipped stable (`typescript@7.0.2`, 2026-07-08). The Go compiler is now `tsc`
   in `@typescript/typescript-<os>-<cpu>` (`lib/tsc` plus the `lib/*.d.ts` beside it), not
   `@typescript/native-preview`. `scripts/get-tsgo.cs` keeps the handoff's name and fetches 7.0.2
