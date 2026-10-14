@@ -15,6 +15,14 @@ Small, clear, and could be picked up without a design decision.
 
 ## Later
 
+- Redundant guards found by the mutation sweep (removing each changes no behavior): `Reject`'s
+  `if (!_ambient)` in `Parser.cs` (`ParseDeclare` drops the diagnostics with `DropSince`); the
+  `.d.ts` Exclude in `Extrode.Pare.Build.props` (`_PareComputeOutputs` filters `.d` already);
+  `ThrowIfGreaterThan` in `SourceLocation.FromOffset` (the slice throws the same exception).
+  `EditWriter`'s replace-after-erase guard is unreachable through the parser today but has a
+  direct unit test. Decide: keep as defense, or remove.
+- MSBuild default items cover `wwwroot/**/*.ts` and `*.mts` but not `*.cts`. Decide whether
+  CommonJS sources belong in a browser `wwwroot`.
 - MSBuild: `.ts` sources under wwwroot are published as static assets next to the `.js`.
   Decide whether the package should drop `@(TypeScriptSource)` from Content by default.
 - MSBuild in Visual Studio: untested; would need the .NET task host (`Runtime="NET"` on

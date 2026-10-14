@@ -53,6 +53,18 @@ convention). Update at the end of every session.
   The MSBuild packages (18.9.6, compile-only) were approved by the user. The task targets
   net10.0 only, so it does not load in Visual Studio's .NET Framework MSBuild (user's call).
 
+- **Mutation sweep (2026-10-15):** every test row checked by breaking the code. About 305
+  single-line mutations across lexer, parser, writer, CLI, glob, MSBuild task, targets and props;
+  each one rebuilt, ran the affected classes, and was reverted with `git checkout --`. 303 of 305
+  test rows fail under at least one mutation. The two that cannot are equivalent mutants: the
+  `./a.js` specifier row (any extension mutation writes `j` over `j`) and
+  `FromOffset_rejects_offsets_outside_the_source(4)` (the slice throws the same exception as the
+  guard). Gaps found and closed: 16 new tests or rows (class `extends B<T>`, type predicates,
+  `catch (e: T)`, `export as namespace`, `import type x = require`, template continuations,
+  `EditWriter` replace inside an erased range, CLI exact usage messages and stdin rejections, file
+  mode outdir base, BOM, `.d.ts` arguments, all-or-nothing input check, glob rows, `.mts` in the
+  MSBuild build). Harness: `tmp/mutate/` (gitignored, not kept). Tests: 305 unit, 2 conformance.
+
 ## Next
 
 - **M6 rest:** sample app `samples/WebApp` using the package.

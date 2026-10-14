@@ -14,3 +14,4 @@
   `./x.ts` specifiers rewritten to `./x.js` (`StripOptions.RewriteRelativeImportExtensions`).
 - `Extrode.Pare.Build` NuGet package: incremental in-process strip of `wwwroot/**/*.ts` before
   `Build`, outputs registered as static web assets, `PareOutDir`, optional `tsgo` type check.
+- Tests: mutation sweep; 16 rows added where breaking the code left the suite green.
