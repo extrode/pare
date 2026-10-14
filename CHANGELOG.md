@@ -23,6 +23,9 @@
 - Fixed: `declare` followed by a keyword that does not start a declaration (`declare namespace = x`,
   `declare type = 1`) is a syntax error, as in TypeScript; it was erased. Found by the cross-tool
   comparison.
+- Fixed: a field named `get`, `set` or `static` whose erased `!`, `?` or type ended at a line break
+  merged with the next member (`get!: T` then `post!: T` became a getter named `post`); Pare now
+  writes `;` there. Found in Hono by the cross-tool comparison.
 - Fixed: a namespace holding only a bodiless function declaration (`function f();`) is now
   rejected; TypeScript counts it as a value.
 - `scripts/get-tsc.cs`: downloads TypeScript 7's native `tsc` (7.0.2) from the npm registry into
