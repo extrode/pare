@@ -78,7 +78,7 @@ internal static class Compare
                     guards++;
                     continue;
                 }
-                string? why = bytewise ? (other == pare ? null : FirstDifference(pare, other)) : TreeDifference(parser, pare, other);
+                string? why = bytewise ? (other == pare ? null : FirstDifference(pare, other, skipGuards: true)) : TreeDifference(parser, pare, other);
                 if (why is null)
                     same++;
                 else
@@ -262,10 +262,10 @@ internal static class Compare
         }
     }
 
-    private static string FirstDifference(string a, string b)
+    private static string FirstDifference(string a, string b, bool skipGuards = false)
     {
         int i = 0;
-        while (i < a.Length && i < b.Length && a[i] == b[i])
+        while (i < a.Length && i < b.Length && (a[i] == b[i] || (skipGuards && a[i] == ';' && b[i] == ' ')))
             i++;
         int from = Math.Max(0, i - 50);
         string Clip(string s) => s[from..Math.Min(s.Length, i + 50)].Replace('\n', '~').Replace('\t', ' ');
