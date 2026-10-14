@@ -16,6 +16,8 @@
   `Build`, outputs registered as static web assets, `PareOutDir`, optional `tsgo` type check.
 - MSBuild: `.ts` and `.d.ts` sources are no longer served or published; `PareKeepSources=true`
   keeps them.
+- `scripts/get-tsgo.cs`: downloads TypeScript 7's native `tsc` (7.0.2) from the npm registry into
+  `.tools/typescript`, checking the tarball's sha512.
 - MSBuild: `$(PareTsconfig)` is no longer copied to the build or publish output (the Web SDK
   makes every `.json` Content).
 - `samples/WebApp`: NativeAOT web app with Alpine and htmx modules in TypeScript, built from the
