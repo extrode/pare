@@ -245,6 +245,7 @@ public class StripTests
     [InlineData("const m = import(\"./a.ts\", { with: {} });", "const m = import(\"./a.js\", { with: {} });")]
     [InlineData("import type { T } from \"./t.ts\";", "                                ")]
     [InlineData("export type { T } from \"./t.ts\";", "                                ")]
+    [InlineData("declare module \"m\" { export * from \"./a.ts\"; }", "                                              ")]
     [InlineData("import { type T, x } from \"./t.ts\";", "import {         x } from \"./t.js\";")]
     public void Rewrites_relative_ts_specifiers(string source, string expected) =>
         Assert.Equal(expected, StripWith(source, StripOptions.RewriteRelativeImportExtensions));
