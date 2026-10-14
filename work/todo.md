@@ -15,6 +15,11 @@ Small, clear, and could be picked up without a design decision.
 
 ## Later
 
+- MSBuild: `.ts` sources under wwwroot are published as static assets next to the `.js`.
+  Decide whether the package should drop `@(TypeScriptSource)` from Content by default.
+- MSBuild in Visual Studio: untested; would need the .NET task host (`Runtime="NET"` on
+  `UsingTask`, MSBuild 18) or a netstandard2.0 core.
+
 Real, but needs a decision, a dependency, or more information first. Say which.
 
 - Lexer leniency vs TypeScript (M4): no validation of escapes inside strings, templates and

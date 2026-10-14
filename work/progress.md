@@ -41,9 +41,21 @@ convention). Update at the end of every session.
   one same-length `Edit` with a `Replace` char per specifier. AOT binary: 1.2 MB, no trim
   warnings.
 
+- **M6 MSBuild (2026-10-14):** `Extrode.Pare.Build` package: `StripTypeScript` task in
+  `tasks/net10.0/` next to `Extrode.Pare.dll`, `build/Extrode.Pare.Build.{props,targets}`.
+  Default items are `wwwroot/**/*.ts;*.mts`, set in `.props`, where they still see properties
+  set in the project body. The target runs before `BeforeBuild`. Inputs/Outputs are the source,
+  the task dll and the `.targets` file. Outputs are re-added to `Content` in a target that always
+  runs. Output paths stay project-relative because static web assets match `wwwroot/**` against
+  the item spec: absolute paths left the output out of the assets on the first build (bug found
+  by the Web SDK test, fixed). Optional tsgo check through `Exec`. Verified end to end:
+  packed, restored from a local feed into a fresh Web app, published with `.js`, `.br` and `.gz`.
+  The MSBuild packages (18.9.6, compile-only) were approved by the user. The task targets
+  net10.0 only, so it does not load in Visual Studio's .NET Framework MSBuild (user's call).
+
 ## Next
 
-- **M6 rest:** MSBuild task `Extrode.Pare.Build` (in-process, incremental), sample app.
+- **M6 rest:** sample app `samples/WebApp` using the package.
 - **M4 leftovers:** lexer escape and numeric-separator validation (`work/todo.md`).
 
 ## Open questions

@@ -12,3 +12,5 @@
   Corpus: 0 syntax errors on 13,935 files, plain `.js` byte-identical.
 - `pare` CLI file mode: files, directories and globs, `--outdir`, `--check-only`; relative
   `./x.ts` specifiers rewritten to `./x.js` (`StripOptions.RewriteRelativeImportExtensions`).
+- `Extrode.Pare.Build` NuGet package: incremental in-process strip of `wwwroot/**/*.ts` before
+  `Build`, outputs registered as static web assets, `PareOutDir`, optional `tsgo` type check.

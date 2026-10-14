@@ -7,9 +7,11 @@ Progress, next steps, corpus pass rate: [work/progress.md](work/progress.md), up
 
 - `src/Extrode.Pare/` core library (lexer, recognizer, eraser). **Zero package references.**
 - `src/Extrode.Pare.Cli/` `pare` CLI, NativeAOT.
-- `tests/Extrode.Pare.Tests/` xUnit v3 on Microsoft.Testing.Platform.
-- Planned: `src/Extrode.Pare.Build/` (M6), `tests/Extrode.Pare.Conformance/` (M5),
-  `tests/Extrode.Pare.Bench/` (M7).
+- `src/Extrode.Pare.Build/` MSBuild task + `build/*.props`/`.targets`, NuGet package. MSBuild
+  packages are compile-only (approved 2026-10-14, 18.9.6). Loads under `dotnet build` only.
+- `tests/Extrode.Pare.Tests/` xUnit v3 on Microsoft.Testing.Platform. `Build/` runs real
+  `dotnet build` on temp projects (~12 s).
+- `tests/Extrode.Pare.Conformance/` TypeScript corpus. Planned: `tests/Extrode.Pare.Bench/` (M7).
 
 ## Build and test
 

@@ -6,7 +6,7 @@ line and column. No source maps, no Node, no Bun, no Deno.
 
 Pare does not type check. Use `tsgo --noEmit` for that.
 
-Status: the library and the `pare` CLI work. The MSBuild task is next. See [work/progress.md](work/progress.md).
+Status: the library, the `pare` CLI and the MSBuild package work. A sample app is next. See [work/progress.md](work/progress.md).
 
 ## Build
 
@@ -14,6 +14,7 @@ Status: the library and the `pare` CLI work. The MSBuild task is next. See [work
 dotnet build Pare.slnx
 dotnet test --solution Pare.slnx
 dotnet publish src/Extrode.Pare.Cli -c Release -r osx-arm64 -o tmp/aot   # NativeAOT CLI
+dotnet pack src/Extrode.Pare.Build -c Release -o tmp/pack                # MSBuild package
 ```
 
 ## CLI
@@ -28,6 +29,26 @@ pare --stdin < in.ts > out.js
 Inputs are files, directories (searched recursively) or globs (`*`, `?`, `**`, for shells that
 do not expand them). `.ts`, `.mts`, `.cts` become `.js`, `.mjs`, `.cjs`. `.d.ts` files and
 `node_modules` are skipped. Exit codes: 0 ok, 1 rejected syntax, 2 I/O or usage error.
+
+## MSBuild
+
+```xml
+<PackageReference Include="Extrode.Pare.Build" Version="0.1.0" PrivateAssets="all" />
+```
+
+Before `Build`, every `wwwroot/**/*.ts` and `*.mts` (not `.d.ts`, not `node_modules`) is stripped
+to a `.js` next to it. The step is incremental, runs in-process and needs no Node. In web projects
+the output becomes a static web asset from the first build on. Rejections fail the build as
+`file(line,col): error PARE100: ...`. Runs under `dotnet build` (CLI, CI, Rider, VS Code), not
+inside Visual Studio's .NET Framework MSBuild.
+
+| Property | Default | |
+|---|---|---|
+| `EnablePareDefaultItems` | `true` | `false` drops the default glob; add `<TypeScriptSource Include="..." />` yourself |
+| `PareOutDir` | empty | write under this directory, keeping relative paths |
+| `PareTypeCheck` | `false` | `true` runs `tsgo --noEmit -p $(PareTsconfig)` first |
+| `PareTsgoPath` | `tsgo` | |
+| `PareTsconfig` | `tsconfig.json` in the project | |
 
 ## Library
 
@@ -44,7 +65,7 @@ bool ok = TypeStripper.Strip(source, output, diagnostics, StripOptions.RewriteRe
 The output differs from the input only by spaces, except for:
 
 - relative module specifiers `./x.ts` rewritten to `./x.js` (`.mts`/`.cts` likewise) in
-  `import`, `export ... from` and `import("...")`: on in the CLI, opt-in in the library
+  `import`, `export ... from` and `import("...")`: on in the CLI and MSBuild, opt-in in the library
 - ASI fixes: a `)` moved to the end of an erased multi-line return type, a `(` moved to the
   start of erased type parameters followed by a line break, and a `;` written at the start of
   an erased statement or class member when the previous line could otherwise merge with the next

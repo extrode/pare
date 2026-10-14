@@ -33,7 +33,7 @@ tick.
   duplicating it — two copies of a task list is one stale copy.
 - `milestones.md` is where the project is going. A tasklist is how one milestone gets done.
 
-## Current work: M6 CLI file mode
+## Current work: M6 CLI, MSBuild task, sample app
 
 M2 + M3 recognizer shipped 2026-10-14 (see `CHANGELOG.md`).
 
@@ -41,3 +41,6 @@ M2 + M3 recognizer shipped 2026-10-14 (see `CHANGELOG.md`).
 - [x] T2 Rewrite relative `./x.ts` import/export specifiers to `./x.js` — done when: unit tests for import, export, dynamic `import()` pass
 - [x] T3 `--check-only`, diagnostics with file path, exit codes 0/1/2 — done when: CLI tests cover each exit code
 - [x] T4 Globs (`src/**/*.ts`) without a package — done when: CLI test over a temp tree passes
+- [x] T5 `Extrode.Pare.Build` task + props/targets, incremental, static web assets — done when: `dotnet build` integration tests pass
+- [x] T6 NuGet pack layout (`build/`, `tasks/net10.0/`) — done when: a fresh Web app restores it from a local feed and publishes the `.js`
+- [ ] T7 `samples/WebApp` using the package — done when: `dotnet build` of the sample writes and serves the `.js`
