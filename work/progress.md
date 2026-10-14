@@ -66,7 +66,7 @@ check against tsgo is still M5.
 
 - Name: **Pare** (folder name) instead of TsBlank. Projects `Extrode.Pare.*`, CLI `pare`,
   static entry `TypeStripper.Strip` (a class named `Pare` would collide with the namespace).
-- `PROGRESS.md` lives here as `work/progress.md`; the handoff stays at `docs/HANDOFF.md`.
+- `PROGRESS.md` lives here as `work/progress.md`; the handoff is `docs/handoff.md`.
 - Diagnostic codes print as `PARE001` (syntax), `PARE100`-`PARE107` (rejections).
 - Corpus location: microsoft/TypeScript `main` is now the Go codebase (TypeScript 7). Test
   inputs are under `tsc/testdata/tests/cases/{compiler,conformance}`, error baselines under
