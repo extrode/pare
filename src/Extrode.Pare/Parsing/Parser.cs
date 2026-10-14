@@ -36,10 +36,13 @@ internal ref partial struct Parser
     // Positions where a parenthesized arrow function was tried and failed, one bit per char.
     // TypeScript: notParenthesizedArrow. Keeps nested `(a = (b = (c)))` linear.
     private ulong[]? _notArrow;
+    // Rewrite relative `./x.ts` module specifiers to `./x.js`.
+    private readonly bool _rewriteImports;
 
-    public Parser(ReadOnlySpan<char> source)
+    public Parser(ReadOnlySpan<char> source, bool rewriteImports = false)
     {
         _src = source;
+        _rewriteImports = rewriteImports;
         _lex = new Lexer(source);
         _ok = true;
         // Modules: top-level await.
@@ -268,6 +271,26 @@ internal ref partial struct Parser
     /// <c>;</c> first unless the previous token was <c>;</c> or <c>{</c>, so the lines around it
     /// cannot merge (handoff section 7.5).
     /// </summary>
+    /// <summary>
+    /// At a string literal used as a module specifier: records the <c>.ts</c>, <c>.mts</c> or
+    /// <c>.cts</c> to <c>.js</c>, <c>.mjs</c> or <c>.cjs</c> rewrite when it is relative and not a
+    /// declaration file. Same length, so positions hold. TypeScript: rewriteRelativeImportExtensions.
+    /// </summary>
+    private void RewriteSpecifier(int start, int end)
+    {
+        if (!_rewriteImports || end - start < 2)
+            return;
+        var text = _src[(start + 1)..(end - 1)];
+        if (!(text.StartsWith("./") || text.StartsWith("../")) || text.Contains('\\'))
+            return;
+        if (!(text.EndsWith(".ts") || text.EndsWith(".mts") || text.EndsWith(".cts")))
+            return;
+        if (text.EndsWith(".d.ts") || text.EndsWith(".d.mts") || text.EndsWith(".d.cts"))
+            return;
+        // `t` of `ts` sits before the closing quote and `s`.
+        _edits.Add(new Edit(end - 3, end - 2, Replace: 'j'));
+    }
+
     private void EraseStatement(int start, int end, int prevEnd)
     {
         if (end <= start)

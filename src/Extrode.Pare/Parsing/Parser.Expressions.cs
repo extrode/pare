@@ -543,8 +543,17 @@ internal ref partial struct Parser
                     case Keyword.Null:
                     case Keyword.True:
                     case Keyword.False:
+                        Next();
+                        return;
                     case Keyword.Import:
                         Next();
+                        // import("./x.ts"): rewrite only a lone string argument.
+                        if (T == TokenKind.OpenParen && Peek().Kind == TokenKind.StringLiteral &&
+                            Peek2().Kind is TokenKind.CloseParen or TokenKind.Comma)
+                        {
+                            var arg = Peek();
+                            RewriteSpecifier(arg.Start, arg.Pos);
+                        }
                         return;
                 }
                 if (IsIdentifier())

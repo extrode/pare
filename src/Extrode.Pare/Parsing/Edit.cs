@@ -5,8 +5,11 @@ namespace Extrode.Pare.Parsing;
 /// <see cref="First"/> and <see cref="Last"/>, when not <c>'\0'</c>, overwrite the first or last
 /// character of the range: the ASI fixes from handoff section 7.5 (<c>;</c> before an erased
 /// statement, <c>)</c> or <c>(</c> moved across an erased type).
+/// <see cref="Replace"/>, when not <c>'\0'</c>, makes the edit a one-character substitution at
+/// <see cref="Start"/> instead (the <c>.ts</c> to <c>.js</c> specifier rewrite); it is skipped
+/// when an erase range already covers that character.
 /// </summary>
-internal readonly record struct Edit(int Start, int End, char First = '\0', char Last = '\0');
+internal readonly record struct Edit(int Start, int End, char First = '\0', char Last = '\0', char Replace = '\0');
 
 internal static class EditWriter
 {
@@ -29,6 +32,12 @@ internal static class EditWriter
         source.CopyTo(dest);
         foreach (var e in edits)
         {
+            if (e.Replace != '\0')
+            {
+                if (dest[e.Start] == source[e.Start])
+                    dest[e.Start] = e.Replace;
+                continue;
+            }
             for (int i = e.Start; i < e.End; i++)
             {
                 char c = source[i];
