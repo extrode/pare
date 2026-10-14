@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Pare: TypeScript type stripper in C# / .NET 10 NativeAOT. Full brief: [docs/HANDOFF.md](docs/HANDOFF.md).
+Pare: TypeScript type stripper in C# / .NET 10 NativeAOT. Full brief: [docs/handoff.md](docs/handoff.md).
 Progress, next steps, corpus pass rate: [work/progress.md](work/progress.md), updated every session.
 
 ## Layout
