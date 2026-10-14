@@ -14,8 +14,16 @@ internal static class FileStripper
         int exit = Program.ExitOk;
         foreach (var input in inputs)
         {
-            if (!Collect(input, files, stderr))
+            try
+            {
+                if (!Collect(input, files, stderr))
+                    exit = Program.ExitUsage;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                stderr.WriteLine($"pare: {input}: {e.Message}");
                 exit = Program.ExitUsage;
+            }
         }
         if (exit != Program.ExitOk)
             return exit;

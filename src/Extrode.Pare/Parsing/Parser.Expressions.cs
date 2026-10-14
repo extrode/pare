@@ -121,7 +121,12 @@ internal ref partial struct Parser
                 int start = Start;
                 Next();
                 ParseType();
-                Erase(start, PrevEnd);
+                // The type ends at a line break, so TypeScript ends the statement before `(`, `[`
+                // or a template there (parsePostfixTypeOrHigher); JS would keep going.
+                bool split = LineBreakBefore && T is TokenKind.OpenParen or TokenKind.OpenBracket or
+                    TokenKind.NoSubstitutionTemplate or TokenKind.TemplateHead;
+                if (PrevEnd > start)
+                    _edits.Add(new Edit(start, PrevEnd, Last: split ? ';' : '\0'));
                 continue;
             }
             if (!IsBinaryOperator())

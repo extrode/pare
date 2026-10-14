@@ -536,8 +536,9 @@ internal ref partial struct Parser
                 int mark = _edits.Count;
                 int stmtStart = Start;
                 bool empty = T == TokenKind.Semicolon;
+                var declared = DeclaredKeyword();
                 ParseStatement();
-                if (!empty && !ErasedWhole(mark, stmtStart))
+                if (!empty && (!ErasedWhole(mark, stmtStart) || DeclaresValue(declared)))
                     hasValues = true;
             }
             Expect(TokenKind.CloseBrace);
@@ -547,6 +548,7 @@ internal ref partial struct Parser
             // `declare module "m";`
             ParseSemicolon();
         }
+        _namespaceHasValues = hasValues;
         if (!_ok)
             return;
 
@@ -560,6 +562,37 @@ internal ref partial struct Parser
     }
 
     /// <summary>The statement parsed since <paramref name="mark"/> was erased as a single range.</summary>
+    /// <summary>
+    /// The keyword after <c>declare</c> or <c>export declare</c> at the current token, else
+    /// <see cref="Keyword.None"/>.
+    /// </summary>
+    private readonly Keyword DeclaredKeyword()
+    {
+        if (K == Keyword.Declare)
+        {
+            var next = Peek();
+            return IsDeclareStart(next) ? next.Keyword : Keyword.None;
+        }
+        if (K == Keyword.Export && Peek().Keyword == Keyword.Declare)
+        {
+            var next = Peek2();
+            return IsDeclareStart(next) ? next.Keyword : Keyword.None;
+        }
+        return Keyword.None;
+    }
+
+    /// <summary>
+    /// Whether a <c>declare</c>-d statement still instantiates the namespace around it: TypeScript's
+    /// <c>getModuleInstanceStateWorker</c> ignores <c>declare</c>, so only interfaces, type aliases
+    /// and namespaces without values stay type-only.
+    /// </summary>
+    private readonly bool DeclaresValue(Keyword declared) => declared switch
+    {
+        Keyword.None or Keyword.Interface or Keyword.Type => false,
+        Keyword.Namespace or Keyword.Module => _namespaceHasValues,
+        _ => true,
+    };
+
     private readonly bool ErasedWhole(int mark, int start)
     {
         if (_edits.Count != mark + 1)

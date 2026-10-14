@@ -28,6 +28,9 @@ internal ref partial struct Parser
     private bool _yield;
     private bool _disallowIn;
     private bool _ambient;
+    // Whether the namespace parsed last holds values; read for a `declare namespace` nested in
+    // a non-ambient one.
+    private bool _namespaceHasValues;
     // Inside `@...`: `[` starts the decorated member's computed name, not an element access.
     private bool _decorator;
     // TypeScript's DisallowConditionalTypes context: in `A extends B ? ...` the B part, and in
