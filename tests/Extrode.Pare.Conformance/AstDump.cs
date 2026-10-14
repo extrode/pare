@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text;
+using Acornima;
 using Acornima.Ast;
 
 namespace Extrode.Pare.Conformance;
@@ -12,9 +13,10 @@ internal static class AstDump
     /// behavior: empty statements in a statement list (Pare's ASI guard <c>;</c>, handoff 7.5) and
     /// a bare <c>export {}</c> (tsc keeps or adds it to mark a module).
     /// </summary>
-    /// <param name="ignoreRaw">Skip literal source text (<c>Raw</c>), for emitters that reprint
-    /// literals: quotes, numeric forms and escapes change, values do not.</param>
-    public static string Dump(Node root, bool ignoreRaw = false)
+    /// <param name="reprinted">For emitters that print a new text: skip literal source text
+    /// (<c>Raw</c>: quotes, numeric forms and escapes change, values do not), read <c>{ a: a }</c>
+    /// as <c>{ a }</c> and <c>void 0</c> as <c>undefined</c>.</param>
+    public static string Dump(Node root, bool reprinted = false)
     {
         var sb = new StringBuilder();
         // Iterative: corpus files nest deep enough to overflow a recursive walk.
@@ -27,11 +29,19 @@ internal static class AstDump
                 sb.Append(')');
                 continue;
             }
+            // Minifying printers write `undefined` as `void 0`.
+            if (reprinted && node is UnaryExpression { Operator: Operator.Void, Argument: NumericLiteral { Value: 0 } })
+            {
+                sb.Append(" (Identifier Name=undefined TypeText=Identifier)");
+                continue;
+            }
             sb.Append(" (").Append(node.Type);
             foreach (var p in ScalarProperties(node.GetType()))
             {
                 // tsc lowercases hex BigInt literals (0xFFFFn); the BigInt property keeps the value.
-                if (p.Name == "Raw" && (ignoreRaw || node is BigIntLiteral))
+                if (p.Name == "Raw" && (reprinted || node is BigIntLiteral))
+                    continue;
+                if (reprinted && p.Name == "Shorthand" && node is Property)
                     continue;
                 sb.Append(' ').Append(p.Name).Append('=').Append(p.GetValue(node));
             }
@@ -39,6 +49,10 @@ internal static class AstDump
             var children = new List<Node>();
             foreach (var child in node.ChildNodes)
                 children.Add(child);
+            // Acornima gives `{ a }` one child; give `{ a: a }` the same when printers may shorten it.
+            if (reprinted && node is Property { Shorthand: false, Computed: false, Key: Identifier key, Value: Identifier value } &&
+                key.Name == value.Name)
+                children.RemoveAt(1);
             bool list = node.Type is NodeType.Program or NodeType.BlockStatement or NodeType.StaticBlock or NodeType.SwitchCase;
             for (int i = children.Count - 1; i >= 0; i--)
             {

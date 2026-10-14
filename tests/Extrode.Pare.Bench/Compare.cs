@@ -57,44 +57,47 @@ internal static class Compare
         var report = new StringBuilder();
         var parser = new Parser(new ParserOptions { AllowReturnOutsideFunction = false });
         var rows = new List<string>();
+        // Pare output that does not parse is reported once; the per-tool counts leave those files out.
+        var pareInvalid = files.Where(f => !Parses(parser, File.ReadAllText(Path.Combine(outRoot, "pare", f.Relative + ".js"))))
+            .Select(f => f.Relative).ToHashSet();
         foreach (var r in results.Skip(1).Append(deno.Result))
         {
-            bool bytewise = r.Tool is "node-strip" or "ts-blank-space";
-            int same = 0, guards = 0, differ = 0, missing = 0;
-            foreach (var f in files)
+            // Strippers keep the source text; printers reprint literals and `{ a: a }` as `{ a }`.
+            bool reprints = r.Tool is not ("node-strip" or "ts-blank-space");
+            int bytes = 0, tree = 0, differ = 0, missing = 0;
+            foreach (var f in files.Where(f => !pareInvalid.Contains(f.Relative)))
             {
                 string pare = File.ReadAllText(Path.Combine(outRoot, "pare", f.Relative + ".js"));
-                string path = r.Tool == "deno" ? Path.Combine(outRoot, "deno", Path.ChangeExtension(f.Relative, ".js")) : Path.Combine(outRoot, r.Tool, f.Relative + ".js");
-                if (r.Tool == "deno" && f.Relative.StartsWith("typescript/checker.ambient", StringComparison.Ordinal))
-                    path = Path.Combine(outRoot, "deno", "checker.ambient.js");
+                string path = Path.Combine(outRoot, r.Tool, f.Relative + ".js");
                 if (!File.Exists(path))
                 {
                     missing++;
                     continue;
                 }
                 string other = File.ReadAllText(path);
-                if (bytewise && other != pare && OnlyAsiGuards(pare, other))
+                if (other == pare)
                 {
-                    guards++;
+                    bytes++;
                     continue;
                 }
-                string? why = bytewise ? (other == pare ? null : FirstDifference(pare, other, skipGuards: true)) : TreeDifference(parser, pare, other);
+                string? why = TreeDifference(parser, pare, other, reprints);
                 if (why is null)
-                    same++;
+                    tree++;
                 else
                 {
                     differ++;
                     report.AppendLine($"{r.Tool}\t{f.Relative}\t{why}");
                 }
             }
-            rows.Add($"| {r.Tool} {r.Version} | {(bytewise ? "bytes" : "tree")} | {same} | {(bytewise ? guards.ToString() : "-")} | {differ} | {missing} |");
+            rows.Add($"| {r.Tool} {r.Version} | {bytes} | {tree} | {differ} | {missing} |");
         }
         File.WriteAllText(Path.Combine(outRoot, "differences.tsv"), report.ToString());
 
         Console.WriteLine();
-        Console.WriteLine("Output against Pare's (files Pare strips):");
-        Console.WriteLine("| Tool | Compared as | Same | Same but Pare's ASI ; | Differ | Failed or skipped |");
-        Console.WriteLine("|---|---|---|---|---|---|");
+        Console.WriteLine($"Pare output that does not parse: {pareInvalid.Count} files{(pareInvalid.Count > 0 ? ": " : "")}{string.Join(", ", pareInvalid.Order())}");
+        Console.WriteLine($"Output against Pare's (the other {files.Count - pareInvalid.Count} files):");
+        Console.WriteLine("| Tool | Same bytes | Same tree | Differ | Failed or skipped |");
+        Console.WriteLine("|---|---|---|---|---|");
         rows.ForEach(Console.WriteLine);
 
         Console.WriteLine();
@@ -173,36 +176,49 @@ internal static class Compare
     private static (Result Result, double DenoMs, double PareCliMs) RunDeno(List<(string Path, string Relative, string Text)> files, string outRoot)
     {
         string version = RunProcess("deno", ["--version"], out _).Split(' ', 3) is [_, var v, ..] ? v : "";
-        // The corpus keeps its layout under .corpus/realworld; deno mirrors it from the common root.
-        var inputs = files.Where(f => !f.Relative.StartsWith("typescript/checker.ambient", StringComparison.Ordinal)).Select(f => f.Path)
-            .Append(files[^1].Path).ToList();
-        long t0 = Stopwatch.GetTimestamp();
-        string denoOutput = RunProcess("deno", ["bundle", "--no-config", "--no-lock", "--quiet", "--inline-imports=false", "--packages", "external",
-            "--platform", "browser", "--outdir", Path.Combine(outRoot, "deno-raw"), .. inputs], out int exit);
-        if (exit != 0)
-            File.WriteAllText(Path.Combine(outRoot, "deno-errors.txt"), denoOutput);
-        double denoMs = Stopwatch.GetElapsedTime(t0).TotalMilliseconds;
-        // Two roots (the corpus and tmp/compare) give deno a common root above both; flatten it.
-        string raw = Path.Combine(outRoot, "deno-raw");
+        // deno names a.ts, a.mts and a.cts all a.js, so each extension runs as its own bundle.
         string dest = Path.Combine(outRoot, "deno");
-        if (Directory.Exists(raw))
+        var errors = new StringBuilder();
+        double denoMs = 0;
+        int exit = 0;
+        foreach (var batch in files.GroupBy(f => Path.GetExtension(f.Path)))
         {
+            string raw = Path.Combine(outRoot, "deno-raw", batch.Key.TrimStart('.'));
+            long t0 = Stopwatch.GetTimestamp();
+            string output = RunProcess("deno", ["bundle", "--no-config", "--no-lock", "--quiet", "--inline-imports=false", "--packages", "external",
+                "--platform", "browser", "--outdir", raw, .. batch.Select(f => f.Path)], out int code);
+            denoMs += Stopwatch.GetElapsedTime(t0).TotalMilliseconds;
+            if (code != 0)
+            {
+                exit = code;
+                errors.Append(output);
+            }
+            if (!Directory.Exists(raw))
+                continue;
+            // deno mirrors the inputs' layout below their deepest common directory.
+            string common = Path.GetDirectoryName(batch.First().Path)!;
+            foreach (var f in batch)
+                while (!f.Path.StartsWith(common + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+                    common = Path.GetDirectoryName(common)!;
+            var relative = batch.ToDictionary(f => Path.GetRelativePath(common, f.Path), f => f.Relative);
             foreach (string file in Directory.EnumerateFiles(raw, "*.js", SearchOption.AllDirectories))
             {
-                string rel = Path.GetRelativePath(raw, file).Replace('\\', '/');
-                int at = rel.IndexOf(".corpus/realworld/", StringComparison.Ordinal);
-                string target = at >= 0 ? rel[(at + ".corpus/realworld/".Length)..] : Path.GetFileName(rel);
+                string rel = Path.GetRelativePath(raw, file);
+                if (!relative.TryGetValue(rel[..^3] + batch.Key, out var target))
+                    continue;
                 Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(dest, target))!);
-                File.Copy(file, Path.Combine(dest, target), overwrite: true);
+                File.Copy(file, Path.Combine(dest, target + ".js"), overwrite: true);
             }
         }
+        if (exit != 0)
+            File.WriteAllText(Path.Combine(outRoot, "deno-errors.txt"), errors.ToString());
 
         string pare = Path.Combine(Inputs.RepoRoot, "tmp", "aot", OperatingSystem.IsWindows() ? "pare.exe" : "pare");
         double pareMs = double.NaN;
         if (File.Exists(pare))
         {
-            t0 = Stopwatch.GetTimestamp();
-            RunProcess(pare, [.. inputs, "--outdir", Path.Combine(outRoot, "pare-cli")], out _);
+            long t0 = Stopwatch.GetTimestamp();
+            RunProcess(pare, [.. files.Select(f => f.Path), "--outdir", Path.Combine(outRoot, "pare-cli")], out _);
             pareMs = Stopwatch.GetElapsedTime(t0).TotalMilliseconds;
         }
         int ok = Directory.Exists(dest) ? Directory.EnumerateFiles(dest, "*.js", SearchOption.AllDirectories).Count() : 0;
@@ -220,24 +236,8 @@ internal static class Compare
         return stdout + stderr.Result;
     }
 
-    /// <summary>
-    /// Same length, and every difference is a <c>;</c> in Pare's output where the other has a space:
-    /// Pare's guard at the start of an erased statement (handoff 7.5), an empty statement.
-    /// </summary>
-    private static bool OnlyAsiGuards(string pare, string other)
-    {
-        if (pare.Length != other.Length)
-            return false;
-        for (int i = 0; i < pare.Length; i++)
-        {
-            if (pare[i] != other[i] && !(pare[i] == ';' && other[i] == ' '))
-                return false;
-        }
-        return true;
-    }
-
     /// <summary>Null when both parse to the same tree (as modules, else as scripts); otherwise why not.</summary>
-    private static string? TreeDifference(Parser parser, string pare, string other)
+    private static string? TreeDifference(Parser parser, string pare, string other, bool reprints)
     {
         var (a, b) = (TryParse(() => parser.ParseModule(pare)), TryParse(() => parser.ParseModule(other)));
         if (a is null || b is null)
@@ -246,9 +246,12 @@ internal static class Compare
             return "Pare output does not parse";
         if (b is null)
             return "tool output does not parse";
-        string x = AstDump.Dump(a, ignoreRaw: true), y = AstDump.Dump(b, ignoreRaw: true);
+        string x = AstDump.Dump(a, reprints), y = AstDump.Dump(b, reprints);
         return x == y ? null : FirstDifference(x, y);
     }
+
+    private static bool Parses(Parser parser, string js) =>
+        TryParse(() => parser.ParseModule(js)) is not null || TryParse(() => parser.ParseScript(js)) is not null;
 
     private static Node? TryParse(Func<Node> parse)
     {
@@ -262,10 +265,10 @@ internal static class Compare
         }
     }
 
-    private static string FirstDifference(string a, string b, bool skipGuards = false)
+    private static string FirstDifference(string a, string b)
     {
         int i = 0;
-        while (i < a.Length && i < b.Length && (a[i] == b[i] || (skipGuards && a[i] == ';' && b[i] == ' ')))
+        while (i < a.Length && i < b.Length && a[i] == b[i])
             i++;
         int from = Math.Max(0, i - 50);
         string Clip(string s) => s[from..Math.Min(s.Length, i + 50)].Replace('\n', '~').Replace('\t', ' ');
