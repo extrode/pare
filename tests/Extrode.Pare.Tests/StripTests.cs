@@ -49,6 +49,7 @@ public class StripTests
     [InlineData("namespace N { type X = 1 }", "                          ")]
     [InlineData("namespace N { declare namespace I { type T = 1 } }", "                                                  ")]
     [InlineData("namespace N { export declare interface I {} declare type T = 1 }", "                                                                ")]
+    [InlineData("declare namespace N { function f(); export async function g(): void; }", "                                                                      ")]
     [InlineData("import type { A } from \"x\";", "                           ")]
     [InlineData("import { type A, b } from \"x\";", "import {         b } from \"x\";")]
     [InlineData("class C { public a; private b; protected c; readonly d; override e; }",
@@ -91,6 +92,10 @@ public class StripTests
     [InlineData("namespace N { declare let x: number; }", DiagnosticCode.NamespaceWithValues, 0)]
     [InlineData("namespace N { declare namespace I { const x: number } }", DiagnosticCode.NamespaceWithValues, 0)]
     [InlineData("namespace N { export declare const enum E { A } }", DiagnosticCode.NamespaceWithValues, 0)]
+    [InlineData("namespace N { function f(); }", DiagnosticCode.NamespaceWithValues, 0)]
+    [InlineData("namespace N { export function f(): void; }", DiagnosticCode.NamespaceWithValues, 0)]
+    [InlineData("namespace N { export async function f(); }", DiagnosticCode.NamespaceWithValues, 0)]
+    [InlineData("namespace N { async function f(); }", DiagnosticCode.NamespaceWithValues, 0)]
     [InlineData("class C { constructor(private x) {} }", DiagnosticCode.ParameterProperty, 22)]
     [InlineData("import x = require(\"y\");", DiagnosticCode.ImportEquals, 0)]
     [InlineData("import x = N.y;", DiagnosticCode.ImportEquals, 0)]
