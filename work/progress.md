@@ -90,16 +90,24 @@ convention). Update at the end of every session.
   (`scripts/pack-local.sh` packs `0.1.0-dev.<unix time>`, so no stale NuGet cache). Checked by
   hand: `dotnet run` serves the page, the three modules and the htmx fragment; `counter.js` runs in
   Node (`0 clicks`, `1 click`, `2 clicks`); NativeAOT publish is 10 MB with no warnings, publishes
-  only `.js` under `wwwroot`, and `/js/app.ts` is 404. Not checked in a browser (no headless
-  browser here). Test `Sample_app_builds_from_the_packed_package` packs the package
-  (`--no-build`), copies the sample to a temp dir and builds it with a private package folder.
-  Tests: 322 unit, 2 conformance. M6 done-when met, apart from the browser check.
+  only `.js` under `wwwroot`, and `/js/app.ts` is 404. Test
+  `Sample_app_builds_and_serves_from_the_packed_package` packs the package (`--no-build`), copies
+  the sample to a temp dir, builds it with a private package folder, runs it and fetches `/` and
+  `/js/app.js` with Accept-Encoding.
+- **Sample blank page (2026-10-15):** in a browser the first sample showed nothing. Two causes:
+  `dotnet run` used port 5000, which macOS AirPlay Receiver also holds (now 5180 via
+  `Properties/launchSettings.json`); and `CreateSlimBuilder` skips `UseStaticWebAssets`, so an
+  unpublished run answered every Accept-Encoding request with 200 and an empty body (now called in
+  `Program.cs`). The earlier checks used `curl` without Accept-Encoding and missed it. Browser
+  check, headless Chromium from the Playwright cache driven over CDP by an ad-hoc script in `tmp/`
+  (not in the toolchain): Alpine counter `0 clicks`, `1 click`, `2 clicks`, htmx fragment swapped,
+  no console errors, under `dotnet run` (Development) and the NativeAOT publish. M6 done.
 
 ## Next
 
 Order from the 2026-10-15 fable consult:
 
-1. **Browser check of `samples/WebApp`** (Alpine click counter, htmx button): by hand.
+1. ~~Browser check of `samples/WebApp`~~: done 2026-10-15 (headless Chromium).
 2. **v0.1 release prep:** `LICENSE` + package metadata (license choice is the user's), tag 0.1.0.
 3. **M5 tsgo differential**, and `scripts/get-tsgo.cs` (PareTypeCheck assumes `tsgo` on PATH).
 4. **Dev loop:** check whether `dotnet watch` rebuilds on a `wwwroot/**/*.ts` edit; if not,
