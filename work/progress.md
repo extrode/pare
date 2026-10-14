@@ -83,12 +83,23 @@ convention). Update at the end of every session.
   not changed. `Reject`'s ambient check removed; the other mutation-redundant guards kept (reasons
   in `work/todo.md` under Dropped). Tests: 321 unit, 2 conformance.
 
+- **M6 sample (2026-10-15):** `samples/WebApp` (ASP.NET Core NativeAOT; Alpine 3.14.8 and htmx
+  2.0.4 from jsDelivr, pinned, htmx with SRI; typed modules `app.ts`, `counter.ts`, `format.ts`,
+  a minimal `alpine.d.ts`). It is outside `Pare.slnx` and stops the repo's `Directory.*.props`,
+  so it builds like a consumer: `PackageReference Extrode.Pare.Build 0.1.0-*` from `tmp/feed`
+  (`scripts/pack-local.sh` packs `0.1.0-dev.<unix time>`, so no stale NuGet cache). Checked by
+  hand: `dotnet run` serves the page, the three modules and the htmx fragment; `counter.js` runs in
+  Node (`0 clicks`, `1 click`, `2 clicks`); NativeAOT publish is 10 MB with no warnings, publishes
+  only `.js` under `wwwroot`, and `/js/app.ts` is 404. Not checked in a browser (no headless
+  browser here). Test `Sample_app_builds_from_the_packed_package` packs the package
+  (`--no-build`), copies the sample to a temp dir and builds it with a private package folder.
+  Tests: 322 unit, 2 conformance. M6 done-when met, apart from the browser check.
+
 ## Next
 
 Order from the 2026-10-15 fable consult:
 
-1. **T7 sample app** `samples/WebApp`, consuming the packed `.nupkg` from a local feed (a
-   `ProjectReference` would not prove the package).
+1. **Browser check of `samples/WebApp`** (Alpine click counter, htmx button): by hand.
 2. **v0.1 release prep:** `LICENSE` + package metadata (license choice is the user's), tag 0.1.0.
 3. **M5 tsgo differential**, and `scripts/get-tsgo.cs` (PareTypeCheck assumes `tsgo` on PATH).
 4. **Dev loop:** check whether `dotnet watch` rebuilds on a `wwwroot/**/*.ts` edit; if not,
