@@ -4,7 +4,8 @@ A TypeScript type stripper in C# for .NET 10, NativeAOT-compatible. It overwrite
 syntax with spaces, so the output is JavaScript with every remaining character at its original
 line and column. No source maps, no Node, no Bun, no Deno.
 
-Pare does not type check. Use `tsgo --noEmit` for that.
+Pare does not type check. Use TypeScript 7's native `tsc --noEmit` (formerly `tsgo`) for that;
+`dotnet run scripts/get-tsgo.cs` downloads it to `.tools/typescript/tsc` without npm.
 
 Status: the library, the `pare` CLI and the MSBuild package work; `samples/WebApp` uses the package.
 See [work/progress.md](work/progress.md).
@@ -56,7 +57,7 @@ in a browser; an explicit `<TypeScriptSource Include="x.cts" />` produces `x.cjs
 | `EnablePareDefaultItems` | `true` | `false` drops the default glob; add `<TypeScriptSource Include="..." />` yourself |
 | `PareOutDir` | empty | write under this directory, keeping relative paths |
 | `PareTypeCheck` | `false` | `true` runs `tsgo --noEmit -p $(PareTsconfig)` first |
-| `PareTsgoPath` | `tsgo` | |
+| `PareTsgoPath` | `tsgo` | e.g. `$(MSBuildThisFileDirectory).tools/typescript/tsc` |
 | `PareTsconfig` | `tsconfig.json` in the project | never copied to the build or publish output |
 | `PareKeepSources` | `false` | `true` serves and publishes the `.ts` sources next to the output |
 
