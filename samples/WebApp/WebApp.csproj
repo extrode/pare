@@ -12,7 +12,8 @@
     <PackageReference Include="Extrode.Pare.Build" Version="0.1.0-*" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
-    <!-- The Web SDK publishes root .json and .config files; these are build inputs only. -->
-    <Content Update="tsconfig.json;nuget.config" CopyToPublishDirectory="Never" />
+    <!-- The Web SDK publishes root .config files; this one is a restore input only. The package
+         keeps tsconfig.json out of the output itself. -->
+    <Content Update="nuget.config" CopyToPublishDirectory="Never" />
   </ItemGroup>
 </Project>

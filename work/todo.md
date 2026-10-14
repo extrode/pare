@@ -15,9 +15,6 @@ Small, clear, and could be picked up without a design decision.
 
 ## Later
 
-- The Web SDK publishes a project-root `tsconfig.json` (all root `.json` is `Content`). Every
-  consumer following handoff section 9 hits it; the package could mark `$(PareTsconfig)`
-  `CopyToPublishDirectory="Never"`. The sample does it by hand. (2026-10-15)
 - MSBuild in Visual Studio: untested; would need the .NET task host (`Runtime="NET"` on
   `UsingTask`, MSBuild 18) or a netstandard2.0 core.
 

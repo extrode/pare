@@ -16,6 +16,8 @@
   `Build`, outputs registered as static web assets, `PareOutDir`, optional `tsgo` type check.
 - MSBuild: `.ts` and `.d.ts` sources are no longer served or published; `PareKeepSources=true`
   keeps them.
+- MSBuild: `$(PareTsconfig)` is no longer copied to the build or publish output (the Web SDK
+  makes every `.json` Content).
 - `samples/WebApp`: NativeAOT web app with Alpine and htmx modules in TypeScript, built from the
   packed package (`scripts/pack-local.sh`). Runs on port 5180 in Development; calls
   `UseStaticWebAssets` so an unpublished run serves compressed assets. A Playwright test clicks

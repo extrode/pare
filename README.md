@@ -57,7 +57,7 @@ in a browser; an explicit `<TypeScriptSource Include="x.cts" />` produces `x.cjs
 | `PareOutDir` | empty | write under this directory, keeping relative paths |
 | `PareTypeCheck` | `false` | `true` runs `tsgo --noEmit -p $(PareTsconfig)` first |
 | `PareTsgoPath` | `tsgo` | |
-| `PareTsconfig` | `tsconfig.json` in the project | |
+| `PareTsconfig` | `tsconfig.json` in the project | never copied to the build or publish output |
 | `PareKeepSources` | `false` | `true` serves and publishes the `.ts` sources next to the output |
 
 ## Sample
@@ -71,8 +71,9 @@ dotnet run --project samples/WebApp   # http://localhost:5180, Development
 dotnet publish samples/WebApp -c Release -r osx-arm64 -o tmp/sample-aot
 ```
 
-Generated `.js` is gitignored next to its source (`samples/WebApp/.gitignore`). The Web SDK
-publishes root `tsconfig.json` and `nuget.config`; the sample marks them `CopyToPublishDirectory="Never"`.
+Generated `.js` is gitignored next to its source (`samples/WebApp/.gitignore`). The package
+keeps `$(PareTsconfig)` out of the build and publish output; the sample marks its `nuget.config`
+`CopyToPublishDirectory="Never"` by hand.
 The launch profile avoids port 5000, which macOS AirPlay Receiver also listens on.
 
 ## Library
