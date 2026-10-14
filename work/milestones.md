@@ -20,7 +20,7 @@ one of them at any given moment.
 | M3 | TS type grammar + all handoff section 5 erasures | 2026-10-14 | shipped | 0 syntax errors on 13,935 corpus files |
 | M4 | Section 6 rejections, section 7 traps, ASI fixes | | in progress | done except lexer escape validation |
 | M5 | Conformance + differential harness vs tsgo | | planned | >= 99% eligible corpus |
-| M6 | CLI files/globs, MSBuild task, sample app | | in progress | CLI done 2026-10-14 |
+| M6 | CLI files/globs, MSBuild task, sample app | | in progress | CLI and MSBuild done 2026-10-14; sample app left |
 | M7 | Performance pass + benchmarks | | planned | 0 B per Strip call |
 | M8 | Dev middleware, tsgo script polish | | planned | optional |
 
