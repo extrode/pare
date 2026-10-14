@@ -37,7 +37,7 @@ tick.
 
 M2 + M3 recognizer shipped 2026-10-14 (see `CHANGELOG.md`).
 
-- [ ] T1 `pare <files...> --outdir dir`: strip each `.ts`/`.mts`/`.cts` to `.js`/`.mjs`/`.cjs`, keep relative layout — done when: CLI tests write expected files
-- [ ] T2 Rewrite relative `./x.ts` import/export specifiers to `./x.js` — done when: unit tests for import, export, dynamic `import()` pass
-- [ ] T3 `--check-only`, diagnostics with file path, exit codes 0/1/2 — done when: CLI tests cover each exit code
-- [ ] T4 Globs (`src/**/*.ts`) without a package — done when: CLI test over a temp tree passes
+- [x] T1 `pare <files...> --outdir dir`: strip each `.ts`/`.mts`/`.cts` to `.js`/`.mjs`/`.cjs`, keep relative layout — done when: CLI tests write expected files
+- [x] T2 Rewrite relative `./x.ts` import/export specifiers to `./x.js` — done when: unit tests for import, export, dynamic `import()` pass
+- [x] T3 `--check-only`, diagnostics with file path, exit codes 0/1/2 — done when: CLI tests cover each exit code
+- [x] T4 Globs (`src/**/*.ts`) without a package — done when: CLI test over a temp tree passes

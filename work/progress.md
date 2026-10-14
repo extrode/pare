@@ -33,10 +33,17 @@ convention). Update at the end of every session.
   All section 6 rejections are reported in one pass. Unit tests: one per row of handoff
   sections 5, 6, 7 (`tests/Extrode.Pare.Tests/StripTests.cs`, 227 tests total).
 
+- **M6 CLI (2026-10-14):** `pare <files|dirs|globs...> [--outdir dir] [--check-only]`.
+  Output goes next to each source or is mirrored under `--outdir` from the inputs' common
+  directory. Every file is processed even after a rejection. Globs are matched by a small
+  hand-written matcher (`Glob.cs`), since no packages are allowed. The specifier rewrite lives in
+  the core as `StripOptions.RewriteRelativeImportExtensions`, so the MSBuild task can reuse it:
+  one same-length `Edit` with a `Replace` char per specifier. AOT binary: 1.2 MB, no trim
+  warnings.
+
 ## Next
 
-- **M6 CLI file mode:** `pare <files> --outdir`, `.ts` -> `.js`, relative `./x.ts` imports
-  rewritten to `./x.js`, exit codes 0/1/2. Then the MSBuild task and sample app.
+- **M6 rest:** MSBuild task `Extrode.Pare.Build` (in-process, incremental), sample app.
 - **M4 leftovers:** lexer escape and numeric-separator validation (`work/todo.md`).
 
 ## Open questions
