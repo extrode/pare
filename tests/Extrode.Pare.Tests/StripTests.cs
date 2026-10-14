@@ -234,4 +234,45 @@ public class StripTests
         Assert.Equal("class C { public; readonly = 1; declare() {} abstract   ; }",
             Strip("class C { public; readonly = 1; declare() {} abstract: T; }"));
     }
+
+    [Theory]
+    [InlineData("import a from \"./a.ts\";", "import a from \"./a.js\";")]
+    [InlineData("import \"../b.mts\";", "import \"../b.mjs\";")]
+    [InlineData("import { x } from './c.cts';", "import { x } from './c.cjs';")]
+    [InlineData("export * from \"./a.ts\";", "export * from \"./a.js\";")]
+    [InlineData("export { x } from \"./a.ts\" with { type: \"js\" };", "export { x } from \"./a.js\" with { type: \"js\" };")]
+    [InlineData("const m = import(\"./a.ts\");", "const m = import(\"./a.js\");")]
+    [InlineData("const m = import(\"./a.ts\", { with: {} });", "const m = import(\"./a.js\", { with: {} });")]
+    [InlineData("import type { T } from \"./t.ts\";", "                                ")]
+    [InlineData("export type { T } from \"./t.ts\";", "                                ")]
+    [InlineData("declare module \"m\" { export * from \"./a.ts\"; }", "                                              ")]
+    [InlineData("import { type T, x } from \"./t.ts\";", "import {         x } from \"./t.js\";")]
+    public void Rewrites_relative_ts_specifiers(string source, string expected) =>
+        Assert.Equal(expected, StripWith(source, StripOptions.RewriteRelativeImportExtensions));
+
+    [Theory]
+    [InlineData("import a from \"a.ts\";")]
+    [InlineData("import a from \"/abs/a.ts\";")]
+    [InlineData("import a from \"./a.d.ts\";")]
+    [InlineData("import a from \"./a.tsx\";")]
+    [InlineData("import a from \"./a.js\";")]
+    [InlineData("import a from \"./a\\u002ets\";")]
+    [InlineData("const m = import(\"./a.ts\" + x);")]
+    [InlineData("const s = \"./a.ts\";")]
+    public void Leaves_other_specifiers_alone(string source) =>
+        Assert.Equal(source, StripWith(source, StripOptions.RewriteRelativeImportExtensions));
+
+    [Fact]
+    public void Specifiers_are_kept_without_the_option()
+    {
+        Assert.Equal("import a from \"./a.ts\";", Strip("import a from \"./a.ts\";"));
+    }
+
+    private static string StripWith(string source, StripOptions options)
+    {
+        var output = new ArrayBufferWriter<char>();
+        var sink = new RecordingSink();
+        Assert.True(TypeStripper.Strip(source, output, sink, options));
+        return output.WrittenSpan.ToString();
+    }
 }

@@ -10,3 +10,5 @@
 - Type stripping: a TS-aware recognizer erases every handoff section 5 construct, rejects the
   section 6 ones with `PARE1xx` diagnostics, and applies the ASI fixes (`;`, `)` and `(` moves).
   Corpus: 0 syntax errors on 13,935 files, plain `.js` byte-identical.
+- `pare` CLI file mode: files, directories and globs, `--outdir`, `--check-only`; relative
+  `./x.ts` specifiers rewritten to `./x.js` (`StripOptions.RewriteRelativeImportExtensions`).

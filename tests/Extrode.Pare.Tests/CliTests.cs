@@ -39,10 +39,24 @@ public class CliTests
     }
 
     [Fact]
-    public void Unimplemented_file_mode_exits_2()
+    public void Stdin_mode_rewrites_relative_ts_imports()
     {
-        var (exit, _, stderr) = Run("", "a.ts");
+        var (exit, stdout, _) = Run("import a from \"./a.ts\";\n", "--stdin");
+        Assert.Equal(0, exit);
+        Assert.Equal("import a from \"./a.js\";\n", stdout);
+    }
+
+    [Theory]
+    [InlineData("--bogus")]
+    [InlineData("--outdir")]
+    [InlineData("a.ts", "--stdin")]
+    [InlineData("--check-only")]
+    [InlineData("a.ts", "--check-only", "--outdir", "out")]
+    public void Bad_arguments_exit_2(params string[] args)
+    {
+        var (exit, stdout, stderr) = Run("", args);
         Assert.Equal(2, exit);
-        Assert.Contains("--stdin", stderr);
+        Assert.Equal("", stdout);
+        Assert.StartsWith("pare: ", stderr);
     }
 }

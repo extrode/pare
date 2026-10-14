@@ -6,8 +6,7 @@ line and column. No source maps, no Node, no Bun, no Deno.
 
 Pare does not type check. Use `tsgo --noEmit` for that.
 
-Status: stripping works (`pare --stdin` and the library). File mode and the MSBuild task are
-next. See [work/progress.md](work/progress.md).
+Status: the library and the `pare` CLI work. The MSBuild task is next. See [work/progress.md](work/progress.md).
 
 ## Build
 
@@ -20,15 +19,21 @@ dotnet publish src/Extrode.Pare.Cli -c Release -r osx-arm64 -o tmp/aot   # Nativ
 ## CLI
 
 ```
+pare src                      # src/**/*.ts -> .js next to each source
+pare src --outdir dist        # mirror into dist/
+pare "src/**/*.ts" --check-only
 pare --stdin < in.ts > out.js
 ```
 
-Exit codes: 0 ok, 1 rejected syntax, 2 I/O or usage error.
+Inputs are files, directories (searched recursively) or globs (`*`, `?`, `**`, for shells that
+do not expand them). `.ts`, `.mts`, `.cts` become `.js`, `.mjs`, `.cjs`. `.d.ts` files and
+`node_modules` are skipped. Exit codes: 0 ok, 1 rejected syntax, 2 I/O or usage error.
 
 ## Library
 
 ```csharp
 bool ok = TypeStripper.Strip(source, output, diagnostics);
+bool ok = TypeStripper.Strip(source, output, diagnostics, StripOptions.RewriteRelativeImportExtensions);
 ```
 
 `source` is `ReadOnlySpan<char>`, `output` an `IBufferWriter<char>`, `diagnostics` an
@@ -38,7 +43,8 @@ bool ok = TypeStripper.Strip(source, output, diagnostics);
 
 The output differs from the input only by spaces, except for:
 
-- relative import specifiers `./x.ts` rewritten to `./x.js` (CLI and MSBuild only, planned)
+- relative module specifiers `./x.ts` rewritten to `./x.js` (`.mts`/`.cts` likewise) in
+  `import`, `export ... from` and `import("...")`: on in the CLI, opt-in in the library
 - ASI fixes: a `)` moved to the end of an erased multi-line return type, a `(` moved to the
   start of erased type parameters followed by a line break, and a `;` written at the start of
   an erased statement or class member when the previous line could otherwise merge with the next

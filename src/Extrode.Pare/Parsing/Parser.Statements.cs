@@ -579,6 +579,7 @@ internal ref partial struct Parser
         if (T == TokenKind.StringLiteral)
         {
             // import "m";
+            RewriteSpecifier(Start, End);
             Next();
             ParseImportAttributes();
             ParseSemicolon();
@@ -657,7 +658,7 @@ internal ref partial struct Parser
         if (typeOnly && hasDefault && hasBindings)
             Reject(DiagnosticCode.ImportTypeDefaultAndNamed, typeKeyword, typeKeyword + 4);
         ExpectKeyword(Keyword.From);
-        Expect(TokenKind.StringLiteral);
+        ExpectSpecifier();
         ParseImportAttributes();
         ParseSemicolon();
         if (typeOnly && _ok)
@@ -790,6 +791,13 @@ internal ref partial struct Parser
         return false;
     }
 
+    private void ExpectSpecifier()
+    {
+        if (T == TokenKind.StringLiteral)
+            RewriteSpecifier(Start, End);
+        Expect(TokenKind.StringLiteral);
+    }
+
     private void ParseModuleExportName()
     {
         if (T == TokenKind.StringLiteral)
@@ -907,7 +915,7 @@ internal ref partial struct Parser
                 ParseModuleExportName();
             }
             ExpectKeyword(Keyword.From);
-            Expect(TokenKind.StringLiteral);
+            ExpectSpecifier();
             ParseImportAttributes();
         }
         else
@@ -916,7 +924,7 @@ internal ref partial struct Parser
             if (K == Keyword.From)
             {
                 Next();
-                Expect(TokenKind.StringLiteral);
+                ExpectSpecifier();
                 ParseImportAttributes();
             }
         }

@@ -10,8 +10,15 @@ internal static class Program
     internal const int ExitUsage = 2;
 
     private const string Usage = """
-        usage: pare <files|globs...> [--outdir dir] [--check-only] [--stdin]
+        usage: pare <files|dirs|globs...> [--outdir dir] [--check-only]
+               pare --stdin
 
+          Strips .ts, .mts and .cts files to .js, .mjs and .cjs next to each source, or under
+          --outdir with the directory structure kept. Directories are searched recursively;
+          .d.ts files and node_modules are skipped. Relative './x.ts' imports become './x.js'.
+
+          --outdir dir  write output under dir, mirroring the inputs' common directory
+          --check-only  report diagnostics, write nothing
           --stdin       read TypeScript from stdin, write JavaScript to stdout
           --version     print the version
           --help        print this help
@@ -36,8 +43,46 @@ internal static class Program
         if (args is ["--stdin"])
             return StripStdin(stdin, stdout, stderr);
 
-        // File and glob mode lands in M6.
-        stderr.WriteLine("pare: only --stdin is implemented so far");
+        string? outDir = null;
+        bool checkOnly = false;
+        var inputs = new List<string>();
+        for (int i = 0; i < args.Length; i++)
+        {
+            string arg = args[i];
+            if (arg == "--outdir")
+            {
+                if (i + 1 == args.Length)
+                    return UsageError(stderr, "--outdir needs a directory");
+                outDir = args[++i];
+            }
+            else if (arg.StartsWith("--outdir=", StringComparison.Ordinal))
+            {
+                outDir = arg["--outdir=".Length..];
+            }
+            else if (arg == "--check-only")
+            {
+                checkOnly = true;
+            }
+            else if (arg.StartsWith('-') && arg.Length > 1)
+            {
+                return UsageError(stderr, arg == "--stdin" ? "--stdin takes no other arguments" : $"unknown option '{arg}'");
+            }
+            else
+            {
+                inputs.Add(arg);
+            }
+        }
+        if (inputs.Count == 0)
+            return UsageError(stderr, "no input files");
+        if (outDir is not null && checkOnly)
+            return UsageError(stderr, "--outdir and --check-only exclude each other");
+        return FileStripper.Run(inputs, outDir, checkOnly, stderr);
+    }
+
+    private static int UsageError(TextWriter stderr, string message)
+    {
+        stderr.WriteLine($"pare: {message}");
+        stderr.WriteLine("run 'pare --help' for usage");
         return ExitUsage;
     }
 
@@ -46,7 +91,7 @@ internal static class Program
         string source = stdin.ReadToEnd();
         var output = new ArrayBufferWriter<char>(source.Length);
         var sink = new ListSink();
-        if (!TypeStripper.Strip(source, output, sink))
+        if (!TypeStripper.Strip(source, output, sink, StripOptions.RewriteRelativeImportExtensions))
         {
             foreach (var d in sink.Items)
                 stderr.WriteLine(DiagnosticFormatter.Format("<stdin>", source, d));
@@ -56,7 +101,7 @@ internal static class Program
         return ExitOk;
     }
 
-    private sealed class ListSink : IDiagnosticSink
+    internal sealed class ListSink : IDiagnosticSink
     {
         public List<Diagnostic> Items { get; } = [];
         public void Report(in Diagnostic diagnostic) => Items.Add(diagnostic);

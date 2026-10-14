@@ -14,12 +14,18 @@ public static class TypeStripper
     /// Returns false when the source has a syntax error or non-erasable syntax; each problem goes
     /// to <paramref name="diagnostics"/> in source order. Output is written only when the result is true.
     /// </summary>
-    public static bool Strip(ReadOnlySpan<char> source, IBufferWriter<char> output, IDiagnosticSink diagnostics)
+    public static bool Strip(ReadOnlySpan<char> source, IBufferWriter<char> output, IDiagnosticSink diagnostics) =>
+        Strip(source, output, diagnostics, StripOptions.None);
+
+    /// <inheritdoc cref="Strip(ReadOnlySpan{char}, IBufferWriter{char}, IDiagnosticSink)"/>
+    /// <param name="options">Optional rewrites; see <see cref="StripOptions"/>.</param>
+    public static bool Strip(ReadOnlySpan<char> source, IBufferWriter<char> output, IDiagnosticSink diagnostics,
+        StripOptions options)
     {
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(diagnostics);
 
-        var parser = new Parser(source);
+        var parser = new Parser(source, (options & StripOptions.RewriteRelativeImportExtensions) != 0);
         try
         {
             parser.ParseModule();
