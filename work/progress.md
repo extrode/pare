@@ -103,11 +103,15 @@ convention). Update at the end of every session.
   (not in the toolchain): Alpine counter `0 clicks`, `1 click`, `2 clicks`, htmx fragment swapped,
   no console errors, under `dotnet run` (Development) and the NativeAOT publish. M6 done.
 - **Sample browser test (2026-10-15):** Microsoft.Playwright 1.63.0 (approved by the user) in
-  `Extrode.Pare.Tests`. `Sample_app_builds_serves_and_runs_in_a_browser` now also installs
+  `Extrode.Pare.Integration`. `Sample_app_builds_serves_and_runs_in_a_browser` now also installs
   chromium-headless-shell (first run downloads it to `~/Library/Caches/ms-playwright`), clicks the
   Alpine counter to `2 clicks`, clicks the htmx button, and fails on any console error. Needs
   network (jsDelivr). Break-checks: removing `Alpine.start()` and pointing `hx-get` at a missing
   route both fail it.
+- **Test split (2026-10-15):** the MSBuild/sample tests moved to `tests/Extrode.Pare.Integration`
+  (12 tests, ~35 s). `Extrode.Pare.Tests` is 312 tests in under 1 s. `dotnet test --solution`
+  runs all three projects. `$(PareTsconfig)` is now kept out of build and publish output
+  (`Tsconfig_is_not_published`, 2 rows); the sample no longer does it by hand.
 
 ## Next
 

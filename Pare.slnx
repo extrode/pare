@@ -6,6 +6,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Extrode.Pare.Conformance/Extrode.Pare.Conformance.csproj" />
+    <Project Path="tests/Extrode.Pare.Integration/Extrode.Pare.Integration.csproj" />
     <Project Path="tests/Extrode.Pare.Tests/Extrode.Pare.Tests.csproj" />
   </Folder>
 </Solution>

@@ -1,13 +1,14 @@
 using System.Diagnostics;
-using Extrode.Pare.Build;
 
-namespace Extrode.Pare.Tests.Build;
+namespace Extrode.Pare.Integration;
 
 /// <summary>Runs `dotnet build` on a throwaway project that imports the package's props and targets.</summary>
 public sealed class BuildIntegrationTests : IDisposable
 {
     private static readonly string RepoRoot = FindRepoRoot();
     private static readonly string BuildDir = Path.Combine(RepoRoot, "src", "Extrode.Pare.Build", "build");
+    // By path: loading the task type would need the MSBuild assemblies, which only the host ships.
+    private static readonly string TaskAssembly = Path.Combine(AppContext.BaseDirectory, "Extrode.Pare.Build.dll");
     private readonly DirectoryInfo _dir = Directory.CreateTempSubdirectory("pare-build-");
 
     public void Dispose() => _dir.Delete(recursive: true);
@@ -25,7 +26,7 @@ public sealed class BuildIntegrationTests : IDisposable
           <Import Project="{Path.Combine(BuildDir, "Extrode.Pare.Build.props")}" />
           <PropertyGroup>
             <TargetFramework>net10.0</TargetFramework>
-            <PareTaskAssembly>{typeof(StripTypeScript).Assembly.Location}</PareTaskAssembly>
+            <PareTaskAssembly>{TaskAssembly}</PareTaskAssembly>
             {properties}
           </PropertyGroup>
           <ItemGroup>{items}</ItemGroup>
