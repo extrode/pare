@@ -6,7 +6,8 @@ using Microsoft.Build.Utilities;
 namespace Extrode.Pare.Build;
 
 /// <summary>
-/// Strips each <see cref="Sources"/> item to the path in its <c>PareOutputPath</c> metadata,
+/// Strips each <see cref="Sources"/> item to the path in its <c>PareOutputPath</c> metadata
+/// (relative paths resolve against the project directory),
 /// rewriting relative <c>./x.ts</c> specifiers to <c>./x.js</c>. Rejections are logged as errors
 /// with file, line and column; every source is processed even after one fails.
 /// </summary>
@@ -16,6 +17,10 @@ public sealed class StripTypeScript : Microsoft.Build.Utilities.Task
 
     [Required]
     public ITaskItem[] Sources { get; set; } = [];
+
+    /// <summary>Base for relative <c>PareOutputPath</c> values: <c>$(MSBuildProjectDirectory)</c>.</summary>
+    [Required]
+    public string ProjectDirectory { get; set; } = "";
 
     /// <summary>The files written.</summary>
     [Output]
@@ -34,6 +39,7 @@ public sealed class StripTypeScript : Microsoft.Build.Utilities.Task
                 Log.LogError($"{item.ItemSpec}: missing PareOutputPath metadata");
                 continue;
             }
+            string targetPath = Path.GetFullPath(target, ProjectDirectory);
             string source;
             try
             {
@@ -60,8 +66,8 @@ public sealed class StripTypeScript : Microsoft.Build.Utilities.Task
 
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(target))!);
-                using var stream = new FileStream(target, FileMode.Create, FileAccess.Write);
+                Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
+                using var stream = new FileStream(targetPath, FileMode.Create, FileAccess.Write);
                 using var writer = new StreamWriter(stream, Utf8NoBom);
                 writer.Write(output.WrittenSpan);
             }

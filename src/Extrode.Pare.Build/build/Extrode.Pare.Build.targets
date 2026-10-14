@@ -18,8 +18,9 @@
     <ItemGroup>
       <_PareSource Include="@(TypeScriptSource)"
                    Condition="('%(Extension)' == '.ts' or '%(Extension)' == '.mts' or '%(Extension)' == '.cts') and !$([System.String]::Copy('%(Filename)').EndsWith('.d'))" />
+      <!-- Relative like the source item: static web assets match wwwroot/** against the item spec. -->
       <_PareSource Condition="'$(_PareOutRoot)' == ''">
-        <PareOutputPath>%(RootDir)%(Directory)%(Filename)$([System.String]::Copy('%(Extension)').Replace('ts', 'js'))</PareOutputPath>
+        <PareOutputPath>%(RelativeDir)%(Filename)$([System.String]::Copy('%(Extension)').Replace('ts', 'js'))</PareOutputPath>
       </_PareSource>
       <_PareSource Condition="'$(_PareOutRoot)' != ''">
         <PareOutputPath>$(_PareOutRoot)%(RelativeDir)%(Filename)$([System.String]::Copy('%(Extension)').Replace('ts', 'js'))</PareOutputPath>
@@ -37,7 +38,7 @@
           Condition="'@(TypeScriptSource)' != ''"
           Inputs="@(_PareSource);$(PareTaskAssembly);$(MSBuildThisFileFullPath)"
           Outputs="@(_PareSource->'%(PareOutputPath)')">
-    <StripTypeScript Sources="@(_PareSource)" />
+    <StripTypeScript Sources="@(_PareSource)" ProjectDirectory="$(MSBuildProjectDirectory)" />
   </Target>
 
   <!-- Runs even when the strip was skipped as up to date. Outputs join Content so static web

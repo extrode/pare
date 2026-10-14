@@ -20,15 +20,17 @@ public sealed class BuildIntegrationTests : IDisposable
         File.WriteAllText(P(relative), text);
     }
 
-    private void Project(string properties = "") => Put("app.csproj", $"""
-        <Project Sdk="Microsoft.NET.Sdk">
+    private void Project(string properties = "", string items = "", string sdk = "Microsoft.NET.Sdk", string targets = "") => Put("app.csproj", $"""
+        <Project Sdk="{sdk}">
           <Import Project="{Path.Combine(BuildDir, "Extrode.Pare.Build.props")}" />
           <PropertyGroup>
             <TargetFramework>net10.0</TargetFramework>
             <PareTaskAssembly>{typeof(StripTypeScript).Assembly.Location}</PareTaskAssembly>
             {properties}
           </PropertyGroup>
+          <ItemGroup>{items}</ItemGroup>
           <Import Project="{Path.Combine(BuildDir, "Extrode.Pare.Build.targets")}" />
+          {targets}
         </Project>
         """);
 
@@ -77,18 +79,24 @@ public sealed class BuildIntegrationTests : IDisposable
     }
 
     [Fact]
-    public void Outputs_join_content_once_on_the_first_build()
+    public void Outputs_become_static_web_assets_once_on_the_first_and_later_builds()
     {
-        Project();
+        // The Web SDK globs wwwroot into Content at evaluation: absent on the first build, present
+        // on the second, where a duplicate would be a second asset.
+        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", targets: """
+            <Target Name="Probe" AfterTargets="Build">
+              <Message Importance="high" Text="asset: %(StaticWebAsset.RelativePath)" Condition="'@(StaticWebAsset)' != ''" />
+            </Target>
+            """);
         Put("wwwroot/app.ts", "let a: T;");
 
-        var (exit, output) = Build("-t:Build", "-getItem:Content");
-        Assert.True(exit == 0, output);
-        Assert.Single(output.Split('\n'), line => line.Contains("app.js\"", StringComparison.Ordinal) && line.Contains("\"Identity\"", StringComparison.Ordinal));
-
-        (exit, output) = Build("-t:Build", "-getItem:Content");
-        Assert.True(exit == 0, output);
-        Assert.Single(output.Split('\n'), line => line.Contains("app.js\"", StringComparison.Ordinal) && line.Contains("\"Identity\"", StringComparison.Ordinal));
+        for (int build = 0; build < 2; build++)
+        {
+            var (exit, output) = Build();
+            Assert.True(exit == 0, output);
+            Assert.Single(output.Split('\n'), line => line.Contains("asset: app#[.{fingerprint}]?.js", StringComparison.Ordinal) &&
+                                                      !line.Contains(".js.gz", StringComparison.Ordinal));
+        }
     }
 
     [Fact]
@@ -138,6 +146,20 @@ public sealed class BuildIntegrationTests : IDisposable
         Put("exit-code.txt", "1");
         Assert.NotEqual(0, Build().Exit);
         Assert.False(File.Exists(P("wwwroot/app.js")));
+    }
+
+    [Fact]
+    public void Custom_items_skip_declaration_files()
+    {
+        Project("<EnablePareDefaultItems>false</EnablePareDefaultItems>", """<TypeScriptSource Include="src/**/*.ts" />""");
+        Put("src/a.ts", "let a: T;");
+        Put("src/b.d.ts", "declare let b: T;");
+
+        var (exit, output) = Build();
+
+        Assert.True(exit == 0, output);
+        Assert.Equal("let a   ;", File.ReadAllText(P("src/a.js")));
+        Assert.False(File.Exists(P("src/b.d.js")));
     }
 
     [Fact]

@@ -23,13 +23,13 @@ public sealed class StripTypeScriptTests : IDisposable
     }
 
     private bool Run(params ITaskItem[] sources) =>
-        new StripTypeScript { BuildEngine = _engine, Sources = sources }.Execute();
+        new StripTypeScript { BuildEngine = _engine, Sources = sources, ProjectDirectory = _dir.FullName }.Execute();
 
     [Fact]
     public void Writes_each_source_to_its_output_path()
     {
         var a = Source("a.ts", "import b from './b.ts';\nlet x: T = b;", "out/sub/a.js");
-        var task = new StripTypeScript { BuildEngine = _engine, Sources = [a] };
+        var task = new StripTypeScript { BuildEngine = _engine, Sources = [a], ProjectDirectory = _dir.FullName };
 
         Assert.True(task.Execute());
 
@@ -53,6 +53,16 @@ public sealed class StripTypeScriptTests : IDisposable
         Assert.Contains("use a 'const' object", _engine.Errors[0].Message);
         Assert.False(File.Exists(P("bad.js")));
         Assert.Equal("let b   ;", File.ReadAllText(P("good.js")));
+    }
+
+    [Fact]
+    public void Relative_output_paths_resolve_against_the_project_directory()
+    {
+        var a = Source("a.ts", "let a: T;", "unused.js");
+        a.SetMetadata("PareOutputPath", Path.Combine("wwwroot", "a.js"));
+
+        Assert.True(new StripTypeScript { BuildEngine = _engine, Sources = [a], ProjectDirectory = _dir.FullName }.Execute());
+        Assert.Equal("let a   ;", File.ReadAllText(P("wwwroot/a.js")));
     }
 
     [Fact]
