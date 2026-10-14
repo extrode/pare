@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: windows-latest
+            rid: win-x64
+          - os: macos-latest
+            rid: osx-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Build
+        run: dotnet build Pare.slnx -c Release
+      - name: Test
+        run: dotnet test --solution Pare.slnx -c Release --no-build
+      - name: NativeAOT publish
+        run: dotnet publish src/Extrode.Pare.Cli -c Release -r ${{ matrix.rid }} -o publish
+      - name: Smoke test AOT binary
+        shell: bash
+        run: |
+          out=$(printf 'let a = 1;\n' | ./publish/pare --stdin)
+          test "$out" = "let a = 1;"
