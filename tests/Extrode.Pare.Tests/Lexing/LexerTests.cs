@@ -207,6 +207,13 @@ public class LexerTests
     }
 
     [Fact]
+    public void Template_continuation_starts_right_after_the_brace()
+    {
+        Assert.Equal(["`${", "a", "}${", "b", "}`"], Tokenizer.Texts("`${a}${b}`"));
+        Assert.Equal(TokenFlags.None, Tokenizer.All("`${a}`")[2].Flags);
+    }
+
+    [Fact]
     public void Nested_templates_and_braces_inside_substitutions()
     {
         Assert.Equal(

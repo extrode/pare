@@ -56,6 +56,55 @@ public sealed class FileModeTests : IDisposable
     }
 
     [Fact]
+    public void Outdir_base_is_the_deepest_directory_shared_by_all_inputs()
+    {
+        Put("src/a/x.ts", "x;");
+        Put("src/b/y.ts", "y;");
+
+        var (exit, _) = Run(P("src/a/x.ts"), P("src/b/y.ts"), "--outdir", P("out"));
+
+        Assert.Equal(0, exit);
+        Assert.True(File.Exists(P("out/a/x.js")));
+        Assert.True(File.Exists(P("out/b/y.js")));
+    }
+
+    [Fact]
+    public void Output_is_utf8_without_a_byte_order_mark()
+    {
+        Put("a.ts", "let \u00e9: T = '\u00e9';");
+
+        Assert.Equal(0, Run(P("a.ts")).Exit);
+
+        Assert.Equal("let \u00e9    = '\u00e9';"u8.ToArray(), File.ReadAllBytes(P("a.js")));
+    }
+
+    [Fact]
+    public void Declaration_file_arguments_are_skipped()
+    {
+        Put("a.ts", "a;");
+        Put("t.d.ts", "declare let t: T;");
+
+        var (exit, err) = Run(P("a.ts"), P("t.d.ts"));
+
+        Assert.Equal(0, exit);
+        Assert.Equal("", err);
+        Assert.True(File.Exists(P("a.js")));
+        Assert.False(File.Exists(P("t.d.js")));
+    }
+
+    [Fact]
+    public void Unusable_input_stops_before_anything_is_written()
+    {
+        Put("a.ts", "a;");
+
+        var (exit, err) = Run(P("a.ts"), P("missing.ts"));
+
+        Assert.Equal(2, exit);
+        Assert.Contains("no such file", err);
+        Assert.False(File.Exists(P("a.js")));
+    }
+
+    [Fact]
     public void Directory_input_recurses_and_skips_declarations_and_node_modules()
     {
         Put("src/a.ts", "a;");

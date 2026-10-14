@@ -61,11 +61,13 @@ public sealed class BuildIntegrationTests : IDisposable
         Put("wwwroot/js/app.ts", "import { f } from './lib.ts';\nlet n: number = f();\n");
         Put("wwwroot/js/lib.ts", "export function f(): number { return 1; }\n");
         Put("wwwroot/js/types.d.ts", "declare let t: T;\n");
+        Put("wwwroot/js/m.mts", "export let m: T;\n");
 
         var (exit, output) = Build();
         Assert.True(exit == 0, output);
         Assert.Equal("import { f } from './lib.js';\nlet n         = f();\n", File.ReadAllText(P("wwwroot/js/app.js")));
         Assert.Equal("export function f()         { return 1; }\n", File.ReadAllText(P("wwwroot/js/lib.js")));
+        Assert.Equal("export let m   ;\n", File.ReadAllText(P("wwwroot/js/m.mjs")));
         Assert.False(File.Exists(P("wwwroot/js/types.d.js")));
 
         var stamp = File.GetLastWriteTimeUtc(P("wwwroot/js/app.js"));

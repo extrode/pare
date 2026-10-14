@@ -266,12 +266,6 @@ internal ref partial struct Parser
     }
 
     /// <summary>
-    /// Erases a whole statement or class member that starts at the current token's position
-    /// <paramref name="start"/>, whose previous token ended at <paramref name="prevEnd"/>. Writes
-    /// <c>;</c> first unless the previous token was <c>;</c> or <c>{</c>, so the lines around it
-    /// cannot merge (handoff section 7.5).
-    /// </summary>
-    /// <summary>
     /// At a string literal used as a module specifier: records the <c>.ts</c>, <c>.mts</c> or
     /// <c>.cts</c> to <c>.js</c>, <c>.mjs</c> or <c>.cjs</c> rewrite when it is relative and not a
     /// declaration file. Same length, so positions hold. TypeScript: rewriteRelativeImportExtensions.
@@ -291,6 +285,12 @@ internal ref partial struct Parser
         _edits.Add(new Edit(end - 3, end - 2, Replace: 'j'));
     }
 
+    /// <summary>
+    /// Erases a whole statement or class member that starts at the current token's position
+    /// <paramref name="start"/>, whose previous token ended at <paramref name="prevEnd"/>. Writes
+    /// <c>;</c> first unless the previous token was <c>;</c> or <c>{</c>, so the lines around it
+    /// cannot merge (handoff section 7.5).
+    /// </summary>
     private void EraseStatement(int start, int end, int prevEnd)
     {
         if (end <= start)
