@@ -1,0 +1,146 @@
+using Extrode.Pare.Cli;
+
+namespace Extrode.Pare.Tests;
+
+public sealed class FileModeTests : IDisposable
+{
+    private readonly DirectoryInfo _dir = Directory.CreateTempSubdirectory("pare-cli-");
+
+    public void Dispose() => _dir.Delete(recursive: true);
+
+    private string P(string relative) => Path.Combine(_dir.FullName, relative);
+
+    private void Put(string relative, string text)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(P(relative))!);
+        File.WriteAllText(P(relative), text);
+    }
+
+    private static (int Exit, string Err) Run(params string[] args)
+    {
+        var o = new StringWriter();
+        var e = new StringWriter();
+        int exit = Program.Run(args, new StringReader(""), o, e);
+        Assert.Equal("", o.ToString());
+        return (exit, e.ToString());
+    }
+
+    [Fact]
+    public void Writes_js_next_to_each_source()
+    {
+        Put("a.ts", "import b from './b.mts';\nlet x: number = b;\n");
+        Put("b.mts", "export default 1 as number;\n");
+        Put("c.cts", "let c!: string;\n");
+
+        var (exit, err) = Run(P("a.ts"), P("b.mts"), P("c.cts"));
+
+        Assert.Equal(0, exit);
+        Assert.Equal("", err);
+        Assert.Equal("import b from './b.mjs';\nlet x         = b;\n", File.ReadAllText(P("a.js")));
+        Assert.Equal("export default 1          ;\n", File.ReadAllText(P("b.mjs")));
+        Assert.Equal("let c         ;\n", File.ReadAllText(P("c.cjs")));
+    }
+
+    [Fact]
+    public void Outdir_mirrors_the_common_directory()
+    {
+        Put("src/a.ts", "let a: T;");
+        Put("src/lib/b.ts", "let b: T;");
+
+        var (exit, _) = Run(P("src/a.ts"), P("src/lib/b.ts"), "--outdir", P("out"));
+
+        Assert.Equal(0, exit);
+        Assert.Equal("let a   ;", File.ReadAllText(P("out/a.js")));
+        Assert.Equal("let b   ;", File.ReadAllText(P("out/lib/b.js")));
+        Assert.False(File.Exists(P("src/a.js")));
+    }
+
+    [Fact]
+    public void Directory_input_recurses_and_skips_declarations_and_node_modules()
+    {
+        Put("src/a.ts", "a;");
+        Put("src/deep/b.ts", "b;");
+        Put("src/types.d.ts", "declare let t: T;");
+        Put("src/node_modules/m/index.ts", "m;");
+        Put("src/c.js", "c;");
+
+        var (exit, _) = Run(P("src"), "--outdir=" + P("out"));
+
+        Assert.Equal(0, exit);
+        Assert.Equal(["a.js", "deep/b.js"],
+            Directory.GetFiles(P("out"), "*", SearchOption.AllDirectories)
+                .Select(f => Path.GetRelativePath(P("out"), f).Replace('\\', '/')).Order());
+    }
+
+    [Fact]
+    public void Glob_input_selects_matching_sources()
+    {
+        Put("src/a.ts", "a;");
+        Put("src/x/b.ts", "b;");
+        Put("src/x/c.mts", "c;");
+
+        var (exit, _) = Run(P("src") + "/**/*.ts");
+
+        Assert.Equal(0, exit);
+        Assert.True(File.Exists(P("src/a.js")));
+        Assert.True(File.Exists(P("src/x/b.js")));
+        Assert.False(File.Exists(P("src/x/c.mjs")));
+    }
+
+    [Fact]
+    public void Rejected_file_reports_with_its_path_and_exits_1_while_others_are_written()
+    {
+        Put("bad.ts", "let a = 1;\nenum E { A }\n");
+        Put("good.ts", "let b: T;");
+
+        var (exit, err) = Run(P("bad.ts"), P("good.ts"));
+
+        Assert.Equal(1, exit);
+        Assert.Contains("bad.ts:2:1: error PARE100: ", err);
+        Assert.False(File.Exists(P("bad.js")));
+        Assert.Equal("let b   ;", File.ReadAllText(P("good.js")));
+    }
+
+    [Fact]
+    public void Check_only_writes_nothing()
+    {
+        Put("a.ts", "let a: T;");
+
+        var (exit, err) = Run(P("a.ts"), "--check-only");
+
+        Assert.Equal(0, exit);
+        Assert.Equal("", err);
+        Assert.False(File.Exists(P("a.js")));
+    }
+
+    [Fact]
+    public void Syntax_error_exits_1()
+    {
+        Put("a.ts", "let = ;");
+        var (exit, err) = Run(P("a.ts"), "--check-only");
+        Assert.Equal(1, exit);
+        Assert.Contains("error PARE001", err);
+    }
+
+    [Theory]
+    [InlineData("missing.ts", "no such file")]
+    [InlineData("view.tsx", "not a .ts")]
+    [InlineData("none/**/*.ts", "no .ts")]
+    public void Unusable_inputs_exit_2(string input, string message)
+    {
+        Put("view.tsx", "<div/>;");
+        var (exit, err) = Run(P(input));
+        Assert.Equal(2, exit);
+        Assert.Contains(message, err);
+    }
+
+    [Fact]
+    public void Unwritable_output_exits_2()
+    {
+        Put("a.ts", "a;");
+        Directory.CreateDirectory(P("a.js"));
+        var (exit, err) = Run(P("a.ts"));
+        Assert.Equal(2, exit);
+        Assert.Contains("a.ts: ", err);
+    }
+}
