@@ -15,6 +15,10 @@ Small, clear, and could be picked up without a design decision.
 
 ## Later
 
+- CLI and MSBuild task overwrite a hand-written `foo.js` next to `foo.ts` without warning.
+  Decide whether to warn, refuse, or document it. (Fable review, 2026-10-15.)
+- Pathological nesting is quadratic after a failed speculation: `(a = (a = ...` 5000 deep takes
+  6.7 s, `a<a<a<...` 3000 deep 1.9 s. TypeScript's parser has the same shape. Revisit in M7.
 - Redundant guards found by the mutation sweep (removing each changes no behavior): `Reject`'s
   `if (!_ambient)` in `Parser.cs` (`ParseDeclare` drops the diagnostics with `DropSince`); the
   `.d.ts` Exclude in `Extrode.Pare.Build.props` (`_PareComputeOutputs` filters `.d` already);

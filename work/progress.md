@@ -65,6 +65,15 @@ convention). Update at the end of every session.
   mode outdir base, BOM, `.d.ts` arguments, all-or-nothing input check, glob rows, `.mts` in the
   MSBuild build). Harness: `tmp/mutate/` (gitignored, not kept). Tests: 305 unit, 2 conformance.
 
+- **Fable review (2026-10-15):** independent review of all of `dev`. Three defects, all fixed
+  with tests and break-checked: (1) `y as T` followed by a line starting `(`, `[` or a template
+  was blanked to `y`, which JS reads as a call, index or tagged template; the erase now ends in
+  `;` there (TypeScript ends the type at the line break, `parsePostfixTypeOrHigher`). (2) `pare`
+  crashed with exit 134 on an unreadable directory; it now reports it and exits 2. (3) A
+  non-ambient namespace holding only `declare` values (`namespace N { declare let x: T }`) was
+  erased; TypeScript instantiates it (`getModuleInstanceStateWorker` ignores `declare`), Node
+  rejects it, Pare now reports PARE101. Tests: 319 unit, 2 conformance.
+
 ## Next
 
 - **M6 rest:** sample app `samples/WebApp` using the package.
