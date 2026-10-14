@@ -6,7 +6,8 @@ line and column. No source maps, no Node, no Bun, no Deno.
 
 Pare does not type check. Use `tsgo --noEmit` for that.
 
-Status: the library, the `pare` CLI and the MSBuild package work. A sample app is next. See [work/progress.md](work/progress.md).
+Status: the library, the `pare` CLI and the MSBuild package work; `samples/WebApp` uses the package.
+See [work/progress.md](work/progress.md).
 
 ## Build
 
@@ -44,8 +45,9 @@ the output becomes a static web asset from the first build on. Rejections fail t
 `file(line,col): error PARE100: ...`. Runs under `dotnet build` (CLI, CI, Rider, VS Code), not
 inside Visual Studio's .NET Framework MSBuild.
 
-The `.ts` and `.d.ts` files are removed from `Content`, so they are neither served nor published;
-`PareKeepSources=true` keeps them. An existing `foo.js` next to `foo.ts` is replaced on the next
+The `.ts` and `.d.ts` files are removed from `Content`, so they are not static web assets and are
+not published; `PareKeepSources=true` keeps them. (In Development, `MapStaticAssets` still serves
+any file on disk, with a warning; `UseStaticFiles` serves everything under `wwwroot`.) An existing `foo.js` next to `foo.ts` is replaced on the next
 build that strips `foo.ts`. `.cts` sources are not in the default glob, since CommonJS does not run
 in a browser; an explicit `<TypeScriptSource Include="x.cts" />` produces `x.cjs`.
 
@@ -57,6 +59,20 @@ in a browser; an explicit `<TypeScriptSource Include="x.cts" />` produces `x.cjs
 | `PareTsgoPath` | `tsgo` | |
 | `PareTsconfig` | `tsconfig.json` in the project | |
 | `PareKeepSources` | `false` | `true` serves and publishes the `.ts` sources next to the output |
+
+## Sample
+
+`samples/WebApp`: ASP.NET Core NativeAOT, an Alpine component and modules written in TypeScript,
+an htmx call to a minimal API. It references the package from a local feed, as a consumer would:
+
+```sh
+scripts/pack-local.sh               # pack into tmp/feed as 0.1.0-dev.<time>, re-restore the sample
+dotnet run --project samples/WebApp
+dotnet publish samples/WebApp -c Release -r osx-arm64 -o tmp/sample-aot
+```
+
+Generated `.js` is gitignored next to its source (`samples/WebApp/.gitignore`). The Web SDK
+publishes root `tsconfig.json` and `nuget.config`; the sample marks them `CopyToPublishDirectory="Never"`.
 
 ## Library
 
