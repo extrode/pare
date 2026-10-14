@@ -16,11 +16,11 @@ one of them at any given moment.
 |---|-----------|--------|--------|-------|
 | M0 | Repo, solution, CI, API sketch, UTF-16 decision | 2026-10-14 | shipped | CI not run yet (no remote) |
 | M1 | Lexer: JS + TS tokens, templates, regex detection, contextual keywords | 2026-10-14 | shipped | 17,582 corpus files, 0 unexpected |
-| M2 | Recognizer for JS statements and expressions | | next | plain JS byte-identical |
-| M3 | TS type grammar + all handoff section 5 erasures | | planned | |
-| M4 | Section 6 rejections, section 7 traps, ASI fixes | | planned | |
+| M2 | Recognizer for JS statements and expressions | 2026-10-14 | shipped | 1,048 corpus .js files byte-identical |
+| M3 | TS type grammar + all handoff section 5 erasures | 2026-10-14 | shipped | 0 syntax errors on 13,935 corpus files |
+| M4 | Section 6 rejections, section 7 traps, ASI fixes | | in progress | done except lexer escape validation |
 | M5 | Conformance + differential harness vs tsgo | | planned | >= 99% eligible corpus |
-| M6 | CLI files/globs, MSBuild task, sample app | | planned | |
+| M6 | CLI files/globs, MSBuild task, sample app | | next | |
 | M7 | Performance pass + benchmarks | | planned | 0 B per Strip call |
 | M8 | Dev middleware, tsgo script polish | | planned | optional |
 

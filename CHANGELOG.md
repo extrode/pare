@@ -7,3 +7,6 @@
 - Lexer for all JS and TS tokens: templates, regex and `>` rescans, contextual keywords,
   Unicode identifiers. `scripts/get-ts-corpus.cs` fetches the TypeScript corpus at a pinned
   commit; the lexer round-trips all 17,582 script files in it.
+- Type stripping: a TS-aware recognizer erases every handoff section 5 construct, rejects the
+  section 6 ones with `PARE1xx` diagnostics, and applies the ASI fixes (`;`, `)` and `(` moves).
+  Corpus: 0 syntax errors on 13,935 files, plain `.js` byte-identical.

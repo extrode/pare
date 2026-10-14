@@ -6,8 +6,8 @@ line and column. No source maps, no Node, no Bun, no Deno.
 
 Pare does not type check. Use `tsgo --noEmit` for that.
 
-Status: M0 (scaffold). The stripper passes input through unchanged until the recognizer lands.
-See [work/progress.md](work/progress.md).
+Status: stripping works (`pare --stdin` and the library). File mode and the MSBuild task are
+next. See [work/progress.md](work/progress.md).
 
 ## Build
 
@@ -36,8 +36,9 @@ bool ok = TypeStripper.Strip(source, output, diagnostics);
 
 ## Non-whitespace changes
 
-The output differs from the input only by spaces, except for (once implemented):
+The output differs from the input only by spaces, except for:
 
-- relative import specifiers `./x.ts` rewritten to `./x.js` (CLI and MSBuild only)
-- ASI fixes: a `)` moved to the end of an erased return type, and a `;` written at the start
-  of an erased statement when the previous line could otherwise merge with the next
+- relative import specifiers `./x.ts` rewritten to `./x.js` (CLI and MSBuild only, planned)
+- ASI fixes: a `)` moved to the end of an erased multi-line return type, a `(` moved to the
+  start of erased type parameters followed by a line break, and a `;` written at the start of
+  an erased statement or class member when the previous line could otherwise merge with the next
