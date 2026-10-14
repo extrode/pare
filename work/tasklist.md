@@ -33,10 +33,11 @@ tick.
   duplicating it — two copies of a task list is one stale copy.
 - `milestones.md` is where the project is going. A tasklist is how one milestone gets done.
 
-## Current work: M1 lexer
+## Current work: M6 CLI file mode
 
-- [x] T1 Token kinds + lexer struct (save/rewind), punctuators, identifiers, keywords — done when: unit tests per token class pass
-- [x] T2 Numeric, string, template (brace-depth stack) literals, comments — done when: unit tests incl. nested `${}` pass
-- [x] T3 Regex vs division by previous significant token — done when: unit tests for ambiguous cases pass
-- [x] T4 `scripts/get-ts-corpus.cs` sparse clone at a pinned commit — done when: `.corpus/` populated by `dotnet run`
-- [x] T5 Corpus round-trip test — done when: lexer tokenizes every corpus file without error, token spans cover the file
+M2 + M3 recognizer shipped 2026-10-14 (see `CHANGELOG.md`).
+
+- [ ] T1 `pare <files...> --outdir dir`: strip each `.ts`/`.mts`/`.cts` to `.js`/`.mjs`/`.cjs`, keep relative layout — done when: CLI tests write expected files
+- [ ] T2 Rewrite relative `./x.ts` import/export specifiers to `./x.js` — done when: unit tests for import, export, dynamic `import()` pass
+- [ ] T3 `--check-only`, diagnostics with file path, exit codes 0/1/2 — done when: CLI tests cover each exit code
+- [ ] T4 Globs (`src/**/*.ts`) without a package — done when: CLI test over a temp tree passes

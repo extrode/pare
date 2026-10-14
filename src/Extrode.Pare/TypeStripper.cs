@@ -1,4 +1,5 @@
 using System.Buffers;
+using Extrode.Pare.Parsing;
 
 namespace Extrode.Pare;
 
@@ -10,16 +11,44 @@ public static class TypeStripper
 {
     /// <summary>
     /// Writes the stripped form of <paramref name="source"/> to <paramref name="output"/>.
-    /// Returns false when non-erasable syntax was found; each occurrence goes to
-    /// <paramref name="diagnostics"/>. Output is written only when the result is true.
+    /// Returns false when the source has a syntax error or non-erasable syntax; each problem goes
+    /// to <paramref name="diagnostics"/> in source order. Output is written only when the result is true.
     /// </summary>
     public static bool Strip(ReadOnlySpan<char> source, IBufferWriter<char> output, IDiagnosticSink diagnostics)
     {
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(diagnostics);
 
-        // M0: no recognizer yet, so input passes through unchanged.
-        output.Write(source);
-        return true;
+        var parser = new Parser(source);
+        try
+        {
+            parser.ParseModule();
+            var rejected = parser.Diagnostics;
+            if (!parser.Ok || rejected.Length > 0)
+            {
+                bool syntaxReported = parser.Ok;
+                foreach (var d in rejected)
+                {
+                    if (!syntaxReported && parser.ErrorStart < d.Start)
+                    {
+                        diagnostics.Report(new Diagnostic(DiagnosticCode.SyntaxError, parser.ErrorStart, parser.ErrorLength));
+                        syntaxReported = true;
+                    }
+                    diagnostics.Report(d);
+                }
+                if (!syntaxReported)
+                    diagnostics.Report(new Diagnostic(DiagnosticCode.SyntaxError, parser.ErrorStart, parser.ErrorLength));
+                return false;
+            }
+
+            var dest = output.GetSpan(source.Length);
+            EditWriter.Write(source, parser.MutableEdits, dest);
+            output.Advance(source.Length);
+            return true;
+        }
+        finally
+        {
+            parser.Dispose();
+        }
     }
 }

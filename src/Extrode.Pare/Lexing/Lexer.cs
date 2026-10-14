@@ -299,6 +299,20 @@ internal ref struct Lexer
         else if (At(p) == '=') { _s.Kind = TokenKind.GreaterThanEquals; _s.Pos = p + 1; }
     }
 
+    /// <summary>
+    /// The current token starts with <c>&lt;</c> where a type argument or parameter list opens:
+    /// shrink it to a lone <c>&lt;</c>, so <c>f&lt;&lt;T&gt;() =&gt; T&gt;()</c> opens twice.
+    /// TypeScript: <c>reScanLessThanToken</c>.
+    /// </summary>
+    public void ReScanLessThan()
+    {
+        if (_s.Kind is TokenKind.LessThanLessThan or TokenKind.LessThanLessThanEquals or TokenKind.LessThanEquals)
+        {
+            _s.Kind = TokenKind.LessThan;
+            _s.Pos = _s.Start + 1;
+        }
+    }
+
     private void SkipTrivia()
     {
         while (_s.Pos < _src.Length)
