@@ -34,7 +34,10 @@ public sealed class BuildIntegrationTests : IDisposable
         </Project>
         """);
 
-    private (int Exit, string Output) Build(params string[] extra)
+    private (int Exit, string Output) Build(params string[] extra) =>
+        Run(["build", "-nologo", "-nodeReuse:false", "--disable-build-servers", "-clp:NoSummary", .. extra]);
+
+    private (int Exit, string Output) Run(params string[] args)
     {
         var start = new ProcessStartInfo("dotnet")
         {
@@ -42,7 +45,7 @@ public sealed class BuildIntegrationTests : IDisposable
             RedirectStandardOutput = true,
             RedirectStandardError = true,
         };
-        foreach (var arg in (string[])["build", "-nologo", "-nodeReuse:false", "--disable-build-servers", "-clp:NoSummary", .. extra])
+        foreach (var arg in args)
             start.ArgumentList.Add(arg);
         // A test host started by `dotnet test` carries MSBuild variables meant for itself.
         foreach (var key in start.Environment.Keys.Where(k => k.StartsWith("MSBuild", StringComparison.OrdinalIgnoreCase)).ToList())
@@ -198,6 +201,45 @@ public sealed class BuildIntegrationTests : IDisposable
 
         Assert.True(exit == 0, output);
         Assert.False(File.Exists(P("wwwroot/app.js")));
+    }
+
+    [Fact]
+    public void Sample_app_builds_from_the_packed_package()
+    {
+        string sample = Path.Combine(RepoRoot, "samples", "WebApp");
+        foreach (var file in Directory.EnumerateFiles(sample, "*", SearchOption.AllDirectories))
+        {
+            string relative = Path.GetRelativePath(sample, file);
+            if (relative.Split(Path.DirectorySeparatorChar)[0] is "bin" or "obj" || relative == "nuget.config" ||
+                Path.GetExtension(file) is ".js" or ".mjs")
+                continue;
+            Put(Path.Combine("app", relative), File.ReadAllText(file));
+        }
+        Put("app/nuget.config", $"""
+            <configuration>
+              <packageSources>
+                <clear />
+                <add key="feed" value="{P("feed")}" />
+              </packageSources>
+            </configuration>
+            """);
+#if DEBUG
+        const string configuration = "Debug";
+#else
+        const string configuration = "Release";
+#endif
+        var (exit, output) = Run("pack", Path.Combine(RepoRoot, "src", "Extrode.Pare.Build"), "-nologo", "-nodeReuse:false", "--no-build", "-c", configuration,
+            "-o", P("feed"), "-p:Version=0.1.0-test.1");
+        Assert.True(exit == 0, output);
+
+        // PublishAot would restore the ILCompiler package, which the private package folder lacks.
+        (exit, output) = Run("build", P("app"), "-nologo", "-nodeReuse:false", "--disable-build-servers", "-p:PublishAot=false", $"-p:RestorePackagesPath={P("packages")}");
+
+        Assert.True(exit == 0, output);
+        Assert.Equal("import { plural,             } from \"./format.js\";", File.ReadLines(P("app/wwwroot/js/counter.js")).First());
+        Assert.Contains("import { counter } from \"./counter.js\";", File.ReadAllText(P("app/wwwroot/js/app.js")));
+        Assert.StartsWith("export function plural(n        , forms        )         {", File.ReadAllLines(P("app/wwwroot/js/format.js"))[2]);
+        Assert.False(File.Exists(P("app/wwwroot/js/alpine.d.js")));
     }
 
     private static string FindRepoRoot()
