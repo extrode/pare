@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Diagnostics;
-using System.Reflection;
 using System.Text;
 using Acornima;
 using Acornima.Ast;
@@ -126,7 +125,7 @@ public class DifferentialTests(ITestOutputHelper output)
                     different.Add($"{where}: tsc output does not parse as a {mode}");
                     continue;
                 }
-                string a = Dump(pareTree), b = Dump(tscTree);
+                string a = AstDump.Dump(pareTree), b = AstDump.Dump(tscTree);
                 if (a == b)
                     same++;
                 else if (TscDeviations.ContainsKey(Path.GetFileName(where[..where.IndexOf(' ')])))
@@ -225,67 +224,6 @@ public class DifferentialTests(ITestOutputHelper output)
             return null;
         }
     }
-
-    /// <summary>
-    /// The tree as text: node types and scalar properties, no locations. Leaves out what is not
-    /// behavior: empty statements in a statement list (Pare's ASI guard <c>;</c>, handoff 7.5) and
-    /// a bare <c>export {}</c> (tsc keeps or adds it to mark a module).
-    /// </summary>
-    internal static string Dump(Node root)
-    {
-        var sb = new StringBuilder();
-        // Iterative: corpus files nest deep enough to overflow a recursive walk.
-        var stack = new Stack<object>();
-        stack.Push(root);
-        while (stack.Count > 0)
-        {
-            if (stack.Pop() is not Node node)
-            {
-                sb.Append(')');
-                continue;
-            }
-            sb.Append(" (").Append(node.Type);
-            foreach (var p in ScalarProperties(node.GetType()))
-            {
-                // tsc lowercases hex BigInt literals (0xFFFFn); the BigInt property keeps the value.
-                if (p.Name == "Raw" && node is BigIntLiteral)
-                    continue;
-                sb.Append(' ').Append(p.Name).Append('=').Append(p.GetValue(node));
-            }
-            stack.Push(")");
-            var children = new List<Node>();
-            foreach (var child in node.ChildNodes)
-                children.Add(child);
-            bool list = node.Type is NodeType.Program or NodeType.BlockStatement or NodeType.StaticBlock or NodeType.SwitchCase;
-            for (int i = children.Count - 1; i >= 0; i--)
-            {
-                if (list && (children[i].Type == NodeType.EmptyStatement || IsEmptyExport(children[i])))
-                    continue;
-                stack.Push(children[i]);
-            }
-        }
-        return sb.ToString();
-    }
-
-    private static bool IsEmptyExport(Node node) =>
-        node is ExportNamedDeclaration { Declaration: null, Source: null, Specifiers.Count: 0 };
-
-    private static readonly Dictionary<Type, PropertyInfo[]> Scalars = [];
-
-    private static PropertyInfo[] ScalarProperties(Type type)
-    {
-        if (!Scalars.TryGetValue(type, out var props))
-        {
-            props = [.. type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Where(p => p.GetIndexParameters().Length == 0 && IsScalar(p.PropertyType) &&
-                            p.Name is not ("Type" or "Start" or "End" or "Range" or "Location"))
-                .OrderBy(p => p.Name, StringComparer.Ordinal)];
-            Scalars[type] = props;
-        }
-        return props;
-    }
-
-    private static bool IsScalar(Type t) => t == typeof(string) || t == typeof(bool) || t.IsEnum;
 
     private static string FirstDifference(string a, string b)
     {

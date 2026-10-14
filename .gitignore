@@ -11,3 +11,4 @@ tmp/
 BenchmarkDotNet.Artifacts/
 .worktrees/
 .claude/worktrees/
+node_modules/

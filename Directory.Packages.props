@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Acornima" Version="1.8.0" />
+    <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="Microsoft.Build.Framework" Version="18.9.6" />
     <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="18.9.6" />
     <PackageVersion Include="Microsoft.Playwright" Version="1.63.0" />
