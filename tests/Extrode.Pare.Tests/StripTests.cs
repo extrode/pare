@@ -127,7 +127,6 @@ public class StripTests
     [Fact]
     public void Declarations_inside_declare_are_not_rejected()
     {
-        const string source = "declare namespace N { const x = 1; enum E {} }";
         Assert.Equal(new string(' ', source.Length), Strip(source));
     }
 
@@ -182,6 +181,15 @@ public class StripTests
     // Erased class member between members.
     [InlineData("class C { a = 1\n declare b\n [c] = 2 }", "class C { a = 1\n ;        \n [c] = 2 }")]
     [InlineData("class C { a = 1\n public [c] = 2 }", "class C { a = 1\n ;      [c] = 2 }")]
+    // An erased `as` or `satisfies` type ends at a line break, so TypeScript ends the statement
+    // before a following `(`, `[` or template; JS would read a call, index or tagged template.
+    [InlineData("const x = y as T\n(z)", "const x = y    ;\n(z)")]
+    [InlineData("x = [1] as const\n[0]", "x = [1]        ;\n[0]")]
+    [InlineData("y satisfies T\n`t`", "y           ;\n`t`")]
+    [InlineData("y as T\n`a${b}`", "y    ;\n`a${b}`")]
+    [InlineData("class C { x = y as T\n[k]() {} }", "class C { x = y    ;\n[k]() {} }")]
+    [InlineData("function f() { return x as T\n(y) }", "function f() { return x    ;\n(y) }")]
+    [InlineData("x = y as T\n- 1", "x = y     \n- 1")]
     public void Trap_5_asi_hazards(string source, string expected) => Assert.Equal(expected, Strip(source));
 
     [Theory]
