@@ -309,11 +309,9 @@ internal ref partial struct Parser
         _diags.Truncate(s.Diags);
     }
 
-    private void Reject(DiagnosticCode code, int start, int end)
-    {
-        if (!_ambient)
-            _diags.Add(new Diagnostic(code, start, Math.Max(0, end - start)));
-    }
+    /// <summary>Inside <c>declare</c> the diagnostic is recorded too; <see cref="ParseDeclare"/> drops it.</summary>
+    private void Reject(DiagnosticCode code, int start, int end) =>
+        _diags.Add(new Diagnostic(code, start, Math.Max(0, end - start)));
 
     private readonly bool HasLineBreak(int start, int end)
     {
