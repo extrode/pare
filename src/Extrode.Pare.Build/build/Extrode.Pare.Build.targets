@@ -1,0 +1,54 @@
+<Project>
+  <!-- Properties:
+         PareOutDir         write output under this directory (relative paths kept) instead of next
+                            to each source
+         PareTypeCheck      true type-checks with tsgo (noEmit, -p PareTsconfig) before the strip
+         PareTsgoPath       tsgo executable, default `tsgo` on PATH
+         PareTsconfig       default tsconfig.json in the project directory
+         PareTaskAssembly   the task dll; tests point it at a build output -->
+  <PropertyGroup>
+    <PareTaskAssembly Condition="'$(PareTaskAssembly)' == ''">$(MSBuildThisFileDirectory)..\tasks\net10.0\Extrode.Pare.Build.dll</PareTaskAssembly>
+    <PareTsconfig Condition="'$(PareTsconfig)' == ''">$(MSBuildProjectDirectory)\tsconfig.json</PareTsconfig>
+    <_PareOutRoot Condition="'$(PareOutDir)' != ''">$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(PareOutDir)'))</_PareOutRoot>
+  </PropertyGroup>
+
+  <UsingTask TaskName="Extrode.Pare.Build.StripTypeScript" AssemblyFile="$(PareTaskAssembly)" />
+
+  <Target Name="_PareComputeOutputs">
+    <ItemGroup>
+      <_PareSource Include="@(TypeScriptSource)"
+                   Condition="('%(Extension)' == '.ts' or '%(Extension)' == '.mts' or '%(Extension)' == '.cts') and !$([System.String]::Copy('%(Filename)').EndsWith('.d'))" />
+      <_PareSource Condition="'$(_PareOutRoot)' == ''">
+        <PareOutputPath>%(RootDir)%(Directory)%(Filename)$([System.String]::Copy('%(Extension)').Replace('ts', 'js'))</PareOutputPath>
+      </_PareSource>
+      <_PareSource Condition="'$(_PareOutRoot)' != ''">
+        <PareOutputPath>$(_PareOutRoot)%(RelativeDir)%(Filename)$([System.String]::Copy('%(Extension)').Replace('ts', 'js'))</PareOutputPath>
+      </_PareSource>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="PareTypeCheck" BeforeTargets="PareStripTypeScript"
+          Condition="'$(PareTypeCheck)' == 'true' and '@(TypeScriptSource)' != ''">
+    <Exec Command="&quot;$(PareTsgoPath)&quot; --noEmit -p &quot;$(PareTsconfig)&quot;" />
+  </Target>
+
+  <!-- Incremental: an output is rewritten only when its source, the task or this file is newer. -->
+  <Target Name="PareStripTypeScript" BeforeTargets="BeforeBuild" DependsOnTargets="_PareComputeOutputs"
+          Condition="'@(TypeScriptSource)' != ''"
+          Inputs="@(_PareSource);$(PareTaskAssembly);$(MSBuildThisFileFullPath)"
+          Outputs="@(_PareSource->'%(PareOutputPath)')">
+    <StripTypeScript Sources="@(_PareSource)" />
+  </Target>
+
+  <!-- Runs even when the strip was skipped as up to date. Outputs join Content so static web
+       assets serve and publish them, including on the first build when evaluation-time globs
+       could not see them yet. -->
+  <Target Name="_PareRegisterOutputs" AfterTargets="PareStripTypeScript" Condition="'@(_PareSource)' != ''">
+    <ItemGroup>
+      <_PareOutput Include="@(_PareSource->'%(PareOutputPath)')" />
+      <FileWrites Include="@(_PareOutput)" />
+      <Content Remove="@(_PareOutput)" />
+      <Content Include="@(_PareOutput)" />
+    </ItemGroup>
+  </Target>
+</Project>
