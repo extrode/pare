@@ -5,7 +5,7 @@ syntax with spaces, so the output is JavaScript with every remaining character a
 line and column. No source maps, no Node, no Bun, no Deno.
 
 Pare does not type check. Use TypeScript 7's native `tsc --noEmit` (formerly `tsgo`) for that;
-`dotnet run scripts/get-tsgo.cs` downloads it to `.tools/typescript/tsc` without npm.
+`dotnet run scripts/get-tsc.cs` downloads it to `.tools/typescript/tsc` without npm.
 
 Status: the library, the `pare` CLI and the MSBuild package work; `samples/WebApp` uses the package.
 On the TypeScript test corpus, output matches TypeScript 7 `tsc` emit (compared as syntax trees) for

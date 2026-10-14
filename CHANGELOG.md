@@ -20,7 +20,7 @@
   99.96% of the stripped corpus, every other file triaged.
 - Fixed: a namespace holding only a bodiless function declaration (`function f();`) is now
   rejected; TypeScript counts it as a value.
-- `scripts/get-tsgo.cs`: downloads TypeScript 7's native `tsc` (7.0.2) from the npm registry into
+- `scripts/get-tsc.cs`: downloads TypeScript 7's native `tsc` (7.0.2) from the npm registry into
   `.tools/typescript`, checking the tarball's sha512.
 - MSBuild: `$(PareTsconfig)` is no longer copied to the build or publish output (the Web SDK
   makes every `.json` Content).

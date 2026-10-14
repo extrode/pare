@@ -4,7 +4,7 @@
 // needs beside it. This downloads that tarball from the npm registry, checks its sha512 against
 // the registry's integrity field, and extracts lib/.
 //
-//   dotnet run scripts/get-tsgo.cs [--version <x.y.z>]
+//   dotnet run scripts/get-tsc.cs [--version <x.y.z>]
 //
 // Then: .tools/typescript/tsc --noEmit -p tsconfig.json, or PareTsgoPath=.tools/typescript/tsc.
 // Re-running with the same version is a no-op.
@@ -24,7 +24,7 @@ for (int i = 0; i < args.Length; i++)
         version = args[++i];
     else
     {
-        Console.Error.WriteLine("usage: dotnet run scripts/get-tsgo.cs [--version <x.y.z>]");
+        Console.Error.WriteLine("usage: dotnet run scripts/get-tsc.cs [--version <x.y.z>]");
         return 2;
     }
 }

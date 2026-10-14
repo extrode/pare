@@ -130,7 +130,7 @@ Order from the 2026-10-15 fable consult:
 
 1. ~~Browser check of `samples/WebApp`~~: done 2026-10-15 (headless Chromium).
 2. **v0.1 release prep:** `LICENSE` + package metadata (license choice is the user's), tag 0.1.0.
-3. ~~M5 tsgo differential and `scripts/get-tsgo.cs`~~: done 2026-10-15, 99.96%, all triaged.
+3. ~~M5 tsgo differential and `scripts/get-tsc.cs`~~: done 2026-10-15, 99.96%, all triaged.
 4. ~~**Dev loop:**~~ done 2026-10-15 for `dotnet watch --no-hot-reload` (see below). Default
    hot reload mode still needs M8 (user's call: `Watch` items now, M8 later).
 5. **M7 perf**, with bench rows for the pathological nesting shapes.
@@ -164,7 +164,7 @@ check against tsgo is still M5.
   into CommonJS and adds `export {}`; `preserve` keeps module syntax as written, like a stripper.
 - tsgo: TypeScript 7 shipped stable (`typescript@7.0.2`, 2026-07-08). The Go compiler is now `tsc`
   in `@typescript/typescript-<os>-<cpu>` (`lib/tsc` plus the `lib/*.d.ts` beside it), not
-  `@typescript/native-preview`. `scripts/get-tsgo.cs` keeps the handoff's name and fetches 7.0.2
+  `@typescript/native-preview`. `scripts/get-tsc.cs` (the handoff named it `get-tsgo.cs`; renamed 2026-10-15) fetches 7.0.2
   into `.tools/typescript/`. The MSBuild property is `PareTscPath`, default `tsc` (renamed from
   the handoff's `PareTsgoPath`/`tsgo`, user's call 2026-10-15).
 

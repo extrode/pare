@@ -14,7 +14,7 @@ Progress, next steps, corpus pass rate: [work/progress.md](work/progress.md), up
   the sample test also drives headless Chromium via Microsoft.Playwright (approved 2026-10-15,
   1.63.0; needs network for jsDelivr).
 - `tests/Extrode.Pare.Conformance/` TypeScript corpus (`dotnet run scripts/get-ts-corpus.cs`) and the
-  differential test against tsc (`dotnet run scripts/get-tsgo.cs`); each skips when its input is
+  differential test against tsc (`dotnet run scripts/get-tsc.cs`); each skips when its input is
   missing. Planned: `tests/Extrode.Pare.Bench/` (M7).
 
 ## Build and test

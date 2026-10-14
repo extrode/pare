@@ -37,7 +37,7 @@ public class DifferentialTests(ITestOutputHelper output)
     public void Output_matches_tsc_emit()
     {
         Corpus.SkipIfMissing();
-        Assert.SkipWhen(Tsc is null, "tsc missing: run `dotnet run scripts/get-tsgo.cs`");
+        Assert.SkipWhen(Tsc is null, "tsc missing: run `dotnet run scripts/get-tsc.cs`");
 
         var dir = Directory.CreateTempSubdirectory("pare-differential-");
         try
