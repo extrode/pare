@@ -17,6 +17,17 @@ public class DifferentialTests(ITestOutputHelper output)
 {
     private static readonly string? Tsc = FindTsc();
 
+    private const string Tsc702 = "tsc 7.0.2 differs, Pare keeps the source";
+
+    // Files where tsc's emit is not the source minus types; each checked by hand.
+    private static readonly Dictionary<string, string> TscDeviations = new()
+    {
+        ["decoratorOnClassProperty1.es6.ts"] = Tsc702 + ": names a decorated `export default class` default_1, changing .name",
+        ["decoratorOnClassMethod1.es6.ts"] = Tsc702 + ": names a decorated `export default class` default_1, changing .name",
+        ["decoratorOnClassAccessor1.es6.ts"] = Tsc702 + ": names a decorated `export default class` default_1, changing .name",
+        ["quotedConstructors.ts"] = Tsc702 + ": unquotes `\"constructor\"()`, the same constructor by spec",
+    };
+
     private sealed class Sink : IDiagnosticSink
     {
         public void Report(in Diagnostic diagnostic) { }
@@ -65,10 +76,10 @@ public class DifferentialTests(ITestOutputHelper output)
                   "include": ["in"]
                 }
                 """);
-            RunTsc(dir.FullName);
+            var unparsed = RunTsc(dir.FullName);
 
             var parser = new Parser(StripCorpusTests.JsOptions);
-            int same = 0, pareInvalid = 0;
+            int same = 0, pareInvalid = 0, deviations = 0, tscSyntax = 0;
             var missing = new List<string>();
             var different = new List<string>();
             foreach (var (where, name, pare) in files)
@@ -79,17 +90,31 @@ public class DifferentialTests(ITestOutputHelper output)
                     "cts" => ".cjs",
                     _ => ".js",
                 }));
+                // The corpus is pinned to TypeScript main; tsc 7.0.2 predates some syntax in it
+                // (`import source`). Its emit for a file it cannot parse is error recovery.
+                if (unparsed.Contains(name))
+                {
+                    tscSyntax++;
+                    continue;
+                }
                 if (!File.Exists(emitted))
                 {
                     missing.Add(where);
                     continue;
                 }
                 string tsc = File.ReadAllText(emitted);
-                // TypeScript 7 always emits "use strict" in scripts (alwaysStrict=false is gone).
-                const string UseStrict = "\"use strict\";\n";
-                if (tsc.StartsWith(UseStrict, StringComparison.Ordinal) && !pare.TrimStart().StartsWith("\"use strict\"", StringComparison.Ordinal))
-                    tsc = tsc[UseStrict.Length..];
-                var (pareTree, tscTree, mode) = ParseBoth(parser, pare, tsc);
+                // TypeScript 7 always emits "use strict" in scripts (alwaysStrict=false is gone), which
+                // also makes sloppy-mode code like `with` invalid. Compare without the added line:
+                // it was added when, without it, both outputs hold the same number of them.
+                var (pareTree, tscTree, mode) = (default(Node), default(Node), "");
+                if (WithoutAddedUseStrict(tsc) is { } plain)
+                {
+                    (pareTree, tscTree, mode) = ParseBoth(parser, pare, plain);
+                    if (pareTree is null || tscTree is null || UseStrictCount(tscTree) != UseStrictCount(pareTree))
+                        tscTree = null;
+                }
+                if (tscTree is null)
+                    (pareTree, tscTree, mode) = ParseBoth(parser, pare, tsc);
                 if (pareTree is null)
                 {
                     // StripCorpusTests owns invalid output.
@@ -104,13 +129,16 @@ public class DifferentialTests(ITestOutputHelper output)
                 string a = Dump(pareTree), b = Dump(tscTree);
                 if (a == b)
                     same++;
+                else if (TscDeviations.ContainsKey(Path.GetFileName(where[..where.IndexOf(' ')])))
+                    deviations++;
                 else
                     different.Add($"{where}: {FirstDifference(a, b)}");
             }
 
-            int compared = same + different.Count;
-            output.WriteLine($"{files.Count} stripped .ts/.mts/.cts files: {same} match tsc, {different.Count} differ, " +
-                             $"{missing.Count} not emitted, {pareInvalid} invalid Pare output; " +
+            int compared = same + deviations + different.Count;
+            output.WriteLine($"{files.Count} stripped .ts/.mts/.cts files: {same} match tsc, {deviations} known tsc deviations, " +
+                             $"{different.Count} differ, {tscSyntax} tsc syntax errors, {missing.Count} not emitted, " +
+                             $"{pareInvalid} invalid Pare output; " +
                              $"{100.0 * same / Math.Max(1, compared):F2}% match");
             var report = Environment.GetEnvironmentVariable("PARE_DIFFERENTIAL_REPORT");
             if (report is not null)
@@ -125,7 +153,8 @@ public class DifferentialTests(ITestOutputHelper output)
         }
     }
 
-    private static void RunTsc(string dir)
+    /// <summary>Runs tsc over the project; returns the files it reported a TS1xxx syntax error for.</summary>
+    private static HashSet<string> RunTsc(string dir)
     {
         var start = new ProcessStartInfo(Tsc!, ["-p", Path.Combine(dir, "tsconfig.json")])
         {
@@ -134,10 +163,42 @@ public class DifferentialTests(ITestOutputHelper output)
         };
         using var process = Process.Start(start)!;
         var stderr = process.StandardError.ReadToEndAsync();
-        // Diagnostics are expected (noCheck still reports some); only the emit matters.
-        process.StandardOutput.ReadToEnd();
+        // Other diagnostics are expected (noLib, and noCheck still reports some); only the emit matters.
+        var unparsed = new HashSet<string>(StringComparer.Ordinal);
+        while (process.StandardOutput.ReadLine() is { } line)
+        {
+            // in/00012.ts(1,15): error TS1005: '=' expected.
+            int paren = line.IndexOf('(');
+            int code = line.IndexOf("): error TS1", StringComparison.Ordinal);
+            if (paren > 0 && code > paren && code + 16 <= line.Length && line[code + 15] == ':')
+                unparsed.Add(Path.GetFileName(line[..paren]));
+        }
         process.WaitForExit();
         _ = stderr.Result;
+        return unparsed;
+    }
+
+    /// <summary>tsc's output with a leading <c>"use strict";</c> line blanked (after a hashbang), else null.</summary>
+    private static string? WithoutAddedUseStrict(string tsc)
+    {
+        const string UseStrict = "\"use strict\";\n";
+        int at = tsc.StartsWith("#!", StringComparison.Ordinal) ? tsc.IndexOf('\n') + 1 : 0;
+        if (at < 0 || string.CompareOrdinal(tsc, at, UseStrict, 0, UseStrict.Length) != 0)
+            return null;
+        return string.Concat(tsc.AsSpan(0, at), new string(' ', UseStrict.Length - 1), "\n", tsc.AsSpan(at + UseStrict.Length));
+    }
+
+    private static int UseStrictCount(Node program)
+    {
+        int n = 0;
+        foreach (var statement in ((Program)program).Body)
+        {
+            if (statement is not Directive directive)
+                break;
+            if (directive.Value == "use strict")
+                n++;
+        }
+        return n;
     }
 
     /// <summary>Parses both as a module, or both as a script when either is not a valid module.</summary>
@@ -185,7 +246,12 @@ public class DifferentialTests(ITestOutputHelper output)
             }
             sb.Append(" (").Append(node.Type);
             foreach (var p in ScalarProperties(node.GetType()))
+            {
+                // tsc lowercases hex BigInt literals (0xFFFFn); the BigInt property keeps the value.
+                if (p.Name == "Raw" && node is BigIntLiteral)
+                    continue;
                 sb.Append(' ').Append(p.Name).Append('=').Append(p.GetValue(node));
+            }
             stack.Push(")");
             var children = new List<Node>();
             foreach (var child in node.ChildNodes)
