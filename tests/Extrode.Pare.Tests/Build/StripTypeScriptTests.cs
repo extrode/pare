@@ -34,6 +34,7 @@ public sealed class StripTypeScriptTests : IDisposable
         Assert.True(task.Execute());
 
         Assert.Equal("import b from './b.js';\nlet x    = b;", File.ReadAllText(P("out/sub/a.js")));
+        Assert.Equal((byte)'i', File.ReadAllBytes(P("out/sub/a.js"))[0]);
         Assert.Equal(P("out/sub/a.js"), Assert.Single(task.Written).ItemSpec);
         Assert.Empty(_engine.Errors);
     }

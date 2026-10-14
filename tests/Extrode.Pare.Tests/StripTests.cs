@@ -53,6 +53,7 @@ public class StripTests
                 "class C {        a;         b;           c;          d;          e; }")]
     [InlineData("abstract class C { abstract m(): void; }", "         class C {                     }")]
     [InlineData("class C implements I, J {}", "class C                 {}")]
+    [InlineData("class C extends B<T> {}", "class C extends B    {}")]
     [InlineData("function f(this: Window, a) {}", "function f(              a) {}")]
     [InlineData("function f(a: string): void;\nfunction f(a) {}", "                            \nfunction f(a) {}")]
     [InlineData("class C { [key: string]: any; }", "class C {                     }")]
@@ -64,6 +65,7 @@ public class StripTests
     [InlineData("export type * from \"x\";", "                       ")]
     [InlineData("let u: unique symbol;", "let u               ;")]
     [InlineData("function f(x): asserts x is T {}", "function f(x)                 {}")]
+    [InlineData("function f(x): x is T {}", "function f(x)         {}")]
     [InlineData("let m: { [K in keyof T]: T[K] extends infer U ? U : never };",
                 "let m                                                      ;")]
     public void Erases_section_5_syntax(string source, string expected) => Assert.Equal(expected, Strip(source));
@@ -143,6 +145,8 @@ public class StripTests
     [InlineData("g = (a): T => x;", "g = (a)    => x;")]
     [InlineData("g = c ? (a): T => a : b;", "g = c ? (a)    => a : b;")]
     [InlineData("g = c ? (a) : b;", "g = c ? (a) : b;")]
+    // `(a) : b => a` is not an arrow: the conditional's `:` must follow the whole arrow.
+    [InlineData("g = c ? (a) : b => a;", "g = c ? (a) : b => a;")]
     public void Trap_2_arrow_or_parenthesized(string source, string expected) => Assert.Equal(expected, Strip(source));
 
     [Fact]
@@ -257,6 +261,7 @@ public class StripTests
     [InlineData("import a from \"./a.tsx\";")]
     [InlineData("import a from \"./a.js\";")]
     [InlineData("import a from \"./a\\u002ets\";")]
+    [InlineData("import a from \"./\\u0061.ts\";")]
     [InlineData("const m = import(\"./a.ts\" + x);")]
     [InlineData("const s = \"./a.ts\";")]
     public void Leaves_other_specifiers_alone(string source) =>

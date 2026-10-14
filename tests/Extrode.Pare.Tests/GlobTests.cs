@@ -24,6 +24,8 @@ public class GlobTests
     [InlineData("src/**/lib/*.ts", "lib/a.ts", true)]
     [InlineData("src/**/lib/*.ts", "x\\lib\\a.ts", true)]
     [InlineData("src/*/*.ts", "a.ts", false)]
+    [InlineData("src/a*.ts", "a.ts", true)]
+    [InlineData("src/*", "x/a.ts", false)]
     public void Matches_relative_paths(string pattern, string relative, bool expected) =>
         Assert.Equal(expected, Glob.Matches(pattern, relative));
 }
