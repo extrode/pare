@@ -26,5 +26,6 @@ dotnet publish src/Extrode.Pare.Cli -c Release -r osx-arm64 -o tmp/aot
 - Grammar questions: TypeScript's `parser.ts` is the reference. Match it and cite the function name.
 - No packages in the core library. Ask before adding any package anywhere else.
 - Tests first for each row of handoff sections 5, 6 and 7.
-- Write C# sources containing ` `/` ` escapes with an editor tool, not a shell heredoc:
-  the shell turns them into raw line separators, which C# treats as newlines inside a string.
+- Agent-written files: a `\u2028`-style escape in tool input lands on disk as the raw
+  character, and a raw line separator inside a C# string is a compile error. Run
+  `scripts/fix-escapes.sh` after writing C# that contains escapes. C# sources stay ASCII.

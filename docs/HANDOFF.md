@@ -1,6 +1,6 @@
 # HANDOFF — TsBlank: TypeScript type stripper in C# / .NET 10 NativeAOT
 
-> Working name: **TsBlank** (rename freely). This document is the full context for Claude Code. Read it end to end before writing code.
+> Working name: **TsBlank** (rename freely). Renamed to **Pare** on 2026-10-14: projects `Extrode.Pare.*`, CLI `pare`, entry point `TypeStripper.Strip`. Progress lives in `work/progress.md`. This document is the full context for Claude Code. Read it end to end before writing code.
 
 ## 1. Why this exists
 
@@ -197,7 +197,7 @@ Alpine typings: vendor a `.d.ts` file if needed. No `node_modules`.
 2. **Position invariant:** for every test, every non-erased, non-whitespace character must sit at the same offset in input and output (except documented ASI and `)` moves).
 3. **Validity:** every output must parse as a JS module. Use **Acornima** (pure C# JS parser) in tests only.
 4. **Differential test against tsgo:** for each corpus file that passes `erasableSyntaxOnly`, compare our output with `tsgo` emit (`--target esnext --module esnext`) by **parsing both with Acornima and comparing ASTs**, ignoring locations. Any mismatch is a bug in one of the two; investigate.
-5. **Conformance corpus:** `tests/cases/conformance` and `tests/cases/compiler` from `microsoft/TypeScript`, fetched by `scripts/get-ts-corpus.cs` (sparse checkout, pinned commit). Track the pass rate in `PROGRESS.md`. Files that use rejected syntax should produce a diagnostic, not a crash.
+5. **Conformance corpus:** `tsc/testdata/tests/cases/{conformance,compiler}` from `microsoft/TypeScript` (the Go port now lives on `main`; corrected 2026-10-14), fetched by `scripts/get-ts-corpus.cs` (sparse checkout, pinned commit). Track the pass rate in `PROGRESS.md`. Files that use rejected syntax should produce a diagnostic, not a crash.
 6. **Fuzzing (stretch):** never crash, never loop forever, on any input.
 7. **Benchmarks:** throughput in MB/s and allocations per file on (a) a large real-world TS file, (b) the whole corpus. Target: **0 B allocated per `Strip` call** beyond the output buffer, with pools warmed.
 

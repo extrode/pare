@@ -22,6 +22,8 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
+      - name: Fetch TypeScript corpus
+        run: dotnet run scripts/get-ts-corpus.cs
       - name: Build
         run: dotnet build Pare.slnx -c Release
       - name: Test

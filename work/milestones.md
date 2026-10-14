@@ -15,8 +15,8 @@ one of them at any given moment.
 | # | Milestone | Target | Status | Notes |
 |---|-----------|--------|--------|-------|
 | M0 | Repo, solution, CI, API sketch, UTF-16 decision | 2026-10-14 | shipped | CI not run yet (no remote) |
-| M1 | Lexer: JS + TS tokens, templates, regex detection, contextual keywords | | in progress | done when it round-trips the corpus |
-| M2 | Recognizer for JS statements and expressions | | planned | plain JS byte-identical |
+| M1 | Lexer: JS + TS tokens, templates, regex detection, contextual keywords | 2026-10-14 | shipped | 17,582 corpus files, 0 unexpected |
+| M2 | Recognizer for JS statements and expressions | | next | plain JS byte-identical |
 | M3 | TS type grammar + all handoff section 5 erasures | | planned | |
 | M4 | Section 6 rejections, section 7 traps, ASI fixes | | planned | |
 | M5 | Conformance + differential harness vs tsgo | | planned | >= 99% eligible corpus |

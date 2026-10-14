@@ -6,5 +6,6 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Extrode.Pare.Tests" />
+    <InternalsVisibleTo Include="Extrode.Pare.Conformance" />
   </ItemGroup>
 </Project>

@@ -17,7 +17,13 @@ Small, clear, and could be picked up without a design decision.
 
 Real, but needs a decision, a dependency, or more information first. Say which.
 
-- (nothing yet)
+- Lexer leniency vs TypeScript (M4): no validation of escapes inside strings, templates and
+  regex (TS1125, TS1198, TS1199), numeric separator placement (TS6188, TS6189), leading-zero
+  decimals in strict code (TS1489), binary/octal digit ranges (TS1177, TS1178). Tokenization is
+  unaffected; a browser rejects such input. Decide whether `Strip` should reject them. Run the
+  corpus test with `PARE_CORPUS_VERBOSE=1` to list them (`MISSED` lines).
+- Unicode tables: identifier classes come from .NET's `CharUnicodeInfo`, whose Unicode version
+  may differ from TypeScript's and browsers'. Only matters for exotic identifiers.
 
 ## Dropped
 

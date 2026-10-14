@@ -35,8 +35,8 @@ tick.
 
 ## Current work: M1 lexer
 
-- [ ] T1 Token kinds + lexer struct (save/rewind), punctuators, identifiers, keywords — done when: unit tests per token class pass
-- [ ] T2 Numeric, string, template (brace-depth stack) literals, comments — done when: unit tests incl. nested `${}` pass
-- [ ] T3 Regex vs division by previous significant token — done when: unit tests for ambiguous cases pass
-- [ ] T4 `scripts/get-ts-corpus.cs` sparse clone at a pinned commit — done when: `.corpus/` populated by `dotnet run`
-- [ ] T5 Corpus round-trip test — done when: lexer tokenizes every corpus file without error, token spans cover the file
+- [x] T1 Token kinds + lexer struct (save/rewind), punctuators, identifiers, keywords — done when: unit tests per token class pass
+- [x] T2 Numeric, string, template (brace-depth stack) literals, comments — done when: unit tests incl. nested `${}` pass
+- [x] T3 Regex vs division by previous significant token — done when: unit tests for ambiguous cases pass
+- [x] T4 `scripts/get-ts-corpus.cs` sparse clone at a pinned commit — done when: `.corpus/` populated by `dotnet run`
+- [x] T5 Corpus round-trip test — done when: lexer tokenizes every corpus file without error, token spans cover the file

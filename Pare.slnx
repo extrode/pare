@@ -4,6 +4,7 @@
     <Project Path="src/Extrode.Pare.Cli/Extrode.Pare.Cli.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Extrode.Pare.Conformance/Extrode.Pare.Conformance.csproj" />
     <Project Path="tests/Extrode.Pare.Tests/Extrode.Pare.Tests.csproj" />
   </Folder>
 </Solution>
