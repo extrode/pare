@@ -318,6 +318,32 @@ public sealed class BuildIntegrationTests : IDisposable
     }
 
     [Fact]
+    public void Package_carries_the_license_notice_and_readme()
+    {
+#if DEBUG
+        const string configuration = "Debug";
+#else
+        const string configuration = "Release";
+#endif
+        var (exit, output) = Run("pack", Path.Combine(RepoRoot, "src", "Extrode.Pare.Build"), "-nologo", "-nodeReuse:false", "--no-build",
+            "-c", configuration, "-o", P("feed"), "-p:Version=0.1.0-test.1");
+        Assert.True(exit == 0, output);
+
+        using var package = System.IO.Compression.ZipFile.OpenRead(P("feed/Extrode.Pare.Build.0.1.0-test.1.nupkg"));
+        var entries = package.Entries.Select(e => e.FullName).ToList();
+        Assert.Contains("LICENSE.md", entries);
+        Assert.Contains("NOTICE.md", entries);
+        Assert.Contains("README.md", entries);
+        using var nuspec = new StreamReader(package.GetEntry("Extrode.Pare.Build.nuspec")!.Open());
+        string text = nuspec.ReadToEnd();
+        Assert.Contains("<license type=\"file\">LICENSE.md</license>", text);
+        Assert.Contains("<readme>README.md</readme>", text);
+        Assert.Contains("<authors>Extrode</authors>", text);
+        using var license = new StreamReader(package.GetEntry("LICENSE.md")!.Open());
+        Assert.Contains("means **`Extrode (extrode.com)`**", license.ReadToEnd());
+    }
+
+    [Fact]
     public async Task Sample_app_builds_serves_and_runs_in_a_browser()
     {
         string sample = Path.Combine(RepoRoot, "samples", "WebApp");
