@@ -489,6 +489,13 @@ internal ref partial struct Parser
     {
         var snapshot = Save();
         Next();
+        // TypeScript: isDeclaration checks the token after `declare` as it would without it, so
+        // `declare namespace = x` is not a declaration (and `declare` then `namespace` is an error).
+        if (!(IsExportableDeclaration() || (K == Keyword.Global && Peek().Kind == TokenKind.OpenBrace && !IsLineBreak(Peek()))))
+        {
+            Fail();
+            return;
+        }
         _ambient = true;
         ParseStatementAt(start, prevEnd);
         _ambient = snapshot.Ambient;

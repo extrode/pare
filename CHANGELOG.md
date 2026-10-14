@@ -20,6 +20,9 @@
   keeps them.
 - Differential test (M5): Pare's output matches TypeScript 7.0.2 `tsc` emit as an Acornima tree on
   99.96% of the stripped corpus, every other file triaged.
+- Fixed: `declare` followed by a keyword that does not start a declaration (`declare namespace = x`,
+  `declare type = 1`) is a syntax error, as in TypeScript; it was erased. Found by the cross-tool
+  comparison.
 - Fixed: a namespace holding only a bodiless function declaration (`function f();`) is now
   rejected; TypeScript counts it as a value.
 - `scripts/get-tsc.cs`: downloads TypeScript 7's native `tsc` (7.0.2) from the npm registry into
