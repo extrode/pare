@@ -64,6 +64,51 @@ internal static class Corpus
     }
 
     /// <summary>
+    /// True when TypeScript's baseline for the case records any TS1xxx error: syntax and grammar
+    /// errors. Type errors (TS2xxx and up) do not matter to a type stripper.
+    /// </summary>
+    public static bool HasSyntaxErrorBaseline(string relativeCase)
+    {
+        foreach (var baseline in Baselines(relativeCase))
+        {
+            var text = File.ReadAllText(baseline);
+            for (int i = text.IndexOf("error TS1", StringComparison.Ordinal); i >= 0;
+                 i = text.IndexOf("error TS1", i + 1, StringComparison.Ordinal))
+            {
+                // "error TS1xxx:" with exactly four digits.
+                if (i + 12 < text.Length && text[i + 12] == ':')
+                    return true;
+            }
+            // "Declaration or statement expected" for `{ a } = b`, reported by the checker.
+            if (text.Contains("error TS2809:", StringComparison.Ordinal))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>True when any baseline for the case records an error whose code starts with <paramref name="prefix"/>.</summary>
+    public static bool HasBaselineCode(string relativeCase, string prefix)
+    {
+        foreach (var baseline in Baselines(relativeCase))
+        {
+            if (File.ReadAllText(baseline).Contains("error " + prefix, StringComparison.Ordinal))
+                return true;
+        }
+        return false;
+    }
+
+    private static IEnumerable<string> Baselines(string relativeCase)
+    {
+        var parts = relativeCase.Split(Path.DirectorySeparatorChar);
+        var suite = parts[2];
+        var name = Path.GetFileNameWithoutExtension(relativeCase);
+        var dir = Path.Combine(Root!, "baselines", "reference", suite);
+        var plain = Path.Combine(dir, name + ".errors.txt");
+        var baselines = Directory.EnumerateFiles(dir, name + "(*).errors.txt");
+        return File.Exists(plain) ? baselines.Append(plain) : baselines;
+    }
+
+    /// <summary>
     /// Splits a case into the files it declares, the way TypeScript's harness does
     /// (<c>makeUnitsFromTest</c>): a <c>// @filename: x</c> line starts a new file, and every
     /// <c>// @option: value</c> line is metadata, not content. Content before the first
