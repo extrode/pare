@@ -4,13 +4,15 @@
                             to each source
          PareTypeCheck      true type-checks with tsgo (noEmit, -p PareTsconfig) before the strip
          PareTsgoPath       tsgo executable, default `tsgo` on PATH
-         PareTsconfig       default tsconfig.json in the project directory
+         PareTsconfig       default tsconfig.json in the project directory; a build input, never
+                            copied to the output or publish directory
          PareKeepSources    true keeps .ts and .d.ts files in Content, so they are served and
                             published next to the output
          PareTaskAssembly   the task dll; tests point it at a build output -->
   <PropertyGroup>
     <PareTaskAssembly Condition="'$(PareTaskAssembly)' == ''">$(MSBuildThisFileDirectory)..\tasks\net10.0\Extrode.Pare.Build.dll</PareTaskAssembly>
     <PareTsconfig Condition="'$(PareTsconfig)' == ''">$(MSBuildProjectDirectory)\tsconfig.json</PareTsconfig>
+    <_PareTsconfigPath>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(PareTsconfig)'))</_PareTsconfigPath>
     <_PareOutRoot Condition="'$(PareOutDir)' != ''">$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(PareOutDir)'))</_PareOutRoot>
   </PropertyGroup>
 
@@ -55,6 +57,11 @@
       <Content Include="@(_PareOutput)" />
       <Content Remove="@(TypeScriptSource);wwwroot/**/*.d.ts;wwwroot/**/*.d.mts;wwwroot/**/*.d.cts"
                Condition="'$(PareKeepSources)' != 'true'" />
+      <!-- The Web SDK makes every root .json Content. -->
+      <Content Condition="'%(FullPath)' == '$(_PareTsconfigPath)'">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+      </Content>
     </ItemGroup>
   </Target>
 </Project>

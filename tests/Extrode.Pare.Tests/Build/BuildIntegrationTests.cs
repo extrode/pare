@@ -128,6 +128,26 @@ public sealed class BuildIntegrationTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData("", "tsconfig.json")]
+    [InlineData("<PareTsconfig>cfg/tsconfig.app.json</PareTsconfig>", "cfg/tsconfig.app.json")]
+    public void Tsconfig_is_not_published(string properties, string tsconfig)
+    {
+        Project("<OutputType>Library</OutputType>" + properties, sdk: "Microsoft.NET.Sdk.Web");
+        Put("wwwroot/app.ts", "let a: T;");
+        Put(tsconfig, "{}");
+        Put("other.json", "{}");
+
+        var (exit, output) = Run("publish", "-nologo", "-nodeReuse:false", "--disable-build-servers", "-o", P("pub"));
+
+        Assert.True(exit == 0, output);
+        Assert.True(File.Exists(P("pub/wwwroot/app.js")), output);
+        Assert.True(File.Exists(P("pub/other.json")), output);
+        Assert.True(File.Exists(P("bin/Release/net10.0/other.json")), output);
+        Assert.False(File.Exists(P("pub/" + tsconfig)));
+        Assert.False(File.Exists(P("bin/Release/net10.0/" + tsconfig)));
+    }
+
     [Fact]
     public void Rejected_syntax_fails_the_build_with_a_located_error()
     {
