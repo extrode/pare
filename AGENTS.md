@@ -10,7 +10,8 @@ Progress, next steps, corpus pass rate: [work/progress.md](work/progress.md), up
 - `src/Extrode.Pare.Build/` MSBuild task + `build/*.props`/`.targets`, NuGet package. MSBuild
   packages are compile-only (approved 2026-10-14, 18.9.6). Loads under `dotnet build` only.
 - `tests/Extrode.Pare.Tests/` xUnit v3 on Microsoft.Testing.Platform. `Build/` runs real
-  `dotnet build` on temp projects (~12 s).
+  `dotnet build` on temp projects (~12 s); the sample test also drives headless Chromium via
+  Microsoft.Playwright (approved 2026-10-15, 1.63.0; needs network for jsDelivr).
 - `tests/Extrode.Pare.Conformance/` TypeScript corpus. Planned: `tests/Extrode.Pare.Bench/` (M7).
 
 ## Build and test

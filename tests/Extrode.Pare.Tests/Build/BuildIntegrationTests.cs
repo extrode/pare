@@ -204,7 +204,7 @@ public sealed class BuildIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task Sample_app_builds_and_serves_from_the_packed_package()
+    public async Task Sample_app_builds_serves_and_runs_in_a_browser()
     {
         string sample = Path.Combine(RepoRoot, "samples", "WebApp");
         foreach (var file in Directory.EnumerateFiles(sample, "*", SearchOption.AllDirectories))
@@ -278,6 +278,27 @@ public sealed class BuildIntegrationTests : IDisposable
             }
             Assert.Contains("x-data=\"counter(0)\"", await http.GetStringAsync("/", ct));
             Assert.Contains("import { counter } from \"./counter.js\";", await http.GetStringAsync("/js/app.js", ct));
+
+            // Downloads the browser on first run; Alpine and htmx come from jsDelivr.
+            Assert.Equal(0, Microsoft.Playwright.Program.Main(["install", "chromium", "--only-shell"]));
+            using var playwright = await Microsoft.Playwright.Playwright.CreateAsync();
+            await using var browser = await playwright.Chromium.LaunchAsync();
+            var page = await browser.NewPageAsync();
+            var errors = new List<string>();
+            page.Console += (_, m) => { if (m.Type == "error") errors.Add(m.Text); };
+            page.PageError += (_, e) => errors.Add(e);
+            await page.GotoAsync(http.BaseAddress.ToString());
+
+            var counter = page.Locator("[x-data] span");
+            await Microsoft.Playwright.Assertions.Expect(counter).ToHaveTextAsync("0 clicks");
+            await page.Locator("[x-data] button").ClickAsync();
+            await Microsoft.Playwright.Assertions.Expect(counter).ToHaveTextAsync("1 click");
+            await page.Locator("[x-data] button").ClickAsync();
+            await Microsoft.Playwright.Assertions.Expect(counter).ToHaveTextAsync("2 clicks");
+            await page.GetByText("Server time").ClickAsync();
+            await Microsoft.Playwright.Assertions.Expect(page.Locator("#time")).ToHaveTextAsync(
+                new System.Text.RegularExpressions.Regex(@"^\d\d:\d\d:\d\d UTC$"));
+            Assert.Empty(errors);
         }
         finally
         {
