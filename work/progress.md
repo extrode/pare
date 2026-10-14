@@ -113,6 +113,17 @@ convention). Update at the end of every session.
   runs all three projects. `$(PareTsconfig)` is now kept out of build and publish output
   (`Tsconfig_is_not_published`, 2 rows); the sample no longer does it by hand.
 
+- **Dev loop (2026-10-15):** `dotnet watch` (SDK 10.0.401) on the sample, measured on a copy.
+  Hot reload mode (default): a `.ts` save logs "No managed code changes to apply" and nothing
+  builds; a `wwwroot` file is a static asset to it, matched by the `staticwebassets` dev manifest,
+  even with a `Watch` item. `--no-hot-reload` alone: "Static asset changes applied", no build. With
+  `<Watch Include="@(TypeScriptSource)" />` in the package targets, `--no-hot-reload` rebuilds and
+  restarts: `.js` rewritten within 1 s of the save, app back in ~3 s, headless Chromium showed the
+  edited label. A `.js` written by another process is served fresh at once under plain, gzip and
+  br, so M8 (re-strip in-process in Development) would work with hot reload. Tests:
+  `Sources_are_watch_items` (`msbuild -getItem:Watch`) and
+  `Dotnet_watch_without_hot_reload_restrips_an_edited_source` (real `dotnet watch`, ~5 s).
+
 ## Next
 
 Order from the 2026-10-15 fable consult:
@@ -120,8 +131,8 @@ Order from the 2026-10-15 fable consult:
 1. ~~Browser check of `samples/WebApp`~~: done 2026-10-15 (headless Chromium).
 2. **v0.1 release prep:** `LICENSE` + package metadata (license choice is the user's), tag 0.1.0.
 3. ~~M5 tsgo differential and `scripts/get-tsgo.cs`~~: done 2026-10-15, 99.96%, all triaged.
-4. **Dev loop:** check whether `dotnet watch` rebuilds on a `wwwroot/**/*.ts` edit; if not,
-   `Watch` items or M8 middleware.
+4. ~~**Dev loop:**~~ done 2026-10-15 for `dotnet watch --no-hot-reload` (see below). Default
+   hot reload mode still needs M8 (user's call: `Watch` items now, M8 later).
 5. **M7 perf**, with bench rows for the pathological nesting shapes.
 6. **M4 lexer validation:** only if M5 shows a divergence that matters.
 

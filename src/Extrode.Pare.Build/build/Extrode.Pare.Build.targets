@@ -64,4 +64,11 @@
       </Content>
     </ItemGroup>
   </Target>
+
+  <!-- dotnet watch rebuilds when a source changes, but only with hot reload off (the
+       no-hot-reload option): in hot reload mode it treats wwwroot files as static assets and
+       does not build. -->
+  <ItemGroup>
+    <Watch Include="@(TypeScriptSource)" />
+  </ItemGroup>
 </Project>

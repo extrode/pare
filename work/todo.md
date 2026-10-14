@@ -15,6 +15,10 @@ Small, clear, and could be picked up without a design decision.
 
 ## Later
 
+- `dotnet watch` 10.0.401 hot reload, macOS: after a file is added (an editor saving via rename)
+  it failed to read `obj\Debug/net10.0/staticwebassets.development.json` (backslash path). SDK
+  side; check whether static-asset refresh still works after such a save.
+
 - MSBuild in Visual Studio: untested; would need the .NET task host (`Runtime="NET"` on
   `UsingTask`, MSBuild 18) or a netstandard2.0 core.
 

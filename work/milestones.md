@@ -22,7 +22,7 @@ one of them at any given moment.
 | M5 | Conformance + differential harness vs tsgo | | planned | >= 99% eligible corpus |
 | M6 | CLI files/globs, MSBuild task, sample app | | in progress | CLI and MSBuild done 2026-10-14; sample app left |
 | M7 | Performance pass + benchmarks | | planned | 0 B per Strip call |
-| M8 | Dev middleware, tsgo script polish | | planned | optional |
+| M8 | Dev middleware (re-strip under `dotnet watch` hot reload), tsgo script polish | | planned | optional |
 
 Status is one of `planned`, `in progress`, `shipped`, `dropped`. A dropped milestone stays in the
 table with a note saying why: the reason it was dropped is the most useful thing on the row, and
