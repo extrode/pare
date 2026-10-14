@@ -409,6 +409,9 @@ internal ref partial struct Parser
             }
             bool isConstructor = K == Keyword.Constructor ||
                 (T == TokenKind.StringLiteral && _src[(Start + 1)..(End - 1)] is "constructor");
+            // In JS a line break does not end `get`, `set` or `static`: `get\n x() {}` is a getter.
+            bool modifierName = T == TokenKind.Identifier && K is Keyword.Get or Keyword.Set or Keyword.Static;
+            int nameEdits = _edits.Count;
             ParsePropertyName();
             if (T is TokenKind.Question or TokenKind.Exclamation)
             {
@@ -437,6 +440,12 @@ internal ref partial struct Parser
                     ParseAssignmentAllowIn();
                     _await = savedAwait;
                     _yield = savedYield;
+                }
+                else if (modifierName && _edits.Count > nameEdits && T is not (TokenKind.Semicolon or TokenKind.CloseBrace))
+                {
+                    // `get!: T\n post` would read as a getter named post once `!: T` is gone.
+                    var e = _edits.Items[_edits.Count - 1];
+                    _edits.Mutable[_edits.Count - 1] = e with { Last = ';' };
                 }
                 ParseSemicolon();
             }
