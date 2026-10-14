@@ -16,6 +16,10 @@
   `Build`, outputs registered as static web assets, `PareOutDir`, optional `tsgo` type check.
 - MSBuild: `.ts` and `.d.ts` sources are no longer served or published; `PareKeepSources=true`
   keeps them.
+- Differential test (M5): Pare's output matches TypeScript 7.0.2 `tsc` emit as an Acornima tree on
+  99.96% of the stripped corpus, every other file triaged.
+- Fixed: a namespace holding only a bodiless function declaration (`function f();`) is now
+  rejected; TypeScript counts it as a value.
 - `scripts/get-tsgo.cs`: downloads TypeScript 7's native `tsc` (7.0.2) from the npm registry into
   `.tools/typescript`, checking the tarball's sha512.
 - MSBuild: `$(PareTsconfig)` is no longer copied to the build or publish output (the Web SDK
