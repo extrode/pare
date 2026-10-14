@@ -269,6 +269,20 @@ public class StripTests
     [InlineData("class C { static async *gen() {} get\n x() {} }")]
     public void Trap_11_class_member_keywords_as_names(string source) => Assert.Equal(source, Strip(source));
 
+    [Theory]
+    // A field named get, set or static whose erased type was all that stood before the line
+    // break would become a modifier of the next member: `get\n post` is a getter in JS.
+    [InlineData("class C {\n get!: T\n post!: T\n}", "class C {\n get   ;\n post    \n}")]
+    [InlineData("class C {\n set?\n x() {}\n}", "class C {\n set;\n x() {}\n}")]
+    [InlineData("class C {\n static: T\n x = 1\n}", "class C {\n static  ;\n x = 1\n}")]
+    [InlineData("class C {\n static get: T\n [k]() {}\n}", "class C {\n static get  ;\n [k]() {}\n}")]
+    [InlineData("class C {\n get: T;\n x() {}\n}", "class C {\n get   ;\n x() {}\n}")]
+    [InlineData("class C {\n get: T\n}", "class C {\n get   \n}")]
+    [InlineData("class C {\n async: T\n x() {}\n}", "class C {\n async   \n x() {}\n}")]
+    [InlineData("class C {\n got: T\n x() {}\n}", "class C {\n got   \n x() {}\n}")]
+    public void Trap_11_keyword_named_field_keeps_apart_from_the_next_member(string source, string expected) =>
+        Assert.Equal(expected, Strip(source));
+
     [Fact]
     public void Trap_11_modifier_names_are_not_erased()
     {
