@@ -74,10 +74,32 @@ convention). Update at the end of every session.
   erased; TypeScript instantiates it (`getModuleInstanceStateWorker` ignores `declare`), Node
   rejects it, Pare now reports PARE101. Tests: 319 unit, 2 conformance.
 
+- **v0.1 defaults (2026-10-15):** decisions from a fable consult, accepted by the user. The
+  MSBuild package now removes `@(TypeScriptSource)` and `wwwroot/**/*.d.ts` from `Content` in
+  `_PareRegisterOutputs` (target time, so import order against the Web SDK does not matter);
+  `PareKeepSources=true` keeps them. Checked with a real `dotnet pack` + local feed +
+  `dotnet publish`: published `wwwroot` holds only `.js` (+ `.br`/`.gz`), and the output runs in
+  Node. Overwriting a hand-written sibling `.js` and `.cts` outside the default glob are documented,
+  not changed. `Reject`'s ambient check removed; the other mutation-redundant guards kept (reasons
+  in `work/todo.md` under Dropped). Tests: 321 unit, 2 conformance.
+
 ## Next
 
-- **M6 rest:** sample app `samples/WebApp` using the package.
-- **M4 leftovers:** lexer escape and numeric-separator validation (`work/todo.md`).
+Order from the 2026-10-15 fable consult:
+
+1. **T7 sample app** `samples/WebApp`, consuming the packed `.nupkg` from a local feed (a
+   `ProjectReference` would not prove the package).
+2. **v0.1 release prep:** `LICENSE` + package metadata (license choice is the user's), tag 0.1.0.
+3. **M5 tsgo differential**, and `scripts/get-tsgo.cs` (PareTypeCheck assumes `tsgo` on PATH).
+4. **Dev loop:** check whether `dotnet watch` rebuilds on a `wwwroot/**/*.ts` edit; if not,
+   `Watch` items or M8 middleware.
+5. **M7 perf**, with bench rows for the pathological nesting shapes.
+6. **M4 lexer validation:** only if M5 shows a divergence that matters.
+
+Not in the plan yet: stale `.js` left after deleting a `.ts`; output under `obj/` as static web
+assets (v0.2, retires the publish and overwrite questions); a core `Extrode.Pare` library package
+(needed by M8); CLI distribution (`PackAsTool` or binaries); a PARE1xx error-code page;
+`.gitignore` guidance for generated `.js`; Windows has never run.
 
 ## Open questions
 

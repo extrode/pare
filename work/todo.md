@@ -15,20 +15,6 @@ Small, clear, and could be picked up without a design decision.
 
 ## Later
 
-- CLI and MSBuild task overwrite a hand-written `foo.js` next to `foo.ts` without warning.
-  Decide whether to warn, refuse, or document it. (Fable review, 2026-10-15.)
-- Pathological nesting is quadratic after a failed speculation: `(a = (a = ...` 5000 deep takes
-  6.7 s, `a<a<a<...` 3000 deep 1.9 s. TypeScript's parser has the same shape. Revisit in M7.
-- Redundant guards found by the mutation sweep (removing each changes no behavior): `Reject`'s
-  `if (!_ambient)` in `Parser.cs` (`ParseDeclare` drops the diagnostics with `DropSince`); the
-  `.d.ts` Exclude in `Extrode.Pare.Build.props` (`_PareComputeOutputs` filters `.d` already);
-  `ThrowIfGreaterThan` in `SourceLocation.FromOffset` (the slice throws the same exception).
-  `EditWriter`'s replace-after-erase guard is unreachable through the parser today but has a
-  direct unit test. Decide: keep as defense, or remove.
-- MSBuild default items cover `wwwroot/**/*.ts` and `*.mts` but not `*.cts`. Decide whether
-  CommonJS sources belong in a browser `wwwroot`.
-- MSBuild: `.ts` sources under wwwroot are published as static assets next to the `.js`.
-  Decide whether the package should drop `@(TypeScriptSource)` from Content by default.
 - MSBuild in Visual Studio: untested; would need the .NET task host (`Runtime="NET"` on
   `UsingTask`, MSBuild 18) or a netstandard2.0 core.
 
@@ -46,4 +32,14 @@ Real, but needs a decision, a dependency, or more information first. Say which.
 
 Not doing, with the reason. Kept so the same idea does not get re-raised every quarter.
 
-- (nothing yet)
+- Removing `ThrowIfGreaterThan` (SourceLocation), the `.d.ts` Exclude (props) and EditWriter's
+  replace-after-erase guard: each is redundant today but guards a boundary other code can cross
+  (public API, user-supplied items, edit order). Kept. (2026-10-15)
+- Fixing quadratic time on pathological nesting (`(a = (a = ...` 5000 deep: 6.7 s): same shape as
+  TypeScript's parser, inputs are the user's own files, `Guard()` already stops deep recursion.
+  M7 adds a bench row so a regression shows. (2026-10-15)
+- Warning or refusing when a hand-written `foo.js` sits next to `foo.ts`: indistinguishable from
+  a generated one without a marker, which would break the position guarantee. Documented
+  instead; output under `obj/` (v0.2) would remove the problem. (2026-10-15)
+- `.cts` in the MSBuild default items: CommonJS does not run in a browser `wwwroot`. Explicit
+  items work. (2026-10-15)

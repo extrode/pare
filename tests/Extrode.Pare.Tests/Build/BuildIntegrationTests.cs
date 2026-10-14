@@ -101,6 +101,30 @@ public sealed class BuildIntegrationTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData("", false)]
+    [InlineData("<PareKeepSources>true</PareKeepSources>", true)]
+    public void Sources_are_not_static_web_assets_unless_kept(string properties, bool kept)
+    {
+        Project("<OutputType>Library</OutputType>" + properties, sdk: "Microsoft.NET.Sdk.Web", targets: """
+            <Target Name="Probe" AfterTargets="Build">
+              <Message Importance="high" Text="asset: %(StaticWebAsset.RelativePath)" Condition="'@(StaticWebAsset)' != ''" />
+            </Target>
+            """);
+        Put("wwwroot/app.ts", "let a: T;");
+        Put("wwwroot/types.d.ts", "declare let t: T;");
+
+        for (int build = 0; build < 2; build++)
+        {
+            var (exit, output) = Build();
+            Assert.True(exit == 0, output);
+            var assets = output.Split('\n').Where(line => line.Contains("asset: ", StringComparison.Ordinal)).ToList();
+            Assert.Contains(assets, line => line.Contains("asset: app#[.{fingerprint}]?.js", StringComparison.Ordinal));
+            Assert.Equal(kept, assets.Any(line => line.Contains("app#[.{fingerprint}]?.ts", StringComparison.Ordinal)));
+            Assert.Equal(kept, assets.Any(line => line.Contains("types.d#[.{fingerprint}]?.ts", StringComparison.Ordinal)));
+        }
+    }
+
     [Fact]
     public void Rejected_syntax_fails_the_build_with_a_located_error()
     {

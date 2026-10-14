@@ -5,6 +5,8 @@
          PareTypeCheck      true type-checks with tsgo (noEmit, -p PareTsconfig) before the strip
          PareTsgoPath       tsgo executable, default `tsgo` on PATH
          PareTsconfig       default tsconfig.json in the project directory
+         PareKeepSources    true keeps .ts and .d.ts files in Content, so they are served and
+                            published next to the output
          PareTaskAssembly   the task dll; tests point it at a build output -->
   <PropertyGroup>
     <PareTaskAssembly Condition="'$(PareTaskAssembly)' == ''">$(MSBuildThisFileDirectory)..\tasks\net10.0\Extrode.Pare.Build.dll</PareTaskAssembly>
@@ -43,13 +45,16 @@
 
   <!-- Runs even when the strip was skipped as up to date. Outputs join Content so static web
        assets serve and publish them, including on the first build when evaluation-time globs
-       could not see them yet. -->
+       could not see them yet. Sources leave Content here rather than at evaluation, where a
+       package's targets may be imported before the Web SDK adds wwwroot/**. -->
   <Target Name="_PareRegisterOutputs" AfterTargets="PareStripTypeScript" Condition="'@(_PareSource)' != ''">
     <ItemGroup>
       <_PareOutput Include="@(_PareSource->'%(PareOutputPath)')" />
       <FileWrites Include="@(_PareOutput)" />
       <Content Remove="@(_PareOutput)" />
       <Content Include="@(_PareOutput)" />
+      <Content Remove="@(TypeScriptSource);wwwroot/**/*.d.ts;wwwroot/**/*.d.mts;wwwroot/**/*.d.cts"
+               Condition="'$(PareKeepSources)' != 'true'" />
     </ItemGroup>
   </Target>
 </Project>
