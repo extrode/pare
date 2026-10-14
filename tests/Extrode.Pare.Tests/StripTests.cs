@@ -224,6 +224,20 @@ public class StripTests
     [InlineData("let x = a\nas(b);")]
     public void Trap_6_contextual_keywords_as_identifiers(string source) => Assert.Equal(source, Strip(source));
 
+    // TypeScript's isDeclaration: after `declare`, the keyword must start a declaration itself.
+    [Theory]
+    [InlineData("declare namespace = 1;")]
+    [InlineData("declare namespace;")]
+    [InlineData("declare module = 1;")]
+    [InlineData("declare global = 1;")]
+    [InlineData("declare type = 1;")]
+    [InlineData("declare interface = 1;")]
+    [InlineData("declare abstract = 1;")]
+    [InlineData("declare async = 1;")]
+    [InlineData("export declare namespace;")]
+    public void Trap_6_declare_needs_a_declaration_after_it(string source) =>
+        Assert.Equal(DiagnosticCode.SyntaxError, Assert.Single(Reject(source)).Code);
+
     [Fact]
     public void Trap_6_contextual_keywords_in_type_parameters()
     {
