@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using Extrode.Pare.Cli;
 
 namespace Extrode.Pare.Tests;
@@ -191,5 +192,27 @@ public sealed class FileModeTests : IDisposable
         var (exit, err) = Run(P("a.ts"));
         Assert.Equal(2, exit);
         Assert.Contains("a.ts: ", err);
+    }
+
+    [Fact]
+    [UnsupportedOSPlatform("windows")]
+    public void Unreadable_directory_exits_2()
+    {
+        if (OperatingSystem.IsWindows())
+            Assert.Skip("Unix permissions");
+        Put("src/ok.ts", "a;");
+        Directory.CreateDirectory(P("src/locked"));
+        File.SetUnixFileMode(P("src/locked"), UnixFileMode.None);
+        try
+        {
+            var (exit, err) = Run(P("src"));
+            Assert.Equal(2, exit);
+            Assert.StartsWith($"pare: {P("src")}: ", err);
+            Assert.False(File.Exists(P("src/ok.js")));
+        }
+        finally
+        {
+            File.SetUnixFileMode(P("src/locked"), UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
     }
 }
