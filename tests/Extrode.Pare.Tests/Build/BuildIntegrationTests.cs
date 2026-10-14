@@ -204,7 +204,7 @@ public sealed class BuildIntegrationTests : IDisposable
     }
 
     [Fact]
-    public void Sample_app_builds_from_the_packed_package()
+    public async Task Sample_app_builds_and_serves_from_the_packed_package()
     {
         string sample = Path.Combine(RepoRoot, "samples", "WebApp");
         foreach (var file in Directory.EnumerateFiles(sample, "*", SearchOption.AllDirectories))
@@ -240,6 +240,50 @@ public sealed class BuildIntegrationTests : IDisposable
         Assert.Contains("import { counter } from \"./counter.js\";", File.ReadAllText(P("app/wwwroot/js/app.js")));
         Assert.StartsWith("export function plural(n        , forms        )         {", File.ReadAllLines(P("app/wwwroot/js/format.js"))[2]);
         Assert.False(File.Exists(P("app/wwwroot/js/alpine.d.js")));
+
+        // Browsers send Accept-Encoding; MapStaticAssets answers with the build's compressed copies.
+        int port;
+        using (var probe = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0))
+        {
+            probe.Start();
+            port = ((System.Net.IPEndPoint)probe.LocalEndpoint).Port;
+        }
+        var start = new ProcessStartInfo("dotnet", [P($"app/bin/{configuration}/net10.0/WebApp.dll")])
+        {
+            WorkingDirectory = P("app"),
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        start.Environment["ASPNETCORE_URLS"] = $"http://127.0.0.1:{port}";
+        start.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
+        using var server = Process.Start(start)!;
+        try
+        {
+            using var http = new HttpClient(new HttpClientHandler { AutomaticDecompression = System.Net.DecompressionMethods.All })
+            {
+                BaseAddress = new Uri($"http://127.0.0.1:{port}"),
+            };
+            var ct = TestContext.Current.CancellationToken;
+            for (int i = 0; ; i++)
+            {
+                try
+                {
+                    using var _ = await http.GetAsync("/fragments/time", ct);
+                    break;
+                }
+                catch (HttpRequestException) when (i < 100)
+                {
+                    await Task.Delay(100, ct);
+                }
+            }
+            Assert.Contains("x-data=\"counter(0)\"", await http.GetStringAsync("/", ct));
+            Assert.Contains("import { counter } from \"./counter.js\";", await http.GetStringAsync("/js/app.js", ct));
+        }
+        finally
+        {
+            server.Kill(entireProcessTree: true);
+            server.WaitForExit();
+        }
     }
 
     private static string FindRepoRoot()

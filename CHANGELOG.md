@@ -17,7 +17,8 @@
 - MSBuild: `.ts` and `.d.ts` sources are no longer served or published; `PareKeepSources=true`
   keeps them.
 - `samples/WebApp`: NativeAOT web app with Alpine and htmx modules in TypeScript, built from the
-  packed package (`scripts/pack-local.sh`). Runs on port 5180 in Development.
+  packed package (`scripts/pack-local.sh`). Runs on port 5180 in Development; calls
+  `UseStaticWebAssets` so an unpublished run serves compressed assets.
 - Fixed: `as`/`satisfies` before a line starting `(`, `[` or a template; namespaces with
   `declare` values now rejected; unreadable input directories exit 2 instead of crashing.
 - Tests: mutation sweep; 16 rows added where breaking the code left the suite green.
