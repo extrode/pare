@@ -18,7 +18,8 @@
   keeps them.
 - `samples/WebApp`: NativeAOT web app with Alpine and htmx modules in TypeScript, built from the
   packed package (`scripts/pack-local.sh`). Runs on port 5180 in Development; calls
-  `UseStaticWebAssets` so an unpublished run serves compressed assets.
+  `UseStaticWebAssets` so an unpublished run serves compressed assets. A Playwright test clicks
+  through it in headless Chromium.
 - Fixed: `as`/`satisfies` before a line starting `(`, `[` or a template; namespaces with
   `declare` values now rejected; unreadable input directories exit 2 instead of crashing.
 - Tests: mutation sweep; 16 rows added where breaking the code left the suite green.

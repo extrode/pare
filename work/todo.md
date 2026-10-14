@@ -46,4 +46,3 @@ Not doing, with the reason. Kept so the same idea does not get re-raised every q
   instead; output under `obj/` (v0.2) would remove the problem. (2026-10-15)
 - `.cts` in the MSBuild default items: CommonJS does not run in a browser `wwwroot`. Explicit
   items work. (2026-10-15)
-- Browser test of `samples/WebApp` in the suite: today an ad-hoc CDP script in `tmp/`; automating it needs a package (e.g. Microsoft.Playwright), ask first.

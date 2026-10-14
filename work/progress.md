@@ -91,7 +91,7 @@ convention). Update at the end of every session.
   hand: `dotnet run` serves the page, the three modules and the htmx fragment; `counter.js` runs in
   Node (`0 clicks`, `1 click`, `2 clicks`); NativeAOT publish is 10 MB with no warnings, publishes
   only `.js` under `wwwroot`, and `/js/app.ts` is 404. Test
-  `Sample_app_builds_and_serves_from_the_packed_package` packs the package (`--no-build`), copies
+  `Sample_app_builds_serves_and_runs_in_a_browser` packs the package (`--no-build`), copies
   the sample to a temp dir, builds it with a private package folder, runs it and fetches `/` and
   `/js/app.js` with Accept-Encoding.
 - **Sample blank page (2026-10-15):** in a browser the first sample showed nothing. Two causes:
@@ -102,6 +102,12 @@ convention). Update at the end of every session.
   check, headless Chromium from the Playwright cache driven over CDP by an ad-hoc script in `tmp/`
   (not in the toolchain): Alpine counter `0 clicks`, `1 click`, `2 clicks`, htmx fragment swapped,
   no console errors, under `dotnet run` (Development) and the NativeAOT publish. M6 done.
+- **Sample browser test (2026-10-15):** Microsoft.Playwright 1.63.0 (approved by the user) in
+  `Extrode.Pare.Tests`. `Sample_app_builds_serves_and_runs_in_a_browser` now also installs
+  chromium-headless-shell (first run downloads it to `~/Library/Caches/ms-playwright`), clicks the
+  Alpine counter to `2 clicks`, clicks the htmx button, and fails on any console error. Needs
+  network (jsDelivr). Break-checks: removing `Alpine.start()` and pointing `hx-get` at a missing
+  route both fail it.
 
 ## Next
 
