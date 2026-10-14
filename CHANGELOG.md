@@ -32,4 +32,6 @@
   `declare` values now rejected; unreadable input directories exit 2 instead of crashing.
 - MSBuild: `PareTsgoPath` renamed to `PareTscPath`, default `tsc` (TypeScript 7's native compiler
   installs as `tsc`).
+- MSBuild: TypeScript sources are `Watch` items, so `dotnet watch --no-hot-reload` rebuilds on a
+  `.ts` save. Hot reload mode does not build on `wwwroot` changes; M8 will cover it.
 - Tests: mutation sweep; 16 rows added where breaking the code left the suite green.
