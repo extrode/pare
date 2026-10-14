@@ -10,6 +10,7 @@ public sealed class BuildIntegrationTests : IDisposable
     // By path: loading the task type would need the MSBuild assemblies, which only the host ships.
     private static readonly string TaskAssembly = Path.Combine(AppContext.BaseDirectory, "Extrode.Pare.Build.dll");
     private readonly DirectoryInfo _dir = Directory.CreateTempSubdirectory("pare-build-");
+    private string? _pathPrefix;
 
     public void Dispose() => _dir.Delete(recursive: true);
 
@@ -51,6 +52,8 @@ public sealed class BuildIntegrationTests : IDisposable
         // A test host started by `dotnet test` carries MSBuild variables meant for itself.
         foreach (var key in start.Environment.Keys.Where(k => k.StartsWith("MSBuild", StringComparison.OrdinalIgnoreCase)).ToList())
             start.Environment.Remove(key);
+        if (_pathPrefix is not null)
+            start.Environment["PATH"] = _pathPrefix + Path.PathSeparator + start.Environment["PATH"];
         using var process = Process.Start(start)!;
         var stderr = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
         string stdout = process.StandardOutput.ReadToEnd();
@@ -175,20 +178,25 @@ public sealed class BuildIntegrationTests : IDisposable
         Assert.False(File.Exists(P("wwwroot/js/app.mjs")));
     }
 
-    [Fact]
-    public void Type_check_runs_tsgo_before_stripping_and_fails_the_build_when_it_fails()
+    private void FakeTsc(string relative)
     {
-        Assert.SkipWhen(OperatingSystem.IsWindows(), "the fake tsgo is a shell script");
-        Put("tsgo", "#!/bin/sh\necho \"$@\" > args.txt\nexit $(cat exit-code.txt)\n");
+        Put(relative, "#!/bin/sh\necho \"$@\" > \"$(dirname \"$0\")/args.txt\"\nexit $(cat exit-code.txt)\n");
         if (!OperatingSystem.IsWindows())
-            File.SetUnixFileMode(P("tsgo"), UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-        Project($"<PareTypeCheck>true</PareTypeCheck><PareTsgoPath>{P("tsgo")}</PareTsgoPath>");
+            File.SetUnixFileMode(P(relative), UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+    }
+
+    [Fact]
+    public void Type_check_runs_tsc_before_stripping_and_fails_the_build_when_it_fails()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "the fake tsc is a shell script");
+        FakeTsc("tools/tsc");
+        Project($"<PareTypeCheck>true</PareTypeCheck><PareTscPath>{P("tools/tsc")}</PareTscPath>");
         Put("wwwroot/app.ts", "let a: T;");
 
         Put("exit-code.txt", "0");
         var (exit, output) = Build();
         Assert.True(exit == 0, output);
-        string args = File.ReadAllText(P("args.txt"));
+        string args = File.ReadAllText(P("tools/args.txt"));
         Assert.StartsWith("--noEmit -p /", args);
         Assert.EndsWith(Path.Combine(_dir.Name, "tsconfig.json") + "\n", args);
 
@@ -196,6 +204,22 @@ public sealed class BuildIntegrationTests : IDisposable
         Put("exit-code.txt", "1");
         Assert.NotEqual(0, Build().Exit);
         Assert.False(File.Exists(P("wwwroot/app.js")));
+    }
+
+    [Fact]
+    public void Type_check_defaults_to_tsc_on_PATH()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "the fake tsc is a shell script");
+        FakeTsc("path/tsc");
+        Project("<PareTypeCheck>true</PareTypeCheck>");
+        Put("wwwroot/app.ts", "let a: T;");
+        Put("exit-code.txt", "0");
+        _pathPrefix = P("path");
+
+        var (exit, output) = Build();
+
+        Assert.True(exit == 0, output);
+        Assert.StartsWith("--noEmit -p /", File.ReadAllText(P("path/args.txt")));
     }
 
     [Fact]

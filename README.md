@@ -58,8 +58,8 @@ in a browser; an explicit `<TypeScriptSource Include="x.cts" />` produces `x.cjs
 |---|---|---|
 | `EnablePareDefaultItems` | `true` | `false` drops the default glob; add `<TypeScriptSource Include="..." />` yourself |
 | `PareOutDir` | empty | write under this directory, keeping relative paths |
-| `PareTypeCheck` | `false` | `true` runs `tsgo --noEmit -p $(PareTsconfig)` first |
-| `PareTsgoPath` | `tsgo` | e.g. `$(MSBuildThisFileDirectory).tools/typescript/tsc` |
+| `PareTypeCheck` | `false` | `true` runs `tsc --noEmit -p $(PareTsconfig)` first (TypeScript 7's native `tsc`) |
+| `PareTscPath` | `tsc` | e.g. `$(MSBuildThisFileDirectory).tools/typescript/tsc` |
 | `PareTsconfig` | `tsconfig.json` in the project | never copied to the build or publish output |
 | `PareKeepSources` | `false` | `true` serves and publishes the `.ts` sources next to the output |
 

@@ -4,7 +4,7 @@
   <PropertyGroup>
     <EnablePareDefaultItems Condition="'$(EnablePareDefaultItems)' == ''">true</EnablePareDefaultItems>
     <PareTypeCheck Condition="'$(PareTypeCheck)' == ''">false</PareTypeCheck>
-    <PareTsgoPath Condition="'$(PareTsgoPath)' == ''">tsgo</PareTsgoPath>
+    <PareTscPath Condition="'$(PareTscPath)' == ''">tsc</PareTscPath>
   </PropertyGroup>
 
   <!-- Override with <TypeScriptSource Remove="..." /> or EnablePareDefaultItems=false. -->

@@ -30,4 +30,6 @@
   through it in headless Chromium.
 - Fixed: `as`/`satisfies` before a line starting `(`, `[` or a template; namespaces with
   `declare` values now rejected; unreadable input directories exit 2 instead of crashing.
+- MSBuild: `PareTsgoPath` renamed to `PareTscPath`, default `tsc` (TypeScript 7's native compiler
+  installs as `tsc`).
 - Tests: mutation sweep; 16 rows added where breaking the code left the suite green.

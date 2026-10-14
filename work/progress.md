@@ -154,7 +154,8 @@ check against tsgo is still M5.
 - tsgo: TypeScript 7 shipped stable (`typescript@7.0.2`, 2026-07-08). The Go compiler is now `tsc`
   in `@typescript/typescript-<os>-<cpu>` (`lib/tsc` plus the `lib/*.d.ts` beside it), not
   `@typescript/native-preview`. `scripts/get-tsgo.cs` keeps the handoff's name and fetches 7.0.2
-  into `.tools/typescript/`. `PareTsgoPath` keeps its name and `tsgo` default.
+  into `.tools/typescript/`. The MSBuild property is `PareTscPath`, default `tsc` (renamed from
+  the handoff's `PareTsgoPath`/`tsgo`, user's call 2026-10-15).
 
 - Name: **Pare** (folder name) instead of TsBlank. Projects `Extrode.Pare.*`, CLI `pare`,
   static entry `TypeStripper.Strip` (a class named `Pare` would collide with the namespace).
