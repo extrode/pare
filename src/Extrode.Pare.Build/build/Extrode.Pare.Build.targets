@@ -43,6 +43,10 @@
       <_PareSource Condition="'$(_PareObjRoot)' != '' and $([System.String]::Copy('%(_PareDir)').StartsWith('wwwroot/'))">
         <PareRelativePath>$([System.String]::Copy('%(_PareDir)').Substring(8))%(_PareJs)</PareRelativePath>
       </_PareSource>
+      <!-- A URL path: %(RecursiveDir) in a mapping is `lib\` on Windows. -->
+      <_PareSource Condition="'%(_PareSource.PareRelativePath)' != ''">
+        <PareRelativePath>$([System.String]::Copy('%(_PareSource.PareRelativePath)').Replace('\', '/'))</PareRelativePath>
+      </_PareSource>
       <_PareSource Condition="'%(_PareSource.PareRelativePath)' != ''">
         <PareOutputPath>$(_PareObjRoot)%(_PareSource.PareRelativePath)</PareOutputPath>
       </_PareSource>
