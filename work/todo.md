@@ -63,3 +63,5 @@ Not doing, with the reason. Kept so the same idea does not get re-raised every q
   instead; output under `obj/` (v0.2) would remove the problem. (2026-10-15)
 - `.cts` in the MSBuild default items: CommonJS does not run in a browser `wwwroot`. Explicit
   items work. (2026-10-15)
+- Integration suite went from ~160 s to ~545 s on macOS after the `PareServeAt` tests (24 new
+  `dotnet build` runs). Consider sharing one built project across the theory cases.
