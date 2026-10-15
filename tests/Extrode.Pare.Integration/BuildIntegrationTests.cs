@@ -912,31 +912,157 @@ public sealed class BuildIntegrationTests : IDisposable
     [InlineData("deno", new[] { "eval" })]
     public void Sample_modules_run_outside_the_browser(string runtime, string[] evaluate)
     {
-        var where = Environment.GetEnvironmentVariable("PATH")!.Split(Path.PathSeparator)
-            .Select(d => Path.Combine(d, OperatingSystem.IsWindows() ? runtime + ".exe" : runtime)).FirstOrDefault(File.Exists);
-        Assert.SkipWhen(where is null, $"{runtime} is not on PATH");
+        string where = OnPath(runtime);
         BuildSample();
         // A package.json further up can say "commonjs" (one in a Windows %TEMP% did).
         Put("app/" + ObjOut + "package.json", """{ "type": "module" }""");
         string counter = new Uri(P("app/" + ObjOut + "js/counter.js")).AbsoluteUri;
-        var start = new ProcessStartInfo(where!) { RedirectStandardOutput = true, RedirectStandardError = true };
-        foreach (string arg in evaluate)
-            start.ArgumentList.Add(arg);
-        start.ArgumentList.Add($$"""
+        Assert.Equal("0 clicks|1 click|2 clicks", Evaluate(where, evaluate, $$"""
             const { counter } = await import("{{counter}}");
             const c = counter();
             const seen = [c.label()];
             c.increment(); seen.push(c.label());
             c.increment(); seen.push(c.label());
             console.log(seen.join("|"));
-            """);
+            """));
+    }
+
+    /// <summary>The runtime's full path; skips the test when it is not installed.</summary>
+    private static string OnPath(string runtime)
+    {
+        var where = Environment.GetEnvironmentVariable("PATH")!.Split(Path.PathSeparator)
+            .Select(d => Path.Combine(d, OperatingSystem.IsWindows() ? runtime + ".exe" : runtime)).FirstOrDefault(File.Exists);
+        Assert.SkipWhen(where is null, $"{runtime} is not on PATH");
+        return where!;
+    }
+
+    /// <summary>Runs a module script in Node or Deno and returns its trimmed stdout.</summary>
+    private static string Evaluate(string runtime, string[] evaluate, string script)
+    {
+        var start = new ProcessStartInfo(runtime) { RedirectStandardOutput = true, RedirectStandardError = true };
+        foreach (string arg in evaluate)
+            start.ArgumentList.Add(arg);
+        start.ArgumentList.Add(script);
         start.Environment["NO_COLOR"] = "1";
         using var process = Process.Start(start)!;
-        string stderr = process.StandardError.ReadToEnd();
+        var stderr = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
         string stdout = process.StandardOutput.ReadToEnd();
         process.WaitForExit();
-        Assert.True(process.ExitCode == 0, stderr);
-        Assert.Equal("0 clicks|1 click|2 clicks", stdout.Trim());
+        Assert.True(process.ExitCode == 0, stderr.Result);
+        return stdout.Trim();
+    }
+
+    // Built with this project (a ProjectReference without the assembly), run through `dotnet`.
+    private static readonly string CliDll = Path.Combine(RepoRoot, "src", "Extrode.Pare.Cli", "bin", Configuration, "net10.0", "pare.dll");
+
+    /// <summary>Copies samples/CliSite's page and sources to site/ and strips them with the pare CLI, as its README says.</summary>
+    private void StripCliSample()
+    {
+        string sample = Path.Combine(RepoRoot, "samples", "CliSite");
+        Put("site/index.html", File.ReadAllText(Path.Combine(sample, "index.html")));
+        foreach (var file in Directory.EnumerateFiles(Path.Combine(sample, "src")))
+            Put(Path.Combine("site", "src", Path.GetFileName(file)), File.ReadAllText(file));
+        var (exit, output) = Run(CliDll, "site/src", "--outdir", "site/js");
+        Assert.True(exit == 0, output);
+        Assert.Equal(["main.js", "model.js", "render.js"], Directory.GetFiles(P("site/js")).Select(Path.GetFileName).Order());
+        Assert.Equal("import { byPriority, summary,           } from \"./model.js\";", File.ReadLines(P("site/js/main.js")).First());
+    }
+
+    /// <summary>A static file server, as `python3 -m http.server` would be, for the life of a test.</summary>
+    private sealed class StaticServer : IDisposable
+    {
+        private readonly System.Net.HttpListener _listener = new();
+        private readonly string _root;
+
+        public Uri Address { get; }
+
+        public StaticServer(string root)
+        {
+            _root = root;
+            using (var probe = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0))
+            {
+                probe.Start();
+                Address = new Uri($"http://127.0.0.1:{((System.Net.IPEndPoint)probe.LocalEndpoint).Port}/");
+            }
+            _listener.Prefixes.Add(Address.ToString());
+            _listener.Start();
+            _ = Answer();
+        }
+
+        private async Task Answer()
+        {
+            while (true)
+            {
+                System.Net.HttpListenerContext context;
+                try
+                {
+                    context = await _listener.GetContextAsync();
+                }
+                catch (Exception e) when (e is System.Net.HttpListenerException or ObjectDisposedException or InvalidOperationException)
+                {
+                    return;
+                }
+                using var response = context.Response;
+                string path = Uri.UnescapeDataString(context.Request.Url!.AbsolutePath).TrimStart('/');
+                string file = Path.Combine(_root, path.Length == 0 ? "index.html" : path);
+                if (!File.Exists(file))
+                {
+                    response.StatusCode = 404;
+                    continue;
+                }
+                // Browsers refuse a module script served without a JavaScript type.
+                response.ContentType = Path.GetExtension(file) == ".js" ? "text/javascript" : "text/html; charset=utf-8";
+                await response.OutputStream.WriteAsync(await File.ReadAllBytesAsync(file));
+            }
+        }
+
+        public void Dispose() => _listener.Close();
+    }
+
+    [Theory]
+    [MemberData(nameof(Browsers))]
+    public async Task Cli_sample_runs_in_a_browser(string engine)
+    {
+        StripCliSample();
+        using var server = new StaticServer(P("site"));
+        Assert.Equal(0, Microsoft.Playwright.Program.Main(engine == "chromium" ? ["install", "chromium", "--only-shell"] : ["install", engine]));
+        using var playwright = await Microsoft.Playwright.Playwright.CreateAsync();
+        await using var browser = await playwright[engine].LaunchAsync();
+        var page = await browser.NewPageAsync();
+        var errors = new List<string>();
+        page.Console += (_, m) => { if (m.Type == "error") errors.Add(m.Text); };
+        page.PageError += (_, e) => errors.Add(e);
+        var failed = new List<string>();
+        page.RequestFailed += (_, r) => failed.Add(r.Url);
+        page.Response += (_, r) => { if (r.Status >= 400) failed.Add($"{r.Status} {r.Url}"); };
+        await page.GotoAsync(server.Address.ToString());
+
+        var status = page.Locator("#status");
+        var items = page.Locator("#tasks li");
+        await Microsoft.Playwright.Assertions.Expect(status).ToHaveTextAsync("2 of 3 open");
+        await Microsoft.Playwright.Assertions.Expect(items).ToHaveTextAsync(
+            ["Ship the release (high)", "Write the docs (medium)", "Tidy the samples (low)"]);
+        await page.Locator("#add").ClickAsync();
+        await Microsoft.Playwright.Assertions.Expect(status).ToHaveTextAsync("3 of 4 open");
+        await Microsoft.Playwright.Assertions.Expect(items.Last).ToHaveTextAsync("New task 1 (low)");
+        Assert.Empty(errors);
+        Assert.Empty(failed);
+    }
+
+    [Theory]
+    [InlineData("node", new[] { "--input-type=module", "-e" })]
+    [InlineData("deno", new[] { "eval" })]
+    public void Cli_sample_modules_run_outside_the_browser(string runtime, string[] evaluate)
+    {
+        string where = OnPath(runtime);
+        StripCliSample();
+        Put("site/js/package.json", """{ "type": "module" }""");
+        string model = new Uri(P("site/js/model.js")).AbsoluteUri;
+        Assert.Equal("b,a|1 of 2 open", Evaluate(where, evaluate, $$"""
+            const { byPriority, summary } = await import("{{model}}");
+            const tasks = [{ title: "a", priority: "low", done: true }, { title: "b", priority: "high", done: false }];
+            console.log(byPriority(tasks).map(t => t.title).join(",") + "|" + summary(tasks));
+            """));
     }
 
     [Fact]

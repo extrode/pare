@@ -27,6 +27,8 @@ dotnet pack src/Extrode.Pare.Build -c Release -o tmp/pack                # MSBui
 dotnet tool install -g Extrode.Pare.Cli
 ```
 
+Quickstart with a static-site sample, watch recipes and exit codes: [docs/cli-quickstart.md](docs/cli-quickstart.md).
+
 The tool package installs the NativeAOT binary for osx-arm64, osx-x64, linux-arm64, linux-x64,
 linux-musl-arm64, linux-musl-x64, win-x64 and win-arm64, and a framework-dependent build (needs
 the .NET 10 runtime) on any other platform. The same binaries come as `pare-<version>-<rid>.tar.gz`
