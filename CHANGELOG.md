@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+- PARE201: two TypeScript sources mapped to the same URL now fail with a Pare error naming both,
+  instead of crashing the static web assets SDK (MSB4018).
+- Backslashes in `PareRelativePath` become `/` (on Windows a mapped subfolder could slip past the
+  duplicate check).
+- Razor class libraries: tested and documented (`/_content/<Lib>/...`).
+- CLI quickstart (`docs/cli-quickstart.md`) and the `samples/CliSite` static-site sample.
+
 ## [0.3.0] - 2026-10-15
 
 ### Upgrading from 0.2

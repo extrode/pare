@@ -251,6 +251,14 @@ convention). Update at the end of every session.
   `tmp/dist-win`; `Extrode.Pare`, `.Build`, `.AspNetCore` 0.3.0 in `tmp/dist-lib`. Release notes
   in `tmp/release-notes-0.3.0.md`. Tag `v0.3.0` local; the user pushes, then the GitHub release.
 
+- **After 0.3.0 (2026-10-15):** CLI quickstart `docs/cli-quickstart.md` with sample
+  `samples/CliSite` (static site, browser test in Chromium/Firefox/WebKit, Node and Deno run;
+  every doc command run against the 0.3.0 archive). Decision memos
+  `docs/decisions/2026-10-15-002-ts-outside-wwwroot.md` and `-003-razor-class-libraries.md`
+  (both measured). Razor class libraries already worked in 0.3.0; now tested and in README.
+  `PareRelativePath` fixes: PARE201 for two sources mapped to one URL (was SDK crash MSB4018),
+  backslashes normalized (Windows-only bug, verified on wp1). 416 tests, 0 failed, 1 skipped.
+
 ## Next
 
 Order from the 2026-10-15 fable consult:
