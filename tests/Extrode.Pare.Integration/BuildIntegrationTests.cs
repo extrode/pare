@@ -261,8 +261,10 @@ public sealed class BuildIntegrationTests : IDisposable
         var (exit, output) = Run("msbuild", "-nologo", "-getItem:Watch");
 
         Assert.True(exit == 0, output);
-        Assert.Contains(Path.Combine("wwwroot", "app.ts"), output);
-        Assert.Contains(Path.Combine("src", "a.ts"), output);
+        // JSON output: a Windows path comes back with escaped backslashes.
+        string items = output.Replace(@"\\", "/");
+        Assert.Contains("wwwroot/app.ts", items);
+        Assert.Contains("src/a.ts", items);
     }
 
     [Fact]
@@ -693,6 +695,8 @@ public sealed class BuildIntegrationTests : IDisposable
             .Select(d => Path.Combine(d, OperatingSystem.IsWindows() ? runtime + ".exe" : runtime)).FirstOrDefault(File.Exists);
         Assert.SkipWhen(where is null, $"{runtime} is not on PATH");
         BuildSample();
+        // A package.json further up can say "commonjs" (one in a Windows %TEMP% did).
+        Put("app/wwwroot/package.json", """{ "type": "module" }""");
         string counter = new Uri(P("app/wwwroot/js/counter.js")).AbsoluteUri;
         var start = new ProcessStartInfo(where!) { RedirectStandardOutput = true, RedirectStandardError = true };
         foreach (string arg in evaluate)
@@ -734,7 +738,8 @@ public sealed class BuildIntegrationTests : IDisposable
             Directory.GetDirectories(store).Select(Path.GetFileName).Order());
         Assert.Empty(Directory.GetFiles(store, "pare.dll", SearchOption.AllDirectories));
 
-        var start = new ProcessStartInfo(P(OperatingSystem.IsWindows() ? "tool/pare.exe" : "tool/pare"), "--stdin")
+        // On Windows the SDK puts a pare.cmd shim on the tool path for a native tool.
+        var start = new ProcessStartInfo(P(OperatingSystem.IsWindows() ? "tool/pare.cmd" : "tool/pare"), "--stdin")
         {
             RedirectStandardInput = true,
             RedirectStandardOutput = true,

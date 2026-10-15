@@ -15,9 +15,13 @@ Small, clear, and could be picked up without a design decision.
 
 ## Later
 
-- Windows `pare` binaries (win-x64, win-arm64): listed in the tool's RIDs but never built; pack
-  them on Windows (`dotnet pack src/Extrode.Pare.Cli -c Release -r win-x64`) before a release.
-  Until then `dotnet tool install` on Windows fails rather than falling back to `any`.
+- win-arm64 `pare`: `scripts/pack-cli.ps1` skips it until Visual Studio on the Windows build
+  machine has `Microsoft.VisualStudio.Component.VC.Tools.ARM64`, and running it needs a Windows on
+  ARM machine. A release missing the package fails `dotnet tool install` there rather than falling
+  back to `any`. win-x64 is packed and checked on wp1.
+
+- Windows browser tests: the 4 Playwright tests have not run on Windows (wp1 lacks Playwright
+  1.63's browser builds, ~250 MB). The other 15 integration tests and all unit tests pass there.
 
 - .NET bug, not reported: NativeAOT on linux-musl-arm64,
   `RuntimeHelpers.TryEnsureSufficientExecutionStack()` on the main thread returns false in about
