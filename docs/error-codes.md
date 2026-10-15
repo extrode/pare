@@ -24,6 +24,7 @@ reported in one run.
 | [PARE106](#pare106) | error | parameter decorators need legacy experimentalDecorators |
 | [PARE107](#pare107) | error | a type-only import cannot have both a default and named bindings |
 | [PARE200](#pare200) | warning (MSBuild) | not served: the build now writes this file's TypeScript output under obj/ and serves that. Delete it. |
+| [PARE201](#pare201) | error (MSBuild) | two TypeScript sources map to one URL |
 
 Errors print as `file:line:col: error PARE100: message (hint)` from the CLI and the hot-reload
 watcher, and as `file(line,col): error PARE100: message (hint)` from MSBuild.
@@ -216,3 +217,16 @@ and leaves `foo.js` out, so the two cannot conflict. The build still succeeds.
 
 Delete the `foo.js` files the warning names, and any `.gitignore` rules added for them. If a
 hand-written `foo.js` is the one you want served, rename it or the `.ts`.
+
+## PARE201
+
+`error PARE201: two TypeScript sources map to one URL, js/app.js: wwwroot/js/app.ts, Scripts/app.ts. Give each its own PareRelativePath, or remove one from TypeScriptSource.`
+
+MSBuild package only, for web projects whose output goes under `obj/`. Each source's output is
+served at its `PareRelativePath`: the path below `wwwroot` by default, or the value a
+`TypeScriptSource` item sets. Two sources ended up with the same one, which would also make them
+write the same file. Paths that differ only in case count as the same, as they do on macOS and
+Windows file systems. The build stops before stripping anything.
+
+Change the `PareRelativePath` of one of the named sources, or exclude one of them from
+`TypeScriptSource` (`<TypeScriptSource Remove="Scripts/app.ts" />`).

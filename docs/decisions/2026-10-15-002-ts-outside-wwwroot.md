@@ -55,10 +55,10 @@ Gaps found while measuring:
 
 | Gap | Measured or read | Effect |
 |---|---|---|
-| Two sources mapped to one URL (`wwwroot/js/app.ts` and `Scripts/app.ts` -> `js/app.js`) | measured | SDK crash: `MSB4018 DiscoverPrecompressedAssets ... An item with the same key has already been added` |
+| Two sources mapped to one URL (`wwwroot/js/app.ts` and `Scripts/app.ts` -> `js/app.js`) | measured | SDK crash: `MSB4018 DiscoverPrecompressedAssets ... An item with the same key has already been added`. Fixed: error PARE201 names both sources |
 | `.mts` with a mapping that hard-codes `.js` | read (targets) | the user's mapping decides the extension, so `.mts` becomes `.js`, not `.mjs` |
 | Edits under `dotnet watch` (hot reload mode) | read (`PareDevelopmentExtensions.cs`, development map) | `AddPareDevelopment` watches one `sourceRoot`, always `wwwroot`; a `Scripts/` edit is not re-stripped until the next build |
-| `%(RecursiveDir)` uses `\` on Windows | not measured | the `RelativePath` may contain a backslash; needs a wp1 run |
+| `%(RecursiveDir)` uses `\` on Windows | measured on wp1 | the SDK serves `js/lib/fmt.js` regardless, but the duplicate check missed `js/lib\fmt.js`. Fixed: the targets normalize to `/` |
 | No mapping at all | measured | silent: next-to-source output, never served |
 
 ## How the SDK does it for its own non-wwwroot files
@@ -88,7 +88,7 @@ scripts. No SDK feature serves an arbitrary folder at an arbitrary URL prefix; t
 ## Recommendation
 
 **B, plus a warning for the unmapped case.** In a project with static web assets, a source outside
-`wwwroot` with no `PareRelativePath` gets a new warning code (next free: PARE201) saying it will
+`wwwroot` with no `PareRelativePath` gets a new warning code (next free: PARE202) saying it will
 not be served and showing the one-line mapping to add. Its output stays next to the source, so
 nothing changes for anyone who relies on that today. Non-web projects are unaffected.
 
@@ -98,8 +98,8 @@ example `PareServeProjectRelative=true`), since C is B with a default mapping fi
 
 Work for B, smallest first:
 
-1. Docs: README MSBuild section and `docs/error-codes.md` (PARE201, duplicate-URL error).
-2. Targets: PARE201; an error when two sources share a `PareRelativePath` (instead of the SDK
+1. Docs: README MSBuild section and `docs/error-codes.md` (PARE202).
+2. Targets: PARE202. Done: an error when two sources share a `PareRelativePath` (instead of the SDK
    crash); normalize `\` to `/`.
 3. `AddPareDevelopment`: the development map lists each mapped source and its output, not one
    root, so `dotnet watch` re-strips them.

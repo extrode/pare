@@ -243,6 +243,53 @@ public sealed class BuildIntegrationTests : IDisposable
         Assert.Equal("old;", File.ReadAllText(P("wwwroot/js/app.js")));
     }
 
+    private const string ScriptsMapping = """<TypeScriptSource Include="Scripts/**/*.ts" PareRelativePath="js/%(RecursiveDir)%(Filename).js" />""";
+
+    // The second case puts %(RecursiveDir) in the mapping, which is `lib\` on Windows.
+    [Theory]
+    [InlineData("wwwroot/js/app.ts", "Scripts/app.ts", "js/app.js")]
+    [InlineData("wwwroot/js/lib/fmt.ts", "Scripts/lib/fmt.ts", "js/lib/fmt.js")]
+    public void Two_sources_at_one_url_fail_the_build_naming_both(string first, string second, string url)
+    {
+        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", items: ScriptsMapping);
+        Put(first, "let a: T;");
+        Put(second, "let b: T;");
+        Put("Scripts/other.ts", "let o: T;");
+
+        var (exit, output) = Build();
+
+        Assert.NotEqual(0, exit);
+        Assert.DoesNotContain("MSB4018", output);
+        string error = Assert.Single(output.Split('\n').Distinct(), line => line.Contains("error PARE201", StringComparison.Ordinal));
+        Assert.Contains($"app.csproj : error PARE201: two TypeScript sources map to one URL, {url}: ", error);
+        Assert.Contains(first.Replace('/', Path.DirectorySeparatorChar), error.Replace('/', Path.DirectorySeparatorChar));
+        Assert.Contains(second.Replace('/', Path.DirectorySeparatorChar), error.Replace('/', Path.DirectorySeparatorChar));
+        Assert.DoesNotContain("other", error);
+        Assert.False(File.Exists(P(ObjOut + url)));
+    }
+
+    [Fact]
+    public void A_mapped_source_outside_wwwroot_is_served_at_its_mapped_url()
+    {
+        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", items: ScriptsMapping, targets: AssetProbe);
+        Put("Scripts/app.ts", "import { f } from './lib/fmt.ts';\nlet a: T = f();\n");
+        Put("Scripts/lib/fmt.ts", "export let f: T;\n");
+
+        for (int build = 0; build < 2; build++)
+        {
+            var (exit, output) = Build();
+            Assert.True(exit == 0, output);
+            var assets = Assets(output);
+            string app = Assert.Single(assets, a => a.Contains("app", StringComparison.Ordinal));
+            Assert.StartsWith("js/app#[.{fingerprint}]?.js ", app);
+            string fmt = Assert.Single(assets, a => a.Contains("fmt", StringComparison.Ordinal));
+            Assert.StartsWith("js/lib/fmt#[.{fingerprint}]?.js ", fmt);
+            Assert.EndsWith(Tail(ObjOut + "js/lib/fmt.js"), fmt);
+        }
+        Assert.Equal("import { f } from './lib/fmt.js';\nlet a    = f();\n", File.ReadAllText(P(ObjOut + "js/app.js")));
+        Assert.False(File.Exists(P("Scripts/app.js")));
+    }
+
     [Fact]
     public void Deleting_a_source_removes_its_output()
     {

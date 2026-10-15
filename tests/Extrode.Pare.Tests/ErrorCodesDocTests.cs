@@ -68,12 +68,20 @@ public partial class ErrorCodesDocTests
         Assert.True(TypeStripper.Strip(blocks[1], new ArrayBufferWriter<char>(), sink), $"rejected: {string.Join(", ", sink.Items)}");
     }
 
-    [Fact]
-    public void Build_warning_section_quotes_the_targets_text()
+    [Theory]
+    [InlineData("PARE200", "warning")]
+    [InlineData("PARE201", "error")]
+    public void Build_diagnostic_section_quotes_the_targets_text(string code, string kind)
     {
-        string text = WarningText().Match(Targets).Groups[1].Value;
-        Assert.NotEmpty(text);
-        Assert.Contains($"`warning PARE200: {text}`", Section("PARE200"));
+        var task = BuildDiagnostic().Matches(Targets).Single(m => m.Groups[2].Value == code);
+        Assert.Equal(kind, task.Groups[1].Value.ToLowerInvariant());
+        Assert.Contains($"| [{code}](#{code.ToLowerInvariant()}) | {kind} (MSBuild) |", Doc);
+
+        // MSBuild expressions in the text (%(...), @(...)) stand for the example's values.
+        string text = task.Groups[3].Value;
+        string pattern = "\n`" + Regex.Escape($"{kind} {code}: ") +
+            string.Join(".+", MSBuildExpression().Split(text).Select(Regex.Escape)) + "`\n";
+        Assert.Matches(pattern, Section(code));
     }
 
     [GeneratedRegex(@"^## (PARE\d{3})$", RegexOptions.Multiline)]
@@ -82,8 +90,11 @@ public partial class ErrorCodesDocTests
     [GeneratedRegex(@"Code=""(PARE\d{3})""")]
     private static partial Regex TargetsCode();
 
-    [GeneratedRegex(@"Code=""PARE200""[^>]*?Text=""([^""]*)""", RegexOptions.Singleline)]
-    private static partial Regex WarningText();
+    [GeneratedRegex(@"<(Warning|Error) Code=""(PARE\d{3})""[^<]*?Text=""([^""]*)""", RegexOptions.Singleline)]
+    private static partial Regex BuildDiagnostic();
+
+    [GeneratedRegex(@"[%@]\([^()]*(?:\([^()]*\)[^()]*)*\)")]
+    private static partial Regex MSBuildExpression();
 
     [GeneratedRegex(@"```ts\n(.*?)```", RegexOptions.Singleline)]
     private static partial Regex TsBlock();
