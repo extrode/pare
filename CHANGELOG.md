@@ -7,6 +7,8 @@
   published as before), instead of next to each source. Breaking for anything that read the `.js`
   from `wwwroot` on disk. `PareOutDir` turns it off. A `foo.js` left next to `foo.ts` is not served
   and gets `warning PARE200`.
+- `docs/error-codes.md`: every diagnostic (PARE001, PARE100-PARE107, PARE200) with an example
+  that triggers it, why, and what to write instead. README links it.
 - The build deletes the output of a deleted source; so does `AddPareDevelopment` while the app
   runs. `AddPareDevelopment` writes where the build does, read from
   `Extrode.Pare.development.json` in the build output. A source added during `dotnet watch` is
