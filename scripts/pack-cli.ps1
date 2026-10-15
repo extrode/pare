@@ -3,8 +3,10 @@
 #   Extrode.Pare.Cli.<rid>.<v>.nupkg    NativeAOT binary for one RID
 #   pare-<v>-<rid>.zip                  the same binary as a standalone archive
 # Then runs the host RID's binary 20 times and `dotnet tool install`s it from a pointer package.
-# Usage: pwsh scripts/pack-cli.ps1 [-Version 0.1.0]
-param([string]$Version)
+# -SkipPack only runs that check, on archives already in tmp/dist: for a machine without Visual
+# Studio, such as a Windows on ARM test machine given win-arm64 packed elsewhere.
+# Usage: pwsh scripts/pack-cli.ps1 [-Version 0.1.0] [-SkipPack]
+param([string]$Version, [switch]$SkipPack)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $out = Join-Path $root 'tmp/dist'
@@ -20,13 +22,16 @@ function Invoke-Pack([string[]]$Arguments) {
 
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
 $rids = @('win-x64')
-if ((Test-Path $vswhere) -and (& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -property installationPath)) {
+if ($SkipPack) {
+    $rids = @('win-x64', 'win-arm64') | Where-Object { Test-Path (Join-Path $out "pare-$Version-$_.zip") }
+} elseif ((Test-Path $vswhere) -and (& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -property installationPath)) {
     $rids += 'win-arm64'
 } else {
     Write-Warning 'win-arm64 skipped: Visual Studio has no ARM64 C++ tools (Microsoft.VisualStudio.Component.VC.Tools.ARM64)'
 }
 
 foreach ($rid in $rids) {
+    if ($SkipPack) { continue }
     Invoke-Pack @('-r', $rid)
     $stage = Join-Path $root "tmp/dist-stage/pare-$Version-$rid"
     Remove-Item -Recurse -Force (Join-Path $root 'tmp/dist-stage') -ErrorAction SilentlyContinue
@@ -70,5 +75,9 @@ if ($rids -contains $hostRid) {
     Remove-Item Env:NUGET_PACKAGES
     Remove-Item -Recurse -Force $check
     "verified $hostRid"
+} elseif ($SkipPack) {
+    throw "no pare-$Version-$hostRid.zip in tmp/dist"
 }
-"packed Extrode.Pare.Cli $Version for $($rids -join ', ') into tmp/dist"
+if (-not $SkipPack) {
+    "packed Extrode.Pare.Cli $Version for $($rids -join ', ') into tmp/dist"
+}
