@@ -23,6 +23,17 @@ dotnet pack src/Extrode.Pare.Build -c Release -o tmp/pack                # MSBui
 
 ## CLI
 
+```sh
+dotnet tool install -g Extrode.Pare.Cli
+```
+
+The tool package installs the NativeAOT binary for osx-arm64, osx-x64, linux-arm64, linux-x64,
+linux-musl-arm64 and linux-musl-x64, and a framework-dependent build (needs the .NET 10 runtime)
+on any other platform. The same binaries come as `pare-<version>-<rid>.tar.gz` archives with no
+.NET needed. Windows builds are not packed yet. `scripts/pack-cli.sh` writes all of them to
+`tmp/dist`: macOS natively, Linux in Docker (`mcr.microsoft.com/dotnet/sdk:10.0` and `-alpine`),
+then runs each Linux build 20 times and installs the tool on its own platform.
+
 ```
 pare src                      # src/**/*.ts -> .js next to each source
 pare src --outdir dist        # mirror into dist/
@@ -106,7 +117,9 @@ bool ok = TypeStripper.Strip(source, output, diagnostics, StripOptions.RewriteRe
 ```
 
 `source` is `ReadOnlySpan<char>`, `output` an `IBufferWriter<char>`, `diagnostics` an
-`IDiagnosticSink`. Why UTF-16: [docs/decisions/2026-10-14-001-utf16-input.md](docs/decisions/2026-10-14-001-utf16-input.md).
+`IDiagnosticSink`. Deep nesting fails with a diagnostic, not a stack overflow; on linux-musl-arm64
+NativeAOT call `Strip` from a thread you created, since .NET misreads the main thread's stack size
+there and the check fails at once. Why UTF-16: [docs/decisions/2026-10-14-001-utf16-input.md](docs/decisions/2026-10-14-001-utf16-input.md).
 
 ## Non-whitespace changes
 

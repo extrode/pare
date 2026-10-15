@@ -15,6 +15,15 @@ Small, clear, and could be picked up without a design decision.
 
 ## Later
 
+- Windows `pare` binaries (win-x64, win-arm64): listed in the tool's RIDs but never built; pack
+  them on Windows (`dotnet pack src/Extrode.Pare.Cli -c Release -r win-x64`) before a release.
+  Until then `dotnet tool install` on Windows fails rather than falling back to `any`.
+
+- .NET bug, not reported: NativeAOT on linux-musl-arm64,
+  `RuntimeHelpers.TryEnsureSufficientExecutionStack()` on the main thread returns false in about
+  one process in four (repro: a console app printing it, run 60 times on `sdk:10.0-alpine`
+  arm64). Library callers there need a thread they created; README says so.
+
 - `dotnet watch` 10.0.401 hot reload, macOS: after a file is added (an editor saving via rename)
   it failed to read `obj\Debug/net10.0/staticwebassets.development.json` (backslash path). SDK
   side; check whether static-asset refresh still works after such a save.
