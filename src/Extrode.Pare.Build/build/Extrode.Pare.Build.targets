@@ -38,6 +38,7 @@
       <_PareSource>
         <_PareDir>$([MSBuild]::MakeRelative('$([MSBuild]::NormalizeDirectory($(MSBuildProjectDirectory)))', '%(RootDir)%(Directory)').Replace('\', '/'))</_PareDir>
         <_PareJs>%(Filename)$([System.String]::Copy('%(Extension)').Replace('ts', 'js'))</_PareJs>
+        <_PareSourceSpec>%(Identity)</_PareSourceSpec>
       </_PareSource>
       <_PareSource Condition="'$(_PareObjRoot)' != '' and $([System.String]::Copy('%(_PareDir)').StartsWith('wwwroot/'))">
         <PareRelativePath>$([System.String]::Copy('%(_PareDir)').Substring(8))%(_PareJs)</PareRelativePath>
@@ -52,7 +53,12 @@
       <_PareSource Condition="'$(_PareOutRoot)' != ''">
         <PareOutputPath>$(_PareOutRoot)%(RelativeDir)%(_PareJs)</PareOutputPath>
       </_PareSource>
+      <!-- Two sources at one URL: the SDK would crash on the duplicate asset (MSB4018). Batches
+           group case-insensitively, as one obj/ file on macOS and Windows would. -->
+      <_PareUrl Include="@(_PareSource->'%(PareRelativePath)')" Condition="'%(_PareSource.PareRelativePath)' != ''" />
     </ItemGroup>
+    <Error Code="PARE201" File="$(MSBuildProjectFullPath)" Condition="'@(_PareUrl->Count())' &gt; '1'"
+           Text="two TypeScript sources map to one URL, %(_PareUrl.Identity): @(_PareUrl->'%(_PareSourceSpec)', ', '). Give each its own PareRelativePath, or remove one from TypeScriptSource." />
   </Target>
 
   <Target Name="PareTypeCheck" BeforeTargets="PareStripTypeScript"

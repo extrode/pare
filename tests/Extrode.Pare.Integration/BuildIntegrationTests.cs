@@ -198,6 +198,27 @@ public sealed class BuildIntegrationTests : IDisposable
     }
 
     [Fact]
+    public void Two_sources_at_one_url_fail_the_build_naming_both()
+    {
+        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web",
+            items: """<TypeScriptSource Include="Scripts/**/*.ts" PareRelativePath="js/%(RecursiveDir)%(Filename).js" />""");
+        Put("wwwroot/js/app.ts", "let a: T;");
+        Put("Scripts/app.ts", "let b: T;");
+        Put("Scripts/lib/fmt.ts", "let f: T;");
+
+        var (exit, output) = Build();
+
+        Assert.NotEqual(0, exit);
+        Assert.DoesNotContain("MSB4018", output);
+        string error = Assert.Single(output.Split('\n').Distinct(), line => line.Contains("error PARE201", StringComparison.Ordinal));
+        Assert.Contains("app.csproj : error PARE201: two TypeScript sources map to one URL, js/app.js: ", error);
+        Assert.Contains(Path.Combine("wwwroot", "js", "app.ts"), error.Replace('/', Path.DirectorySeparatorChar));
+        Assert.Contains(Path.Combine("Scripts", "app.ts"), error.Replace('/', Path.DirectorySeparatorChar));
+        Assert.DoesNotContain("fmt", error);
+        Assert.False(File.Exists(P(ObjOut + "js/app.js")));
+    }
+
+    [Fact]
     public void Deleting_a_source_removes_its_output()
     {
         Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", targets: AssetProbe);
