@@ -122,6 +122,14 @@ a source deletes its output under `obj/`. Pass `o => o.OutDir = "..."` when the 
 | `PareTsconfig` | `tsconfig.json` in the project | never copied to the build or publish output |
 | `PareKeepSources` | `false` | `true` serves and publishes the `.ts` sources next to the output |
 
+### Razor class libraries
+
+Reference `Extrode.Pare.Build` from the library; apps that use it need nothing. The library's
+`wwwroot/js/widget.ts` is served to those apps as `/_content/<Library>/js/widget.js`, published
+with compressed copies, and packed by `dotnet pack` as the stripped `.js` only, with no dependency on
+Pare. `AddPareDevelopment` re-strips only the app's own sources on save, not the library's;
+rebuild after editing a library source.
+
 ## Sample
 
 `samples/WebApp`: ASP.NET Core NativeAOT, an Alpine component and modules written in TypeScript,
