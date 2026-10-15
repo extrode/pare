@@ -243,6 +243,14 @@ convention). Update at the end of every session.
   the `Core` condition (both bring back the fallback warning). CI's `windows-latest` is Windows
   2025 with VS Enterprise 2026 18.10, so it runs there too. Not checked: the VS IDE itself.
 
+- **0.3.0 cut (2026-10-15):** version 0.3.0 (`chore/release-0.3.0`), CHANGELOG has an "Upgrading
+  from 0.2" section (obj/ default, delete old `wwwroot` `.js`, PARE200, `.gitignore`, new files
+  under `dotnet watch`). 406 tests, 0 failed, 1 skipped on macOS (VS MSBuild test). Packed: 8
+  per-RID tool packages and archives (osx, linux, linux-musl via Docker on the Mac; win-x64 and
+  win-arm64 on wp1, win-x64 verified there), pointer and `any` packages in `tmp/dist`,
+  `tmp/dist-win`; `Extrode.Pare`, `.Build`, `.AspNetCore` 0.3.0 in `tmp/dist-lib`. Release notes
+  in `tmp/release-notes-0.3.0.md`. Tag `v0.3.0` local; the user pushes, then the GitHub release.
+
 ## Next
 
 Order from the 2026-10-15 fable consult:
@@ -250,20 +258,20 @@ Order from the 2026-10-15 fable consult:
 1. ~~Browser check of `samples/WebApp`~~: done 2026-10-15 (headless Chromium).
 2. ~~**v0.1 release prep**~~: license done 2026-10-15 (user: pick from islamiclicense.org; ISL-P 1.2
    WITH ISL-OE 1.2, Licensor `Extrode (extrode.com)`), package metadata done. v0.1.0 tagged,
-   0.2.0 released on GitHub (above).
+   0.2.0 released on GitHub, 0.3.0 cut (above).
 3. ~~M5 tsgo differential and `scripts/get-tsc.cs`~~: done 2026-10-15, 99.96%, all triaged.
 4. ~~**Dev loop:**~~ done 2026-10-15: `--no-hot-reload` via `Watch` items, default hot reload
    via M8 (see above).
 5. ~~**M7 perf**~~: done 2026-10-15 (see above).
 6. **M4 lexer validation:** only if M5 shows a divergence that matters.
 
-Not in the plan yet: a PARE1xx error-code page. (Stale `.js` and obj/ output: done, above.)
+Not in the plan yet: nothing. (Error-code page `docs/error-codes.md`, stale `.js` and obj/ output: done.)
 
 ## Open questions
 
 - Lexer leniency vs TypeScript (escape and numeric-literal validation): see `work/todo.md`.
-- Pushing `main` is blocked by a hook (user's call): local `main` holds the CI-fix merge,
-  `origin/main` and `v0.2.0` stay at the release commit; product code is identical.
+- Pushing `main` is the user's (a hook blocks it for agents).
+- nuget.org publishing and making `extrode/pare` public: user's call.
 
 ## Corpus pass rate
 
