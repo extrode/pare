@@ -20,7 +20,12 @@
     <_PareOutRoot Condition="'$(PareOutDir)' != ''">$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(PareOutDir)'))</_PareOutRoot>
   </PropertyGroup>
 
-  <UsingTask TaskName="Extrode.Pare.Build.StripTypeScript" AssemblyFile="$(PareTaskAssembly)" />
+  <!-- The task targets .NET. Visual Studio's MSBuild (.NET Framework) runs it in MSBuild 18's
+       .NET task host, out of process. -->
+  <UsingTask TaskName="Extrode.Pare.Build.StripTypeScript" AssemblyFile="$(PareTaskAssembly)"
+             Condition="'$(MSBuildRuntimeType)' == 'Core'" />
+  <UsingTask TaskName="Extrode.Pare.Build.StripTypeScript" AssemblyFile="$(PareTaskAssembly)"
+             Runtime="NET" TaskFactory="TaskHostFactory" Condition="'$(MSBuildRuntimeType)' != 'Core'" />
 
   <Target Name="_PareComputeOutputs">
     <!-- In a target: IntermediateOutputPath is not set yet when a package's files are evaluated. -->
