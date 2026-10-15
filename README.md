@@ -48,7 +48,8 @@ pare --stdin < in.ts > out.js
 
 Inputs are files, directories (searched recursively) or globs (`*`, `?`, `**`, for shells that
 do not expand them). `.ts`, `.mts`, `.cts` become `.js`, `.mjs`, `.cjs`. `.d.ts` files and
-`node_modules` are skipped. Exit codes: 0 ok, 1 rejected syntax, 2 I/O or usage error.
+`node_modules` are skipped. Exit codes: 0 ok, 1 rejected syntax ([error codes](docs/error-codes.md)),
+2 I/O or usage error.
 An existing `foo.js` next to `foo.ts` is replaced, like `tsc` and `esbuild` do: keep hand-written
 JavaScript out of the source folders, or use `--outdir`.
 
@@ -60,8 +61,8 @@ JavaScript out of the source folders, or use `--outdir`.
 
 Before `Build`, every `wwwroot/**/*.ts` and `*.mts` (not `.d.ts`, not `node_modules`) is stripped.
 The step is incremental, runs in-process and needs no Node. Rejections fail the build as
-`file(line,col): error PARE100: ...`. Runs under `dotnet build` (CLI, CI, Rider, VS Code), not
-inside Visual Studio's .NET Framework MSBuild.
+`file(line,col): error PARE100: ...` ([what each code means](docs/error-codes.md)). Runs under
+`dotnet build` (CLI, CI, Rider, VS Code), not inside Visual Studio's .NET Framework MSBuild.
 
 In a web project (the Web SDK's static web assets), `wwwroot/js/app.ts` becomes
 `obj/<configuration>/<tfm>/pare/js/app.js`, registered as the static web asset `js/app.js`: served
