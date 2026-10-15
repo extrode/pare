@@ -7,7 +7,7 @@
   fresh JavaScript. It also gives `CreateSlimBuilder` apps `dotnet watch`'s browser refresh.
 - The core library packs as `Extrode.Pare`.
 - `pare` CLI as a .NET tool: `dotnet tool install -g Extrode.Pare.Cli` installs the NativeAOT
-  binary for osx, linux and linux-musl (arm64 and x64), and a framework-dependent build on other
+  binary for osx, linux and linux-musl (arm64 and x64) and win-x64, and a framework-dependent build on other
   platforms. `scripts/pack-cli.sh` packs the tool packages and `pare-<version>-<rid>.tar.gz`
   archives, building Linux in Docker.
 - Fixed: on linux-musl-arm64 (Alpine), about one `pare` process in four rejected every input with

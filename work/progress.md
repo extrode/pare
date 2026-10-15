@@ -187,6 +187,14 @@ convention). Update at the end of every session.
   `Dotnet_watch_hot_reload_refreshes_the_browser_with_the_restripped_source` (dotnet watch +
   Chromium, ~15 s; break-checked without the refresh hook and without the sample's call). Core
   now packs as `Extrode.Pare`. 375 tests pass.
+- **Windows (2026-10-15, wp1 over ssh):** first run on Windows (10.0.26200 x64, SDK 10.0.401,
+  repo copied by `git bundle`). Unit tests 348 pass (1 Unix-permissions skip). Integration
+  without the 4 browser tests: 15 run, 2 skip (fake `tsc` is a shell script); 3 failed on test
+  assumptions, now fixed: the tool shim is `pare.cmd`, `msbuild -getItem` JSON escapes
+  backslashes, and a stray `%TEMP%\package.json` with `"type": "commonjs"` made Node load the
+  sample's `.js` as CommonJS. `scripts/pack-cli.ps1` packs win-x64 (NativeAOT, 1.35 MB `pare.exe`,
+  ~8 s), zips it, runs it 20 times byte-exact and tool-installs it (break-checked with a wrong
+  expected output). win-arm64 needs VS's ARM64 C++ tools (not installed on wp1).
 
 ## Next
 
@@ -203,8 +211,8 @@ Order from the 2026-10-15 fable consult:
 6. **M4 lexer validation:** only if M5 shows a divergence that matters.
 
 Not in the plan yet: stale `.js` left after deleting a `.ts`; output under `obj/` as static web
-assets (v0.2, retires the publish and overwrite questions); Windows `pare` binaries (see todo); a PARE1xx error-code page;
-`.gitignore` guidance for generated `.js`; Windows has never run.
+assets (v0.2, retires the publish and overwrite questions); win-arm64 `pare` (see todo); a PARE1xx
+error-code page; `.gitignore` guidance for generated `.js`.
 
 ## Open questions
 

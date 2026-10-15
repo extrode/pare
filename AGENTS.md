@@ -31,6 +31,7 @@ dotnet test --solution Pare.slnx
 tests/Extrode.Pare.Tests/bin/Debug/net10.0/Extrode.Pare.Tests   # unit only, after a build
 dotnet publish src/Extrode.Pare.Cli -c Release -r osx-arm64 -o tmp/aot
 scripts/pack-cli.sh   # .NET tool + per-RID packages and archives into tmp/dist (~4 min, Docker for Linux)
+pwsh scripts/pack-cli.ps1   # on Windows (wp1 over ssh): win-x64, win-arm64 with VS ARM64 C++ tools
 ```
 
 ## Rules
