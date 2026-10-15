@@ -29,8 +29,10 @@ Small, clear, and could be picked up without a design decision.
 
 - obj/ output for sources outside `wwwroot` (for example `Scripts/**/*.ts`, routed by a
   `PareRelativePath`): they write next to the source today. User: later (2026-10-15).
-- Razor class library outputs under `_content/<lib>/`: should follow from `StaticWebAssetBasePath`
-  but untested. User: later (2026-10-15).
+- Razor class library outputs under `_content/<lib>/`: work in 0.3.0 (measured), untested and
+  undocumented. Options and recommendation: docs/decisions/2026-10-15-003-razor-class-libraries.md.
+- In Development the SDK serves every `wwwroot` file through a `**` pattern, so `.ts` sources
+  return 200 (app and RCL); publish has none. Decide whether `AddPareDevelopment` should 404 them.
 
 Real, but needs a decision, a dependency, or more information first. Say which.
 
