@@ -103,8 +103,62 @@ The output differs from the input only by spaces, except for:
 - ASI fixes: a `)` moved to the end of an erased multi-line return type, a `(` moved to the
   start of erased type parameters followed by a line break, and a `;` written at the start of
   an erased statement or class member when the previous line could otherwise merge with the next,
-  or at the end of an erased `as`/`satisfies` type when the next line starts with `(`, `[` or a
-  template
+  at the end of an erased `as`/`satisfies` type when the next line starts with `(`, `[` or a
+  template, and at the end of the erased type of a field named `get`, `set` or `static`
+
+## Performance
+
+Measured on an Apple M1 Max (osx-arm64), .NET 10.0, Release build.
+
+BenchmarkDotNet 0.15.8, one `TypeStripper.Strip` call per source, output to a reused buffer:
+
+| Input | Mean | MB/s | Allocated |
+|---|---:|---:|---:|
+| TypeScript 5.9.3 `checker.ts` (3.1 MB) | 13.3 ms | 235 | 0 B |
+| Real-world corpus, 2,392 files (19.5 MB) | 75.0 ms | 218 | 0 B |
+| `(a = ` nested 1,000 deep | 38.1 ms | 0.2 | 0 B |
+
+Deep nesting is quadratic, as in TypeScript's own parser; real code never reaches it.
+
+The same 2,392 files (TypeScript's compiler, Vue, Hono, Deno std, Svelte, Zod at pinned
+commits) through other tools. Each tool's output is compared with Pare's byte for byte, then as
+an Acornima syntax tree without locations. Printers (esbuild, oxc, deno) reprint literals, so the
+tree comparison ignores literal spelling, `{ a: a }` versus `{ a }` and `void 0` versus `undefined`.
+
+| Tool | Same bytes | Same tree | Differ | Throughput | Pare is |
+|---|---:|---:|---:|---:|---:|
+| Pare 0.1.0 | - | - | - | 184-229 MB/s | - |
+| Node 24.16 `stripTypeScriptTypes` | 1,898 | 490 | 0 | 38 MB/s | 4.9x faster |
+| oxc-transform 0.154.0 | 13 | 2,375 | 0 | 81 MB/s | 2.3x faster |
+| ts-blank-space 0.9.0 | 1,967 | 420 | 1 | 25 MB/s | 7.3x faster |
+| esbuild 0.28.2 | 11 | 1,961 | 416 | 10 MB/s | 19x faster |
+| `deno bundle` 2.9.7 | 5 | 1,021 | 1,362 | - | - |
+
+- Same tree but not same bytes: Node and ts-blank-space keep tabs and write UTF-8-width spaces for
+  non-ASCII comment text, and Pare writes its ASI `;` in a few places they leave blank.
+- ts-blank-space's one difference is a bug on its side: `get!: T` followed by another field on the
+  next line becomes a getter, and its output does not parse. Pare had the same bug until this
+  comparison found it.
+- esbuild and Deno (which bundles with esbuild) rename shadowed bindings, turn strings with line
+  breaks into template literals and regroup exports; none of their differences is a Pare error.
+- Four files are left out: their output does not parse for any stripper, because they import or
+  re-export a type without `type`, which needs type information to remove.
+- Whole process over all files: `pare` CLI (NativeAOT) 0.5-1.1 s, `deno bundle` 1.3-2.7 s
+  (Deno runs once per extension).
+
+Throughput ranges are over separate runs on a laptop; BenchmarkDotNet's numbers above are the
+steady ones. To reproduce:
+
+```sh
+dotnet run scripts/get-bench-corpus.cs                       # ~25 MB into .corpus/realworld
+npm --prefix tests/Extrode.Pare.Bench/compare ci --ignore-scripts
+dotnet publish src/Extrode.Pare.Cli -c Release -r osx-arm64 -o tmp/aot
+dotnet run -c Release --project tests/Extrode.Pare.Bench -- compare --passes 5
+dotnet run -c Release --project tests/Extrode.Pare.Bench -- --filter '*'
+```
+
+`compare` writes every tool's output under `tmp/compare/` and the differences to
+`tmp/compare/differences.tsv`.
 
 ## License
 

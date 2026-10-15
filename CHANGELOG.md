@@ -26,6 +26,9 @@
 - Fixed: a field named `get`, `set` or `static` whose erased `!`, `?` or type ended at a line break
   merged with the next member (`get!: T` then `post!: T` became a getter named `post`); Pare now
   writes `;` there. Found in Hono by the cross-tool comparison.
+- Benchmarks (M7): `tests/Extrode.Pare.Bench` with BenchmarkDotNet (218 MB/s on 2,392 real-world
+  files, 0 B allocated per call) and a `compare` mode against Node, oxc, ts-blank-space, esbuild
+  and Deno; `scripts/get-bench-corpus.cs` fetches the corpus. A test asserts 0 B per `Strip` call.
 - Fixed: a namespace holding only a bodiless function declaration (`function f();`) is now
   rejected; TypeScript counts it as a value.
 - `scripts/get-tsc.cs`: downloads TypeScript 7's native `tsc` (7.0.2) from the npm registry into
