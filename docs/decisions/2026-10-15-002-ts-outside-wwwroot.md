@@ -18,7 +18,9 @@ warning. A Fable review named it and set the rules:
 - **PARE203** error: a value with a `.`/`..` segment, `:`, `//`, or a script extension.
 - `PareRelativePath` stays undocumented and wins when both are set. A stale `.razor.js` beside a
   served `.razor.ts` also leaves `None`, or the SDK rejects two assets at one path.
-- Still open: `AddPareDevelopment` re-strips `wwwroot` sources only (`work/todo.md`).
+- Done since: `AddPareDevelopment` re-strips `PareServeAt` sources on save. The development map
+  lists each source and its output (`"sources"`), and the watcher watches each of their
+  directories. A new file outside `wwwroot` waits for the next build (`work/todo.md`).
 
 The proposal as written follows.
 

@@ -193,13 +193,37 @@
     </ItemGroup>
   </Target>
 
-  <!-- Tells AddPareDevelopment where sources and outputs are. In the build output, never in a publish. -->
-  <Target Name="_PareWriteDevelopmentMap" AfterTargets="CopyFilesToOutputDirectory" DependsOnTargets="_PareComputeOutputs"
+  <!-- Tells AddPareDevelopment where sources and outputs are: wwwroot's, and each mapped source's
+       (PareServeAt included). In the build output, never in a publish: as
+       Extrode.Pare.development.json, and as Extrode.Pare.development.<project>.json, which also
+       reaches the output of every project referencing this one (a Razor class library's sources). -->
+  <Target Name="_PareComputeDevelopmentMap" DependsOnTargets="_PareComputeOutputs"
+          Condition="'$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' and '$(_PareOutRoot)' == '' and '$(_IsPublishing)' != 'true'">
+    <ItemGroup>
+      <_PareMapSource Include="@(_PareSource->'%(FullPath)')" Condition="'%(_PareSource.PareRelativePath)' != ''" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_PareWebRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', 'wwwroot'))</_PareWebRoot>
+      <_PareMapSources>@(_PareMapSource->'{ "source": "%(Identity)", "output": "%(PareOutputPath)" }', ', ')</_PareMapSources>
+      <_PareMapText>{ "sourceRoot": "$(_PareWebRoot.Replace('\', '\\'))", "outputRoot": "$(_PareObjRoot.Replace('\', '\\'))", "sources": [$(_PareMapSources.Replace('\', '\\'))] }</_PareMapText>
+      <_PareSharedMapPath>$(IntermediateOutputPath)Extrode.Pare.development.json</_PareSharedMapPath>
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="_PareShareDevelopmentMap" BeforeTargets="AssignTargetPaths" DependsOnTargets="_PareComputeDevelopmentMap"
+          Condition="'$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' and '$(_PareOutRoot)' == '' and '$(_IsPublishing)' != 'true'">
+    <WriteLinesToFile File="$(_PareSharedMapPath)" Lines="$(_PareMapText)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <FileWrites Include="$(_PareSharedMapPath)" />
+      <None Include="$(_PareSharedMapPath)" Link="Extrode.Pare.development.$(MSBuildProjectName).json"
+            CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" Visible="false" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="_PareWriteDevelopmentMap" AfterTargets="CopyFilesToOutputDirectory" DependsOnTargets="_PareComputeDevelopmentMap"
           Condition="'$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' and '$(_PareOutRoot)' == '' and '$(_IsPublishing)' != 'true'">
     <PropertyGroup>
       <_PareMapPath>$(OutDir)Extrode.Pare.development.json</_PareMapPath>
-      <_PareWebRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', 'wwwroot'))</_PareWebRoot>
-      <_PareMapText>{ "sourceRoot": "$(_PareWebRoot.Replace('\', '\\'))", "outputRoot": "$(_PareObjRoot.Replace('\', '\\'))" }</_PareMapText>
     </PropertyGroup>
     <WriteLinesToFile File="$(_PareMapPath)" Lines="$(_PareMapText)" Overwrite="true" WriteOnlyWhenDifferent="true" />
     <ItemGroup>

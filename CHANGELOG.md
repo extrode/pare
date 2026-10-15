@@ -5,7 +5,11 @@
 - `PareServeAt` serves TypeScript outside `wwwroot`:
   `<TypeScriptSource Include="Scripts/**/*.ts" PareServeAt="js" />` serves `Scripts/lib/fmt.ts`
   at `/js/lib/fmt.js`, and `.mts` as `.mjs`. `PareServeAt="/"` serves Blazor `**/*.razor.ts`
-  beside their components. Not re-stripped on save by `AddPareDevelopment` yet.
+  beside their components.
+- `AddPareDevelopment` re-strips `PareServeAt` sources on save, and the sources of Razor class
+  libraries the app references as projects. The development map now lists each source and its
+  output, and each project's map also reaches the build output of projects that reference it as
+  `Extrode.Pare.development.<project>.json`. Maps from 0.3 still work.
 - PARE202 warning: a source outside `wwwroot` with no `PareServeAt` is not served. Builds that
   include such sources now show it; add `PARE202` to `NoWarn` to keep the output next to the source.
 - PARE203 error: a `PareServeAt` that is not a folder.

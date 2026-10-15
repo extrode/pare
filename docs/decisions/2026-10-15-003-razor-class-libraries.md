@@ -1,6 +1,14 @@
 # 003: TypeScript in Razor class libraries
 
-Date: 2026-10-15. Status: proposed.
+Date: 2026-10-15. Status: accepted; A and B done.
+
+B as built: each web project's build writes its development map to `obj/` and copies it to its
+own output, and to the output of every project referencing it, as
+`Extrode.Pare.development.<project>.json` (`None`, `CopyToPublishDirectory="Never"`).
+`AddPareDevelopment` reads `Extrode.Pare.development.json` and every
+`Extrode.Pare.development.*.json` beside it, one watcher per output root. Checked under
+`dotnet watch` (hot reload): a library save logs `Stripped ../Lib/Scripts/fmt.ts`, then
+"Static asset changes applied", no restart. A library from NuGet has no sources and no map.
 
 **Short answer: it already works in 0.3.0.** A Razor class library (RCL) that references
 `Extrode.Pare.Build` gets its `.ts` stripped, served at `/_content/<lib>/...` and published, with
@@ -58,7 +66,7 @@ plain JavaScript. Apps that use the library need nothing installed.
    wiring (`SourceId`, `BasePath`) would go unnoticed.
 2. **Not in the README.** Users would have to guess that the library, not the app, needs the
    reference, and that `PrivateAssets="all"` keeps the package out of the library's dependencies.
-3. **Re-strip on save doesn't reach library sources.** `AddPareDevelopment` reads one
+3. **Re-strip on save doesn't reach library sources** (fixed since, see top). `AddPareDevelopment` reads one
    `Extrode.Pare.development.json` from the app's build output, which names only the app's
    `wwwroot`. Editing `MyLib/wwwroot/js/widget.ts` while the app runs serves the old `.js` until
    the next build. From the targets and code, not run under `dotnet watch`.

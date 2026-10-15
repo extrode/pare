@@ -98,6 +98,8 @@ builder.AddPareDevelopment();   // before builder.Build(); does nothing outside 
 In Development it strips stale sources when the app starts, then each `.ts`/`.mts` as it is
 saved, to where the build writes (it reads `Extrode.Pare.development.json`, which the build puts
 next to the app and never publishes); `dotnet watch` sees the new `.js` and reloads the page.
+That covers sources served with `PareServeAt` and those of a Razor class library the app
+references as a project.
 Rejections are logged in the `file:line:col: error PARE...` form and the old `.js` stays. Deleting
 a source deletes its output under `obj/`. Pass `o => o.OutDir = "..."` when the project sets
 `PareOutDir`. It also applies `dotnet watch`'s browser refresh to
@@ -160,16 +162,17 @@ hand-written `Counter.razor.js`:
 - A source outside `wwwroot` without `PareServeAt` is not served: `warning PARE202`. Add
   `PARE202` to `NoWarn` if its `.js` is meant to stay next to it. Not reported for a `.razor.ts`
   or `.cshtml.ts`, whose `.js` beside the component the SDK serves.
-- Not re-stripped on save yet: `AddPareDevelopment` covers `wwwroot` only. Under `dotnet watch`,
-  rebuild after editing these sources (Ctrl+R).
+- `AddPareDevelopment` re-strips these on save. A new file outside `wwwroot` is stripped and
+  served after the next build (Ctrl+R in `dotnet watch`).
 
 ### Razor class libraries
 
 Reference `Extrode.Pare.Build` from the library; apps that use it need nothing. The library's
 `wwwroot/js/widget.ts` is served to those apps as `/_content/<Library>/js/widget.js`, published
 with compressed copies, and packed by `dotnet pack` as the stripped `.js` only, with no dependency on
-Pare. `AddPareDevelopment` re-strips only the app's own sources on save, not the library's;
-rebuild after editing a library source.
+Pare. When the app references the library as a project, `AddPareDevelopment` in the app
+re-strips the library's sources on save too: each library's build output carries an
+`Extrode.Pare.development.<Library>.json` that reaches the app's.
 
 ## Sample
 

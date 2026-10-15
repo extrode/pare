@@ -213,6 +213,7 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
                 Assert.Equal(plain, ReadAll(br));
         }
         Assert.Empty(Directory.EnumerateFiles(P("pub"), "*.ts", SearchOption.AllDirectories));
+        Assert.Empty(Directory.EnumerateFiles(P("pub"), "Extrode.Pare.development*", SearchOption.AllDirectories));
     }
 
     private const string AssetProbe = """
@@ -358,6 +359,89 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
         }
         Assert.Equal("import { f } from './lib/fmt.js';\nlet a    = f();\n", File.ReadAllText(served.P(ObjOut + "js/app.js")));
         Assert.False(File.Exists(served.P("Scripts/app.js")));
+    }
+
+    [Fact]
+    public async Task AddPareDevelopment_restrips_served_sources_outside_wwwroot_and_in_class_libraries()
+    {
+        string imports(string items) => $"""
+              <Import Project="{Path.Combine(BuildDir, "Extrode.Pare.Build.props")}" />
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+                <PareTaskAssembly>{TaskAssembly}</PareTaskAssembly>
+              </PropertyGroup>
+              <ItemGroup>{items}</ItemGroup>
+              <Import Project="{Path.Combine(BuildDir, "Extrode.Pare.Build.targets")}" />
+            """;
+        Put("Lib/Lib.csproj", $"""
+            <Project Sdk="Microsoft.NET.Sdk.Razor">
+            {imports("""<TypeScriptSource Include="Scripts/*.ts" PareServeAt="js" />""")}
+            </Project>
+            """);
+        Put("Lib/Scripts/extra.ts", "export const extra: string = 'one';\n");
+        Put("Lib/wwwroot/w.ts", "export const w: string = 'one';\n");
+        string aspNetCore = Path.Combine(RepoRoot, "src", "Extrode.Pare.AspNetCore", "bin", Configuration, "net10.0");
+        Put("App/App.csproj", $"""
+            <Project Sdk="Microsoft.NET.Sdk.Web">
+            {imports("""<TypeScriptSource Include="Scripts/**/*.ts" PareServeAt="js" />""")}
+              <ItemGroup>
+                <Reference Include="{Path.Combine(aspNetCore, "Extrode.Pare.AspNetCore.dll")}" />
+                <Reference Include="{Path.Combine(aspNetCore, "Extrode.Pare.dll")}" />
+                <ProjectReference Include="../Lib/Lib.csproj" />
+              </ItemGroup>
+            </Project>
+            """);
+        Put("App/Program.cs", """
+            using Extrode.Pare.AspNetCore;
+            using Microsoft.AspNetCore.Builder;
+            var builder = WebApplication.CreateBuilder(args);
+            builder.AddPareDevelopment();
+            var app = builder.Build();
+            app.MapStaticAssets();
+            app.Run();
+            """);
+        Put("App/Scripts/lib/fmt.ts", "export const fmt: string = 'one';\n");
+
+        var (exit, output) = Run("build", "App/App.csproj", "-nologo", "-nodeReuse:false", "--disable-build-servers", "-clp:NoSummary");
+        Assert.True(exit == 0, output);
+        string bin = P("App/bin/Debug/net10.0");
+        Assert.Equal(["Extrode.Pare.development.App.json", "Extrode.Pare.development.Lib.json", "Extrode.Pare.development.json"],
+            Directory.GetFiles(bin, "Extrode.Pare.development*").Select(Path.GetFileName).Order(StringComparer.Ordinal));
+
+        var (server, http) = await Serve(Path.Combine(bin, "App.dll"), "Development");
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            (string Url, string Source, string Name)[] files =
+            [
+                ("/js/lib/fmt.js", "App/Scripts/lib/fmt.ts", "fmt"),
+                ("/_content/Lib/js/extra.js", "Lib/Scripts/extra.ts", "extra"),
+                ("/_content/Lib/w.js", "Lib/wwwroot/w.ts", "w"),
+            ];
+            foreach (var (url, _, name) in files)
+                Assert.Equal($"export const {name}         = 'one';\n", await http.GetStringAsync(url, ct));
+
+            // Longer than before: the build's Content-Length no longer fits.
+            foreach (var (_, source, name) in files)
+                File.WriteAllText(P(source), $"export const {name}: string = 'three!';\n");
+            foreach (var (url, _, name) in files)
+            {
+                string expected = $"export const {name}         = 'three!';\n";
+                var deadline = DateTime.UtcNow.AddSeconds(30);
+                string served;
+                while ((served = await http.GetStringAsync(url, ct)) != expected)
+                {
+                    Assert.True(DateTime.UtcNow < deadline, $"{url}: {served}");
+                    await Task.Delay(100, ct);
+                }
+            }
+            Assert.False(File.Exists(P("App/Scripts/lib/fmt.js")));
+            Assert.False(File.Exists(P("Lib/Scripts/extra.js")));
+        }
+        finally
+        {
+            Stop(server);
+        }
     }
 
     [Theory]

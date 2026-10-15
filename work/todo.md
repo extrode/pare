@@ -27,10 +27,8 @@ Small, clear, and could be picked up without a design decision.
   `Microsoft.NET.Sdk.Web` project shows it too; from the project directory it works, saves via
   rename included. README says to run it from the project directory.
 
-- `PareServeAt` sources: `AddPareDevelopment` doesn't re-strip them on save (needs every source
-  and URL in the development map). docs/decisions/2026-10-15-002-ts-outside-wwwroot.md.
-- Razor class libraries: tested and in README. `AddPareDevelopment` doesn't re-strip library
-  sources on save (option B in docs/decisions/2026-10-15-003-razor-class-libraries.md).
+- A new `.ts` outside `wwwroot` that a `PareServeAt` glob would match is not stripped by
+  `AddPareDevelopment` until the next build (the development map lists only built sources).
 - README `## CLI` install line assumes nuget.org; until then it needs `--add-source` (as
   docs/cli-quickstart.md says).
 - PARE203 stops at the first bad `PareServeAt` (MSBuild ends a batched `Error` at its first
