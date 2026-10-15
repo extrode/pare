@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,7 +14,9 @@ public static class PareDevelopmentExtensions
 
     /// <summary>
     /// In Development, strips every <c>wwwroot/**/*.ts</c> and <c>*.mts</c> whose output is missing or
-    /// older when the app starts, then re-strips each one as it is saved until the app stops.
+    /// older when the app starts, then re-strips each one as it is saved until the app stops. Outputs
+    /// go where the build put them: under <c>obj/</c> in a web project, as the development map in the
+    /// build output says, else next to each source or under <see cref="PareDevelopmentOptions.OutDir"/>.
     /// <c>dotnet watch</c> in its default hot reload mode does not build on a <c>.ts</c> save; it sees
     /// the new <c>.js</c> and refreshes the browser. Does nothing in any other environment.
     /// </summary>
@@ -53,12 +56,23 @@ public static class PareDevelopmentExtensions
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            if (!string.IsNullOrEmpty(env.WebRootPath) && Directory.Exists(env.WebRootPath))
-            {
+            if (ReadMap(options.DevelopmentMapPath) is var (sourceRoot, outputRoot) && Directory.Exists(sourceRoot))
+                _watcher = TypeScriptWatcher.ForBuildOutput(env.ContentRootPath, sourceRoot, outputRoot, logger);
+            else if (!string.IsNullOrEmpty(env.WebRootPath) && Directory.Exists(env.WebRootPath))
                 _watcher = new TypeScriptWatcher(env.ContentRootPath, env.WebRootPath, options.OutDir, logger);
-                _watcher.Start();
-            }
+            _watcher?.Start();
             return Task.CompletedTask;
+        }
+
+        private static (string SourceRoot, string OutputRoot)? ReadMap(string path)
+        {
+            if (!File.Exists(path))
+                return null;
+            using var map = JsonDocument.Parse(File.ReadAllText(path));
+            return map.RootElement.TryGetProperty("sourceRoot", out var source) && source.GetString() is { } sourceRoot &&
+                   map.RootElement.TryGetProperty("outputRoot", out var output) && output.GetString() is { } outputRoot
+                ? (sourceRoot, outputRoot)
+                : null;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
