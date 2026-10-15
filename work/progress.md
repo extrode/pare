@@ -173,6 +173,20 @@ convention). Update at the end of every session.
   requests or 4xx/5xx, and imports `format.js`/`counter.js` in the page to check Pare's output
   and positions. Break-checks: no `.ts`-to-`.js` rewrite fails all 6 browser/runtime rows; keeping
   sources in Content fails the publish test.
+- **M8 hot reload (2026-10-15, user's call: package):** `src/Extrode.Pare.AspNetCore`,
+  `builder.AddPareDevelopment()`. In Development a hosted service strips stale `wwwroot` sources at
+  start and re-strips on save (FileSystemWatcher, 50 ms settle, write only on change, rejections
+  logged and old `.js` kept). Found: `CreateSlimBuilder` runs no hosting startups, so `dotnet
+  watch` never injected its refresh script into the sample; the package applies
+  `Microsoft.AspNetCore.Watch.BrowserRefresh.HostingStartup` by reflection when that assembly is
+  loaded (injected once even with `CreateBuilder`; no IL warning in the NativeAOT publish).
+  `PublishAot` projects need `StartupHookSupport` in Debug for hot reload. Two SDK 10.0.401 traps:
+  `dotnet watch --project` from another directory fails to read the static web assets manifest
+  (`obj\Debug/...` path) and never refreshes; the refresh script connects 500 ms after load, so an
+  edit before that is lost. Tests: 7 in `DevelopmentWatcherTests`, and
+  `Dotnet_watch_hot_reload_refreshes_the_browser_with_the_restripped_source` (dotnet watch +
+  Chromium, ~15 s; break-checked without the refresh hook and without the sample's call). Core
+  now packs as `Extrode.Pare`. 375 tests pass.
 
 ## Next
 
@@ -183,14 +197,13 @@ Order from the 2026-10-15 fable consult:
    WITH ISL-OE 1.2, Licensor `Extrode (extrode.com)`), package metadata done. Left: tag 0.1.0
    (release on `main`: user's call).
 3. ~~M5 tsgo differential and `scripts/get-tsc.cs`~~: done 2026-10-15, 99.96%, all triaged.
-4. ~~**Dev loop:**~~ done 2026-10-15 for `dotnet watch --no-hot-reload` (see below). Default
-   hot reload mode still needs M8 (user's call: `Watch` items now, M8 later).
+4. ~~**Dev loop:**~~ done 2026-10-15: `--no-hot-reload` via `Watch` items, default hot reload
+   via M8 (see above).
 5. ~~**M7 perf**~~: done 2026-10-15 (see above).
 6. **M4 lexer validation:** only if M5 shows a divergence that matters.
 
 Not in the plan yet: stale `.js` left after deleting a `.ts`; output under `obj/` as static web
-assets (v0.2, retires the publish and overwrite questions); a core `Extrode.Pare` library package
-(needed by M8); Windows `pare` binaries (see todo); a PARE1xx error-code page;
+assets (v0.2, retires the publish and overwrite questions); Windows `pare` binaries (see todo); a PARE1xx error-code page;
 `.gitignore` guidance for generated `.js`; Windows has never run.
 
 ## Open questions

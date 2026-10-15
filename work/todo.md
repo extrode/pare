@@ -24,9 +24,11 @@ Small, clear, and could be picked up without a design decision.
   one process in four (repro: a console app printing it, run 60 times on `sdk:10.0-alpine`
   arm64). Library callers there need a thread they created; README says so.
 
-- `dotnet watch` 10.0.401 hot reload, macOS: after a file is added (an editor saving via rename)
-  it failed to read `obj\Debug/net10.0/staticwebassets.development.json` (backslash path). SDK
-  side; check whether static-asset refresh still works after such a save.
+- .NET SDK bug, not reported: `dotnet watch` 10.0.401 on macOS, started outside the project
+  directory (`--project`), fails to read `obj\Debug/net10.0/staticwebassets.development.json`
+  (`IntermediateOutputPath` keeps MSBuild's backslash) and sends no static-asset refresh. A plain
+  `Microsoft.NET.Sdk.Web` project shows it too; from the project directory it works, saves via
+  rename included. README says to run it from the project directory.
 
 - MSBuild in Visual Studio: untested; would need the .NET task host (`Runtime="NET"` on
   `UsingTask`, MSBuild 18) or a netstandard2.0 core.
