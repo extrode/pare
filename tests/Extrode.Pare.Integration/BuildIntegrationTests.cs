@@ -13,7 +13,23 @@ public sealed class BuildIntegrationTests : IDisposable
     private string? _pathPrefix;
     private string? _nugetPackages;
 
-    public void Dispose() => _dir.Delete(recursive: true);
+    // Windows keeps a killed app's .exe locked for a moment after the kill returns.
+    public void Dispose()
+    {
+        var until = DateTime.UtcNow.AddSeconds(10);
+        while (true)
+        {
+            try
+            {
+                _dir.Delete(recursive: true);
+                return;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException && DateTime.UtcNow < until)
+            {
+                Thread.Sleep(200);
+            }
+        }
+    }
 
     private string P(string relative) => Path.Combine(_dir.FullName, relative);
 
@@ -568,7 +584,7 @@ public sealed class BuildIntegrationTests : IDisposable
             await Microsoft.Playwright.Assertions.Expect(counter).ToHaveTextAsync("0 taps", new() { Timeout = 30_000 });
             Assert.Contains("const clicks = { one: \"click\", other: \"taps\" }                 ;", File.ReadAllText(P("app/wwwroot/js/counter.js")));
             string after = Output()[built.Length..];
-            Assert.Contains("Stripped wwwroot/js/counter.ts to wwwroot/js/counter.js", after);
+            Assert.Contains("Stripped wwwroot/js/counter.ts to wwwroot/js/counter.js".Replace('/', Path.DirectorySeparatorChar), after);
             Assert.Contains("Static asset changes applied", after);
             Assert.DoesNotContain("Restarting", after);
         }
