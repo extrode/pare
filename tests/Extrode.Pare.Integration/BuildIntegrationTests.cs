@@ -284,7 +284,7 @@ public sealed class BuildIntegrationTests : IDisposable
     [InlineData("Microsoft.NET.Sdk.Web")]
     public void Out_dir_keeps_the_relative_layout(string sdk)
     {
-        Project("<OutputType>Library</OutputType><PareOutDir>gen</PareOutDir>", sdk: sdk);
+        Project("<OutputType>Library</OutputType><PareOutDir>gen</PareOutDir>", sdk: sdk, targets: AssetProbe);
         Put("wwwroot/js/app.mts", "let a: T;");
 
         var (exit, output) = Build();
@@ -293,6 +293,8 @@ public sealed class BuildIntegrationTests : IDisposable
         Assert.Equal("let a   ;", File.ReadAllText(P("gen/wwwroot/js/app.mjs")));
         Assert.False(File.Exists(P("wwwroot/js/app.mjs")));
         Assert.False(File.Exists(P(ObjOut + "js/app.mjs")));
+        // Outside wwwroot, so the Web SDK does not serve it either: PareOutDir is for other tools.
+        Assert.DoesNotContain(Assets(output), a => a.Contains("app", StringComparison.Ordinal));
     }
 
     private void FakeTsc(string relative)
