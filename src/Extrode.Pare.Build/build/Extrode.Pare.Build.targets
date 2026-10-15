@@ -113,6 +113,14 @@
       <_PareContentOutput Include="@(_PareSource->'%(PareOutputPath)')" Condition="'%(_PareSource.PareRelativePath)' == ''" />
       <Content Remove="@(_PareContentOutput)" />
       <Content Include="@(_PareContentOutput)" />
+      <!-- A .razor.js or .cshtml.js under PareOutDir has no component beside it: as Content or None
+           (the Web SDK's glob, from the second build) the SDK fails the build with BLAZOR106. -->
+      <_PareOutDirCollocated Include="@(_PareSource->'%(PareOutputPath)')"
+                             Condition="'$(_PareOutRoot)' != '' and ($([System.String]::Copy('%(_PareSource._PareJs)').EndsWith('.razor.js')) or $([System.String]::Copy('%(_PareSource._PareJs)').EndsWith('.cshtml.js')))" />
+      <!-- Also relative: the SDK's globs name files relative to the project, and Remove matches the spec. -->
+      <_PareOutDirCollocated Condition="'@(_PareOutDirCollocated)' != ''" Include="@(_PareOutDirCollocated->'$([MSBuild]::MakeRelative('$(MSBuildProjectDirectory)$([System.IO.Path]::DirectorySeparatorChar)', '%(FullPath)'))')" />
+      <Content Remove="@(_PareOutDirCollocated)" />
+      <None Remove="@(_PareOutDirCollocated)" />
       <!-- A .js beside a source whose output is in obj/: left by Pare 0.2 or hand-written. As
            Content it would be a second asset at the same path, which the SDK rejects; a
            .razor.js is also found as None (collocated JS). -->

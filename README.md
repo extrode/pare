@@ -119,7 +119,7 @@ a source deletes its output under `obj/`. Pass `o => o.OutDir = "..."` when the 
 | Property | Default | |
 |---|---|---|
 | `EnablePareDefaultItems` | `true` | `false` drops the default glob; add `<TypeScriptSource Include="..." />` yourself |
-| `PareOutDir` | empty | write under this directory, keeping relative paths, instead of `obj/` or next to each source; not served |
+| `PareOutDir` | empty | write under this directory, keeping relative paths, instead of `obj/` or next to each source; not served, `.razor.js` and `.cshtml.js` included |
 | `PareTypeCheck` | `false` | `true` runs `tsc --noEmit -p $(PareTsconfig)` first (TypeScript 7's native `tsc`) |
 | `PareTscPath` | `tsc` | e.g. `$(MSBuildThisFileDirectory).tools/typescript/tsc` |
 | `PareTsconfig` | `tsconfig.json` in the project | never copied to the build or publish output |

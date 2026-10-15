@@ -13,6 +13,8 @@
   instead of crashing the static web assets SDK (MSB4018).
 - Razor class libraries: tested and documented (`/_content/<Lib>/...`).
 - CLI quickstart (`docs/cli-quickstart.md`) and the `samples/CliSite` static-site sample.
+- Fixed: `PareOutDir` with a `.razor.ts` or `.cshtml.ts` source failed the build with BLAZOR106
+  (a `.razor.js` with no component beside it). The output is written there and not served.
 
 ## [0.3.0] - 2026-10-15
 
