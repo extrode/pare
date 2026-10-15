@@ -138,6 +138,13 @@ convention). Update at the end of every session.
   them. Pare in-process 184-229 MB/s vs oxc 81, Node 38, ts-blank-space 25, esbuild 10. Pare
   bugs found and fixed: `declare` before a non-declaration keyword (`declare namespace = x`) was
   erased; a `get`/`set`/`static` field with an erased type merged with the next member.
+- **Real-world check (2026-10-15):** `scripts/run-std-tests.cs` copies std (symlinks kept),
+  strips it with `tmp/aot/pare` (~0.5 s; 5 files rejected: parameter properties, `<T>x`, two
+  enums), maps `@std/*` from each member's `deno.json` exports to `.js`, and runs `deno test -A
+  --no-check` per package on `*_test.ts` and `*_test.js`. 38/42 packages identical (4,997 tests
+  pass on both, 5,521 on the .js in all); csv (`Function.prototype.toString`), testing (snapshot file named after the test
+  file), http (`serveDir` refuses the `.corpus` dot path for the TS run) and expect (rejected
+  files) explained in the script. Exit 1 on an unexplained difference.
 
 ## Next
 
