@@ -1,7 +1,6 @@
 using Extrode.Pare.AspNetCore;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Extrode.Pare.Tests;
@@ -106,7 +105,7 @@ public sealed class DevelopmentWatcherTests : IDisposable
     [Theory]
     [InlineData("Development", true)]
     [InlineData("Production", false)]
-    public void UsePareDevelopment_runs_only_in_Development(string environment, bool strips)
+    public async Task AddPareDevelopment_runs_only_in_Development(string environment, bool strips)
     {
         Put("wwwroot/a.ts", "let a: T;\n");
         var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions
@@ -116,10 +115,12 @@ public sealed class DevelopmentWatcherTests : IDisposable
             EnvironmentName = environment,
         });
         builder.Logging.ClearProviders();
-        using var app = builder.Build();
-        app.UsePareDevelopment();
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.AddPareDevelopment();
+        await using var app = builder.Build();
+        await app.StartAsync(TestContext.Current.CancellationToken);
         Assert.Equal(strips, File.Exists(P("wwwroot/a.js")));
-        app.Services.GetRequiredService<IHostApplicationLifetime>().StopApplication();
+        await app.StopAsync(TestContext.Current.CancellationToken);
     }
 
     private sealed class ListLogger : ILogger

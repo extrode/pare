@@ -1,6 +1,6 @@
 namespace Extrode.Pare.AspNetCore;
 
-/// <summary>Settings for <see cref="PareDevelopmentExtensions.UsePareDevelopment"/>. Match them to the project's MSBuild properties.</summary>
+/// <summary>Settings for <see cref="PareDevelopmentExtensions.AddPareDevelopment"/>. Match them to the project's MSBuild properties.</summary>
 public sealed class PareDevelopmentOptions
 {
     /// <summary>Same as <c>PareOutDir</c>: write under this directory, relative to the content root, keeping
