@@ -1,0 +1,17 @@
+<Project>
+  <!-- LangVersion is pinned, not "latest", so a newer local SDK cannot silently change overload
+       resolution relative to CI. Raising it is a commit. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <Version>0.1.0</Version>
+    <Authors>Extrode</Authors>
+    <Company>Extrode</Company>
+    <Copyright>Copyright (c) 2026 Extrode (extrode.com)</Copyright>
+  </PropertyGroup>
+</Project>

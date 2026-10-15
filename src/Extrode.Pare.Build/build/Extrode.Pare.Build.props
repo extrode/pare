@@ -1,0 +1,15 @@
+<Project>
+  <!-- Defaults. Properties set in the project file win: MSBuild evaluates every property before
+       any item, so the conditions below see the project's values. -->
+  <PropertyGroup>
+    <EnablePareDefaultItems Condition="'$(EnablePareDefaultItems)' == ''">true</EnablePareDefaultItems>
+    <PareTypeCheck Condition="'$(PareTypeCheck)' == ''">false</PareTypeCheck>
+    <PareTscPath Condition="'$(PareTscPath)' == ''">tsc</PareTscPath>
+  </PropertyGroup>
+
+  <!-- Override with <TypeScriptSource Remove="..." /> or EnablePareDefaultItems=false. -->
+  <ItemGroup Condition="'$(EnablePareDefaultItems)' == 'true'">
+    <TypeScriptSource Include="wwwroot/**/*.ts;wwwroot/**/*.mts"
+                      Exclude="wwwroot/**/*.d.ts;wwwroot/**/*.d.mts;wwwroot/**/node_modules/**" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- MSBuild task package. Loads in-process under the .NET SDK's MSBuild (`dotnet build`);
+       the core targets net10.0, so .NET Framework MSBuild cannot load it in-process. -->
+  <PropertyGroup>
+    <RootNamespace>Extrode.Pare.Build</RootNamespace>
+    <PackageId>Extrode.Pare.Build</PackageId>
+    <Description>Strips TypeScript type syntax to JavaScript during dotnet build. No Node.</Description>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <!-- ISL-P 1.2 WITH ISL-OE 1.2 is not an SPDX list expression, so the file ships instead. -->
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>typescript;type-stripping;msbuild;aspnetcore;nativeaot</PackageTags>
+    <BuildOutputTargetFolder>tasks</BuildOutputTargetFolder>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);_PareCoreInPackage</TargetsForTfmSpecificBuildOutput>
+    <!-- NU5100: the dlls under tasks/ are meant to sit outside lib/. -->
+    <NoWarn>$(NoWarn);NU5100</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Build.Framework" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" PrivateAssets="all" ExcludeAssets="runtime" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Extrode.Pare\Extrode.Pare.csproj" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="build\*" Pack="true" PackagePath="build" />
+    <None Include="..\..\LICENSE.md;..\..\NOTICE.md;..\..\README.md" Pack="true" PackagePath="" Visible="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Extrode.Pare.Tests" />
+  </ItemGroup>
+
+  <!-- The core library ships next to the task; MSBuild resolves it from the task's folder. -->
+  <Target Name="_PareCoreInPackage">
+    <ItemGroup>
+      <BuildOutputInPackage Include="$(OutputPath)Extrode.Pare.dll" />
+    </ItemGroup>
+  </Target>
+</Project>

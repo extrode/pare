@@ -1,0 +1,14 @@
+bin/
+obj/
+publish/
+TestResults/
+tmp/
+.tools/
+.corpus/
+*.user
+.vs/
+.idea/
+BenchmarkDotNet.Artifacts/
+.worktrees/
+.claude/worktrees/
+node_modules/

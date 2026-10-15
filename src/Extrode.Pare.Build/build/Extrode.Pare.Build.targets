@@ -1,0 +1,74 @@
+<Project>
+  <!-- Properties:
+         PareOutDir         write output under this directory (relative paths kept) instead of next
+                            to each source
+         PareTypeCheck      true type-checks with tsc (noEmit, -p PareTsconfig) before the strip
+         PareTscPath        TypeScript 7 native tsc, default `tsc` on PATH
+         PareTsconfig       default tsconfig.json in the project directory; a build input, never
+                            copied to the output or publish directory
+         PareKeepSources    true keeps .ts and .d.ts files in Content, so they are served and
+                            published next to the output
+         PareTaskAssembly   the task dll; tests point it at a build output -->
+  <PropertyGroup>
+    <PareTaskAssembly Condition="'$(PareTaskAssembly)' == ''">$(MSBuildThisFileDirectory)..\tasks\net10.0\Extrode.Pare.Build.dll</PareTaskAssembly>
+    <PareTsconfig Condition="'$(PareTsconfig)' == ''">$(MSBuildProjectDirectory)\tsconfig.json</PareTsconfig>
+    <_PareTsconfigPath>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(PareTsconfig)'))</_PareTsconfigPath>
+    <_PareOutRoot Condition="'$(PareOutDir)' != ''">$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(PareOutDir)'))</_PareOutRoot>
+  </PropertyGroup>
+
+  <UsingTask TaskName="Extrode.Pare.Build.StripTypeScript" AssemblyFile="$(PareTaskAssembly)" />
+
+  <Target Name="_PareComputeOutputs">
+    <ItemGroup>
+      <_PareSource Include="@(TypeScriptSource)"
+                   Condition="('%(Extension)' == '.ts' or '%(Extension)' == '.mts' or '%(Extension)' == '.cts') and !$([System.String]::Copy('%(Filename)').EndsWith('.d'))" />
+      <!-- Relative like the source item: static web assets match wwwroot/** against the item spec. -->
+      <_PareSource Condition="'$(_PareOutRoot)' == ''">
+        <PareOutputPath>%(RelativeDir)%(Filename)$([System.String]::Copy('%(Extension)').Replace('ts', 'js'))</PareOutputPath>
+      </_PareSource>
+      <_PareSource Condition="'$(_PareOutRoot)' != ''">
+        <PareOutputPath>$(_PareOutRoot)%(RelativeDir)%(Filename)$([System.String]::Copy('%(Extension)').Replace('ts', 'js'))</PareOutputPath>
+      </_PareSource>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="PareTypeCheck" BeforeTargets="PareStripTypeScript"
+          Condition="'$(PareTypeCheck)' == 'true' and '@(TypeScriptSource)' != ''">
+    <Exec Command="&quot;$(PareTscPath)&quot; --noEmit -p &quot;$(PareTsconfig)&quot;" />
+  </Target>
+
+  <!-- Incremental: an output is rewritten only when its source, the task or this file is newer. -->
+  <Target Name="PareStripTypeScript" BeforeTargets="BeforeBuild" DependsOnTargets="_PareComputeOutputs"
+          Condition="'@(TypeScriptSource)' != ''"
+          Inputs="@(_PareSource);$(PareTaskAssembly);$(MSBuildThisFileFullPath)"
+          Outputs="@(_PareSource->'%(PareOutputPath)')">
+    <StripTypeScript Sources="@(_PareSource)" ProjectDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
+  <!-- Runs even when the strip was skipped as up to date. Outputs join Content so static web
+       assets serve and publish them, including on the first build when evaluation-time globs
+       could not see them yet. Sources leave Content here rather than at evaluation, where a
+       package's targets may be imported before the Web SDK adds wwwroot/**. -->
+  <Target Name="_PareRegisterOutputs" AfterTargets="PareStripTypeScript" Condition="'@(_PareSource)' != ''">
+    <ItemGroup>
+      <_PareOutput Include="@(_PareSource->'%(PareOutputPath)')" />
+      <FileWrites Include="@(_PareOutput)" />
+      <Content Remove="@(_PareOutput)" />
+      <Content Include="@(_PareOutput)" />
+      <Content Remove="@(TypeScriptSource);wwwroot/**/*.d.ts;wwwroot/**/*.d.mts;wwwroot/**/*.d.cts"
+               Condition="'$(PareKeepSources)' != 'true'" />
+      <!-- The Web SDK makes every root .json Content. -->
+      <Content Condition="'%(FullPath)' == '$(_PareTsconfigPath)'">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+      </Content>
+    </ItemGroup>
+  </Target>
+
+  <!-- dotnet watch rebuilds when a source changes, but only with hot reload off (the
+       no-hot-reload option): in hot reload mode it treats wwwroot files as static assets and
+       does not build. -->
+  <ItemGroup>
+    <Watch Include="@(TypeScriptSource)" />
+  </ItemGroup>
+</Project>
