@@ -27,8 +27,10 @@ Small, clear, and could be picked up without a design decision.
   `Microsoft.NET.Sdk.Web` project shows it too; from the project directory it works, saves via
   rename included. README says to run it from the project directory.
 
-- MSBuild in Visual Studio: untested; would need the .NET task host (`Runtime="NET"` on
-  `UsingTask`, MSBuild 18) or a netstandard2.0 core.
+- obj/ output for sources outside `wwwroot` (for example `Scripts/**/*.ts`, routed by a
+  `PareRelativePath`): they write next to the source today. User: later (2026-10-15).
+- Razor class library outputs under `_content/<lib>/`: should follow from `StaticWebAssetBasePath`
+  but untested. User: later (2026-10-15).
 
 Real, but needs a decision, a dependency, or more information first. Say which.
 

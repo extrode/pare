@@ -1,7 +1,11 @@
 <Project>
-  <!-- Properties:
-         PareOutDir         write output under this directory (relative paths kept) instead of next
-                            to each source
+  <!-- Output: in a project with static web assets (the Web SDK), each wwwroot source's output goes
+       under $(IntermediateOutputPath)pare/ and is registered as a static web asset at the source's
+       path below wwwroot; outputs whose source is gone are deleted. Elsewhere, and for sources
+       outside wwwroot, output goes next to each source.
+       Properties:
+         PareOutDir         write output under this directory (relative paths kept) instead; turns
+                            off the obj/ output
          PareTypeCheck      true type-checks with tsc (noEmit, -p PareTsconfig) before the strip
          PareTscPath        TypeScript 7 native tsc, default `tsc` on PATH
          PareTsconfig       default tsconfig.json in the project directory; a build input, never
@@ -16,18 +20,37 @@
     <_PareOutRoot Condition="'$(PareOutDir)' != ''">$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(PareOutDir)'))</_PareOutRoot>
   </PropertyGroup>
 
-  <UsingTask TaskName="Extrode.Pare.Build.StripTypeScript" AssemblyFile="$(PareTaskAssembly)" />
+  <!-- The task targets .NET. Visual Studio's MSBuild (.NET Framework) runs it in MSBuild 18's
+       .NET task host, out of process. -->
+  <UsingTask TaskName="Extrode.Pare.Build.StripTypeScript" AssemblyFile="$(PareTaskAssembly)"
+             Condition="'$(MSBuildRuntimeType)' == 'Core'" />
+  <UsingTask TaskName="Extrode.Pare.Build.StripTypeScript" AssemblyFile="$(PareTaskAssembly)"
+             Runtime="NET" TaskFactory="TaskHostFactory" Condition="'$(MSBuildRuntimeType)' != 'Core'" />
 
   <Target Name="_PareComputeOutputs">
+    <!-- In a target: IntermediateOutputPath is not set yet when a package's files are evaluated. -->
+    <PropertyGroup>
+      <_PareObjRoot Condition="'$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' and '$(_PareOutRoot)' == ''">$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'pare'))</_PareObjRoot>
+    </PropertyGroup>
     <ItemGroup>
       <_PareSource Include="@(TypeScriptSource)"
                    Condition="('%(Extension)' == '.ts' or '%(Extension)' == '.mts' or '%(Extension)' == '.cts') and !$([System.String]::Copy('%(Filename)').EndsWith('.d'))" />
+      <_PareSource>
+        <_PareDir>$([MSBuild]::MakeRelative('$([MSBuild]::NormalizeDirectory($(MSBuildProjectDirectory)))', '%(RootDir)%(Directory)').Replace('\', '/'))</_PareDir>
+        <_PareJs>%(Filename)$([System.String]::Copy('%(Extension)').Replace('ts', 'js'))</_PareJs>
+      </_PareSource>
+      <_PareSource Condition="'$(_PareObjRoot)' != '' and $([System.String]::Copy('%(_PareDir)').StartsWith('wwwroot/'))">
+        <PareRelativePath>$([System.String]::Copy('%(_PareDir)').Substring(8))%(_PareJs)</PareRelativePath>
+      </_PareSource>
+      <_PareSource Condition="'%(_PareSource.PareRelativePath)' != ''">
+        <PareOutputPath>$(_PareObjRoot)%(_PareSource.PareRelativePath)</PareOutputPath>
+      </_PareSource>
       <!-- Relative like the source item: static web assets match wwwroot/** against the item spec. -->
-      <_PareSource Condition="'$(_PareOutRoot)' == ''">
-        <PareOutputPath>%(RelativeDir)%(Filename)$([System.String]::Copy('%(Extension)').Replace('ts', 'js'))</PareOutputPath>
+      <_PareSource Condition="'%(_PareSource.PareRelativePath)' == '' and '$(_PareOutRoot)' == ''">
+        <PareOutputPath>%(RelativeDir)%(_PareJs)</PareOutputPath>
       </_PareSource>
       <_PareSource Condition="'$(_PareOutRoot)' != ''">
-        <PareOutputPath>$(_PareOutRoot)%(RelativeDir)%(Filename)$([System.String]::Copy('%(Extension)').Replace('ts', 'js'))</PareOutputPath>
+        <PareOutputPath>$(_PareOutRoot)%(RelativeDir)%(_PareJs)</PareOutputPath>
       </_PareSource>
     </ItemGroup>
   </Target>
@@ -53,8 +76,14 @@
     <ItemGroup>
       <_PareOutput Include="@(_PareSource->'%(PareOutputPath)')" />
       <FileWrites Include="@(_PareOutput)" />
-      <Content Remove="@(_PareOutput)" />
-      <Content Include="@(_PareOutput)" />
+      <_PareContentOutput Include="@(_PareSource->'%(PareOutputPath)')" Condition="'%(_PareSource.PareRelativePath)' == ''" />
+      <Content Remove="@(_PareContentOutput)" />
+      <Content Include="@(_PareContentOutput)" />
+      <!-- A .js beside a source whose output is in obj/: left by Pare 0.2 or hand-written. As
+           Content it would be a second asset at the same path, which the SDK rejects. -->
+      <_PareShadowed Include="@(_PareSource->'%(RelativeDir)%(_PareJs)')"
+                     Condition="'%(_PareSource.PareRelativePath)' != '' and Exists('%(_PareSource.RelativeDir)%(_PareSource._PareJs)')" />
+      <Content Remove="@(_PareShadowed)" />
       <Content Remove="@(TypeScriptSource);wwwroot/**/*.d.ts;wwwroot/**/*.d.mts;wwwroot/**/*.d.cts"
                Condition="'$(PareKeepSources)' != 'true'" />
       <!-- The Web SDK makes every root .json Content. -->
@@ -62,6 +91,75 @@
         <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         <CopyToPublishDirectory>Never</CopyToPublishDirectory>
       </Content>
+    </ItemGroup>
+    <Warning Code="PARE200" File="%(_PareShadowed.Identity)" Condition="'@(_PareShadowed)' != ''"
+             Text="not served: the build now writes this file's TypeScript output under obj/ and serves that. Delete it." />
+  </Target>
+
+  <!-- obj/ output only. Pare owns the directory, so a file no source produces is a deleted
+       source's output. The SDK's incremental clean removes only what an earlier build wrote; this
+       also removes what AddPareDevelopment wrote. Runs with no sources left too. -->
+  <Target Name="_PareDeleteStaleOutputs" AfterTargets="PareStripTypeScript" BeforeTargets="BeforeBuild" DependsOnTargets="_PareComputeOutputs"
+          Condition="'$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' and '$(_PareOutRoot)' == ''">
+    <ItemGroup Condition="'$(_PareObjRoot)' != ''">
+      <_PareObjOutput Include="@(_PareSource->'%(PareOutputPath)')" Condition="'%(_PareSource.PareRelativePath)' != ''" />
+      <_PareStale Include="$(_PareObjRoot)**" Exclude="@(_PareObjOutput)" />
+    </ItemGroup>
+    <Delete Files="@(_PareStale)" />
+  </Target>
+
+  <!-- Registered like scoped CSS (_ComputeScopedCssStaticWebAssets): computed assets in the inputs
+       stage, so the SDK compresses and fingerprints them like files in wwwroot. -->
+  <PropertyGroup>
+    <ResolveStaticWebAssetsInputsDependsOn>$(ResolveStaticWebAssetsInputsDependsOn);_PareDefineStaticWebAssets</ResolveStaticWebAssetsInputsDependsOn>
+  </PropertyGroup>
+
+  <Target Name="_PareDefineStaticWebAssets" DependsOnTargets="ResolveStaticWebAssetsConfiguration;_PareComputeOutputs">
+    <ItemGroup>
+      <_PareAssetCandidate Include="@(_PareSource->'%(PareOutputPath)')" Condition="'%(_PareSource.PareRelativePath)' != ''">
+        <!-- No OriginalItemSpec: compression reads the file it names, which must be the output. -->
+        <RelativePath>%(_PareSource.PareRelativePath)</RelativePath>
+      </_PareAssetCandidate>
+    </ItemGroup>
+    <DefineStaticWebAssets Condition="'@(_PareAssetCandidate)' != ''"
+      CandidateAssets="@(_PareAssetCandidate)"
+      SourceType="Computed"
+      SourceId="$(PackageId)"
+      ContentRoot="$(_PareObjRoot)"
+      BasePath="$(StaticWebAssetBasePath)"
+      AssetKind="All"
+      AssetMode="All"
+      AssetRole="Primary"
+      AssetMergeSource="$(StaticWebAssetMergeTarget)"
+      FingerprintCandidates="$(StaticWebAssetsFingerprintContent)"
+      FingerprintPatterns="@(StaticWebAssetFingerprintPattern)"
+      CopyToOutputDirectory="Never"
+      CopyToPublishDirectory="PreserveNewest">
+      <Output TaskParameter="Assets" ItemName="_PareStaticWebAsset" />
+    </DefineStaticWebAssets>
+    <DefineStaticWebAssetEndpoints Condition="'@(_PareStaticWebAsset)' != ''"
+      CandidateAssets="@(_PareStaticWebAsset)"
+      ExistingEndpoints="@(StaticWebAssetEndpoint)"
+      ContentTypeMappings="@(StaticWebAssetContentTypeMapping)">
+      <Output TaskParameter="Endpoints" ItemName="_PareStaticWebAssetEndpoint" />
+    </DefineStaticWebAssetEndpoints>
+    <ItemGroup>
+      <StaticWebAsset Include="@(_PareStaticWebAsset)" />
+      <StaticWebAssetEndpoint Include="@(_PareStaticWebAssetEndpoint)" />
+    </ItemGroup>
+  </Target>
+
+  <!-- Tells AddPareDevelopment where sources and outputs are. In the build output, never in a publish. -->
+  <Target Name="_PareWriteDevelopmentMap" AfterTargets="CopyFilesToOutputDirectory" DependsOnTargets="_PareComputeOutputs"
+          Condition="'$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' and '$(_PareOutRoot)' == '' and '$(_IsPublishing)' != 'true'">
+    <PropertyGroup>
+      <_PareMapPath>$(OutDir)Extrode.Pare.development.json</_PareMapPath>
+      <_PareWebRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', 'wwwroot'))</_PareWebRoot>
+      <_PareMapText>{ "sourceRoot": "$(_PareWebRoot.Replace('\', '\\'))", "outputRoot": "$(_PareObjRoot.Replace('\', '\\'))" }</_PareMapText>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(_PareMapPath)" Lines="$(_PareMapText)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <FileWrites Include="$(_PareMapPath)" />
     </ItemGroup>
   </Target>
 

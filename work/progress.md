@@ -205,29 +205,73 @@ convention). Update at the end of every session.
   -SkipPack` verified win-arm64 (20 byte-exact runs, tool install picks win-arm64), unit tests
   348 (1 Unix skip) on SDK 10.0.402 win-arm64. UTM 4.7.5 hangs or crashes on macOS 26.6.2, so
   plain QEMU replaced it (user approved).
+- **obj/ output (2026-10-15, plan `docs/plans/2026-10-15-001-obj-output.md`):** in a project with
+  static web assets and no `PareOutDir`, wwwroot outputs go to `$(IntermediateOutputPath)pare/`
+  and are registered in the SDK's inputs stage like scoped CSS (`DefineStaticWebAssets`
+  `SourceType="Computed"`), so they are compressed, fingerprinted and published. No
+  `OriginalItemSpec` on the candidates: the SDK's compression reads that file, and pointing it at
+  the `.ts` published `.br`/`.gz` of the source (found by the publish browser test; the published
+  test now decompresses every copy). A sibling `.js` gets PARE200 and leaves Content (else the SDK
+  fails with "Conflicting assets"). Stale outputs: the SDK's incremental clean already drops what
+  an earlier build wrote; `_PareDeleteStaleOutputs` also drops what the watcher wrote. The build
+  writes `bin/.../Extrode.Pare.development.json` (`sourceRoot`, `outputRoot`; not when
+  publishing); `AddPareDevelopment` reads it and writes there, deletes a deleted source's output,
+  and logs that a new source is served after the next build. `dotnet watch` hot reload refreshes
+  the browser from the obj file (integration test). Deviation from the plan: the map holds the two
+  roots, not every source/output pair, and `PareDevelopmentOptions.OutDir` stays (not obsolete)
+  for `PareOutDir` projects. Tests: 353 unit, 28 integration.
+
+- **0.2.0 release (2026-10-15):** version 0.2.0 (`chore/release-0.2.0`), tag `v0.2.0`, private
+  repo `extrode/pare` (user's call: private now, public once CI is green; nuget.org later).
+  Integration tests now pack with the repo's version (`TestVersion`), since the sample references
+  `<version>-*`. First CI run: the Release-configured sample test looked for `bin/Release` though
+  the sample builds Debug (fixed), and Ubuntu lacked WebKit/Firefox libraries (`playwright.ps1
+  install-deps` step). CI also sets up Deno 2.x, fetches tsc and uses checkout v7, setup-dotnet v6.
+  CI green on ubuntu, macos and windows: 375 tests, 0 skipped on Linux/macOS, 3 on Windows (Unix
+  permissions, fake `tsc`). GitHub release `v0.2.0` carries 21 assets: per-RID tool packages and
+  archives for osx, linux, linux-musl, win (arm64, x64), the pointer and `any` packages, and the
+  `Extrode.Pare`, `.Build`, `.AspNetCore` packages.
+
+- **Visual Studio MSBuild (2026-10-15, plan `docs/plans/2026-10-15-002-vs-msbuild.md`):** two
+  `UsingTask`s: in process under `dotnet build` (`MSBuildRuntimeType` Core), `Runtime="NET"
+  TaskFactory="TaskHostFactory"` otherwise. Before it, VS 18.10's `MSBuild.exe` worked through its
+  own out-of-process fallback and warned on every build. The .NET 10 SDK needs MSBuild 18, so VS
+  2022 cannot build net10.0 at all. `Visual_Studio_MSBuild_strips_with_the_dotnet_task_host` runs
+  `MSBuild.exe` (vswhere, major version 18 or later; skips otherwise, e.g. macOS, Linux): no
+  fallback warning, `obj` output registered as a static web asset, PARE100 located in `b.ts`.
+  Passes on wp1 (VS 18 Community); break-checked there by dropping `Runtime="NET"` and by dropping
+  the `Core` condition (both bring back the fallback warning). CI's `windows-latest` is Windows
+  2025 with VS Enterprise 2026 18.10, so it runs there too. Not checked: the VS IDE itself.
+
+- **0.3.0 cut (2026-10-15):** version 0.3.0 (`chore/release-0.3.0`), CHANGELOG has an "Upgrading
+  from 0.2" section (obj/ default, delete old `wwwroot` `.js`, PARE200, `.gitignore`, new files
+  under `dotnet watch`). 406 tests, 0 failed, 1 skipped on macOS (VS MSBuild test). Packed: 8
+  per-RID tool packages and archives (osx, linux, linux-musl via Docker on the Mac; win-x64 and
+  win-arm64 on wp1, win-x64 verified there), pointer and `any` packages in `tmp/dist`,
+  `tmp/dist-win`; `Extrode.Pare`, `.Build`, `.AspNetCore` 0.3.0 in `tmp/dist-lib`. Release notes
+  in `tmp/release-notes-0.3.0.md`. Tag `v0.3.0` local; the user pushes, then the GitHub release.
 
 ## Next
 
 Order from the 2026-10-15 fable consult:
 
 1. ~~Browser check of `samples/WebApp`~~: done 2026-10-15 (headless Chromium).
-2. **v0.1 release prep:** license done 2026-10-15 (user: pick from islamiclicense.org; ISL-P 1.2
-   WITH ISL-OE 1.2, Licensor `Extrode (extrode.com)`), package metadata done. Left: tag 0.1.0
-   (release on `main`: user's call).
+2. ~~**v0.1 release prep**~~: license done 2026-10-15 (user: pick from islamiclicense.org; ISL-P 1.2
+   WITH ISL-OE 1.2, Licensor `Extrode (extrode.com)`), package metadata done. v0.1.0 tagged,
+   0.2.0 released on GitHub, 0.3.0 cut (above).
 3. ~~M5 tsgo differential and `scripts/get-tsc.cs`~~: done 2026-10-15, 99.96%, all triaged.
 4. ~~**Dev loop:**~~ done 2026-10-15: `--no-hot-reload` via `Watch` items, default hot reload
    via M8 (see above).
 5. ~~**M7 perf**~~: done 2026-10-15 (see above).
 6. **M4 lexer validation:** only if M5 shows a divergence that matters.
 
-Not in the plan yet: stale `.js` left after deleting a `.ts`; output under `obj/` as static web
-assets (v0.2, retires the publish and overwrite questions); a PARE1xx
-error-code page; `.gitignore` guidance for generated `.js`.
+Not in the plan yet: nothing. (Error-code page `docs/error-codes.md`, stale `.js` and obj/ output: done.)
 
 ## Open questions
 
-- CI has not run: the repo has no remote yet.
 - Lexer leniency vs TypeScript (escape and numeric-literal validation): see `work/todo.md`.
+- Pushing `main` is the user's (a hook blocks it for agents).
+- nuget.org publishing and making `extrode/pare` public: user's call.
 
 ## Corpus pass rate
 

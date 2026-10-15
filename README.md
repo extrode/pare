@@ -48,33 +48,44 @@ pare --stdin < in.ts > out.js
 
 Inputs are files, directories (searched recursively) or globs (`*`, `?`, `**`, for shells that
 do not expand them). `.ts`, `.mts`, `.cts` become `.js`, `.mjs`, `.cjs`. `.d.ts` files and
-`node_modules` are skipped. Exit codes: 0 ok, 1 rejected syntax, 2 I/O or usage error.
+`node_modules` are skipped. Exit codes: 0 ok, 1 rejected syntax ([error codes](docs/error-codes.md)),
+2 I/O or usage error.
 An existing `foo.js` next to `foo.ts` is replaced, like `tsc` and `esbuild` do: keep hand-written
 JavaScript out of the source folders, or use `--outdir`.
 
 ## MSBuild
 
 ```xml
-<PackageReference Include="Extrode.Pare.Build" Version="0.2.0" PrivateAssets="all" />
+<PackageReference Include="Extrode.Pare.Build" Version="0.3.0" PrivateAssets="all" />
 ```
 
-Before `Build`, every `wwwroot/**/*.ts` and `*.mts` (not `.d.ts`, not `node_modules`) is stripped
-to a `.js` next to it. The step is incremental, runs in-process and needs no Node. In web projects
-the output becomes a static web asset from the first build on. Rejections fail the build as
-`file(line,col): error PARE100: ...`. Runs under `dotnet build` (CLI, CI, Rider, VS Code), not
-inside Visual Studio's .NET Framework MSBuild.
+Before `Build`, every `wwwroot/**/*.ts` and `*.mts` (not `.d.ts`, not `node_modules`) is stripped.
+The step is incremental, runs in-process and needs no Node. Rejections fail the build as
+`file(line,col): error PARE100: ...` ([what each code means](docs/error-codes.md)). Runs under
+`dotnet build` (CLI, CI, Rider, VS Code) and Visual Studio 2026 (MSBuild 18), where the task runs in
+MSBuild's .NET task host, a separate process. Visual Studio 2022 cannot build `net10.0` projects.
 
-The `.ts` and `.d.ts` files are removed from `Content`, so they are not static web assets and are
-not published; `PareKeepSources=true` keeps them. (In Development, `MapStaticAssets` still serves
-any file on disk, with a warning; `UseStaticFiles` serves everything under `wwwroot`.) An existing `foo.js` next to `foo.ts` is replaced on the next
-build that strips `foo.ts`. `.cts` sources are not in the default glob, since CommonJS does not run
-in a browser; an explicit `<TypeScriptSource Include="x.cts" />` produces `x.cjs`.
+In a web project (the Web SDK's static web assets), `wwwroot/js/app.ts` becomes
+`obj/<configuration>/<tfm>/pare/js/app.js`, registered as the static web asset `js/app.js`: served
+from the first build on, compressed and published like a file in `wwwroot`, and never in the source
+tree, so nothing needs gitignoring. The build deletes the output of a deleted source. Elsewhere, and
+for sources outside `wwwroot`, the `.js` goes next to its source.
+
+- A `foo.js` next to `foo.ts` in `wwwroot` (left by Pare 0.2, or hand-written) is not served:
+  `warning PARE200` names it, and the build serves the stripped `foo.ts`. Delete it.
+- `.ts` and `.d.ts` files are removed from `Content`, so they are not static web assets and are not
+  published; `PareKeepSources=true` keeps them. (In Development, `MapStaticAssets` still serves any
+  file on disk, with a warning; `UseStaticFiles` serves everything under `wwwroot`.)
+- Outside `obj/`, an existing `foo.js` next to `foo.ts` is replaced on the next build that strips
+  `foo.ts`.
+- `.cts` sources are not in the default glob, since CommonJS does not run in a browser; an explicit
+  `<TypeScriptSource Include="x.cts" />` produces `x.cjs`.
 
 Dev loop: in its default hot reload mode `dotnet watch` runs no build on a `.ts` save, so the
 `.js` would go stale. `Extrode.Pare.AspNetCore` re-strips in the running app instead:
 
 ```xml
-<PackageReference Include="Extrode.Pare.AspNetCore" Version="0.2.0" />
+<PackageReference Include="Extrode.Pare.AspNetCore" Version="0.3.0" />
 ```
 
 ```csharp
@@ -82,10 +93,17 @@ builder.AddPareDevelopment();   // before builder.Build(); does nothing outside 
 ```
 
 In Development it strips stale sources when the app starts, then each `.ts`/`.mts` as it is
-saved; `dotnet watch` sees the new `.js` and reloads the page. Rejections are logged in the
-`file:line:col: error PARE...` form and the old `.js` stays. Pass `o => o.OutDir = "..."` when the
-project sets `PareOutDir`. It also applies `dotnet watch`'s browser refresh to
+saved, to where the build writes (it reads `Extrode.Pare.development.json`, which the build puts
+next to the app and never publishes); `dotnet watch` sees the new `.js` and reloads the page.
+Rejections are logged in the `file:line:col: error PARE...` form and the old `.js` stays. Deleting
+a source deletes its output under `obj/`. Pass `o => o.OutDir = "..."` when the project sets
+`PareOutDir`. It also applies `dotnet watch`'s browser refresh to
 `WebApplication.CreateSlimBuilder` apps, which never run the hosting startup that adds it.
+
+- A `.ts` file added while `dotnet watch` runs is stripped, but the page gets 404 for it until the
+  next build: static web assets are fixed at build time. The log says so; press Ctrl+R in
+  `dotnet watch` to rebuild.
+- A request for a deleted source's output answers 500 in Development until the next build.
 
 - A `PublishAot` project needs `<StartupHookSupport Condition="'$(Configuration)' == 'Debug'">true</StartupHookSupport>`;
   without it `dotnet watch` says "Project does not support Hot Reload".
@@ -98,7 +116,7 @@ project sets `PareOutDir`. It also applies `dotnet watch`'s browser refresh to
 | Property | Default | |
 |---|---|---|
 | `EnablePareDefaultItems` | `true` | `false` drops the default glob; add `<TypeScriptSource Include="..." />` yourself |
-| `PareOutDir` | empty | write under this directory, keeping relative paths |
+| `PareOutDir` | empty | write under this directory, keeping relative paths, instead of `obj/` or next to each source; not served |
 | `PareTypeCheck` | `false` | `true` runs `tsc --noEmit -p $(PareTsconfig)` first (TypeScript 7's native `tsc`) |
 | `PareTscPath` | `tsc` | e.g. `$(MSBuildThisFileDirectory).tools/typescript/tsc` |
 | `PareTsconfig` | `tsconfig.json` in the project | never copied to the build or publish output |
@@ -110,15 +128,14 @@ project sets `PareOutDir`. It also applies `dotnet watch`'s browser refresh to
 an htmx call to a minimal API. It references the package from a local feed, as a consumer would:
 
 ```sh
-scripts/pack-local.sh               # pack into tmp/feed as 0.2.0-dev.<time>, re-restore the sample
+scripts/pack-local.sh               # pack into tmp/feed as 0.3.0-dev.<time>, re-restore the sample
 dotnet run --project samples/WebApp   # http://localhost:5180, Development
 dotnet watch            # from samples/WebApp: a .ts save re-strips and reloads the page
 dotnet publish samples/WebApp -c Release -r osx-arm64 -o tmp/sample-aot
 ```
 
-Generated `.js` is gitignored next to its source (`samples/WebApp/.gitignore`). The package
-keeps `$(PareTsconfig)` out of the build and publish output; the sample marks its `nuget.config`
-`CopyToPublishDirectory="Never"` by hand.
+The package keeps `$(PareTsconfig)` out of the build and publish output; the sample marks its
+`nuget.config` `CopyToPublishDirectory="Never"` by hand.
 The launch profile avoids port 5000, which macOS AirPlay Receiver also listens on.
 
 `tests/Extrode.Pare.Integration` checks the sample end to end, packing the package into a private

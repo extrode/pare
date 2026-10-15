@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.3.0] - 2026-10-15
+
+### Upgrading from 0.2
+
+- Web projects now get their `.js` under `obj/` by default; set `PareOutDir` to keep 0.2's
+  output next to each source.
+- Delete the `.js` files 0.2 generated in `wwwroot` (`warning PARE200` names each one until you
+  do), and drop any `.gitignore` rules for them.
+- A `.ts` file added while `dotnet watch` runs is served after the next build (Ctrl+R); edits to
+  existing files reload as before.
+
+### Changes
+
+- Web projects: `Extrode.Pare.Build` writes the output of `wwwroot/**/*.ts` under
+  `obj/<configuration>/<tfm>/pare/` and registers it as static web assets (served, compressed and
+  published as before), instead of next to each source. Breaking for anything that read the `.js`
+  from `wwwroot` on disk. `PareOutDir` turns it off. A `foo.js` left next to `foo.ts` is not served
+  and gets `warning PARE200`.
+- `docs/error-codes.md`: every diagnostic (PARE001, PARE100-PARE107, PARE200) with an example
+  that triggers it, why, and what to write instead. README links it.
+- The build deletes the output of a deleted source; so does `AddPareDevelopment` while the app
+  runs. `AddPareDevelopment` writes where the build does, read from
+  `Extrode.Pare.development.json` in the build output. A source added during `dotnet watch` is
+  served after the next build.
+- `Extrode.Pare.Build` runs under Visual Studio 2026's MSBuild (MSBuild 18, .NET Framework) in the
+  .NET task host, without MSBuild's out-of-process fallback warning.
+
 ## [0.2.0] - 2026-10-15
 
 - `Extrode.Pare.AspNetCore`: `builder.AddPareDevelopment()` re-strips `wwwroot` TypeScript as it
