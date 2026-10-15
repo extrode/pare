@@ -59,19 +59,19 @@ internal sealed class TypeScriptWatcher : IDisposable
                 Strip(source, started: false);
         }
 
+        // No name filter: a new directory's own event is the only sign of the files written into it
+        // before Linux starts watching it.
         _watcher = new FileSystemWatcher(_sourceRoot)
         {
             IncludeSubdirectories = true,
-            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size,
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
         };
-        _watcher.Filters.Add("*.ts");
-        _watcher.Filters.Add("*.mts");
         _watcher.Changed += (_, e) => Queue(e.FullPath);
-        _watcher.Created += (_, e) => Queue(e.FullPath);
+        _watcher.Created += (_, e) => QueueTree(e.FullPath);
         _watcher.Renamed += (_, e) =>
         {
             Queue(e.OldFullPath);
-            Queue(e.FullPath);
+            QueueTree(e.FullPath);
         };
         _watcher.Deleted += (_, e) => Queue(e.FullPath);
         _watcher.EnableRaisingEvents = true;
@@ -101,6 +101,25 @@ internal sealed class TypeScriptWatcher : IDisposable
         {
             _pending.Add(path);
             _timer.Change(Settle, Timeout.InfiniteTimeSpan);
+        }
+    }
+
+    // A created or moved-in directory: queue the sources already in it. A strip that finds nothing changed writes nothing.
+    private void QueueTree(string path)
+    {
+        if (!Directory.Exists(path))
+        {
+            Queue(path);
+            return;
+        }
+        try
+        {
+            foreach (string file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+                Queue(file);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // Gone or unreadable again; its own events, if any, follow.
         }
     }
 
