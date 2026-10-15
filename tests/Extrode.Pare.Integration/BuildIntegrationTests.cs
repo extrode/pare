@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace Extrode.Pare.Integration;
 
 /// <summary>Runs `dotnet build` on a throwaway project that imports the package's props and targets.</summary>
-public sealed class BuildIntegrationTests : IDisposable
+public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildIntegrationTests.ServedProject>
 {
     private static readonly string RepoRoot = FindRepoRoot();
     private static readonly string BuildDir = Path.Combine(RepoRoot, "src", "Extrode.Pare.Build", "build");
@@ -273,27 +273,91 @@ public sealed class BuildIntegrationTests : IDisposable
         Assert.False(File.Exists(P(ObjOut + url)));
     }
 
+    private static readonly string[] ServeAtFolders = ["/", "js", "/js/", @"\static\js\"];
+
+    /// <summary>
+    /// One web project holding every served PareServeAt shape, built twice and published once on
+    /// first use, for the tests that only read what came out.
+    /// </summary>
+    public sealed class ServedProject : IDisposable
+    {
+        internal readonly BuildIntegrationTests Test = new();
+        private readonly Lazy<string[]> _builds;
+        private readonly Lazy<string> _publish;
+
+        public ServedProject()
+        {
+            _builds = new(() =>
+            {
+                var items = string.Join("\n", ServeAtFolders.Select((serveAt, i) =>
+                    $"""<TypeScriptSource Include="Slash{i}/**/*.ts" PareServeAt="{serveAt}" />"""));
+                Test.Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", targets: AssetProbe, items: $"""
+                    {ScriptsMapping}
+                    <TypeScriptSource Include="Modules/**/*.mts" PareServeAt="js" />
+                    {items}
+                    <TypeScriptSource Update="wwwroot/js/page.ts" PareServeAt="scripts" />
+                    <TypeScriptSource Include="Custom/*.ts" PareServeAt="js" PareRelativePath="custom/%(Filename).js" />
+                    <TypeScriptSource Include="**/*.razor.ts" Exclude="bin/**;obj/**;node_modules/**" PareServeAt="/" />
+                    """);
+                Test.Put("Scripts/app.ts", "import { f } from './lib/fmt.ts';\nlet a: T = f();\n");
+                Test.Put("Scripts/lib/fmt.ts", "export let f: T;\n");
+                Test.Put("Modules/main.mts", "import { twice } from './lib/twice.mts';\nexport const four: number = twice(2);\n");
+                Test.Put("Modules/lib/twice.mts", "export function twice(n: number): number { return n * 2; }\n");
+                for (int i = 0; i < ServeAtFolders.Length; i++)
+                {
+                    Test.Put($"Slash{i}/s{i}.ts", "let a: T;");
+                    Test.Put($"Slash{i}/lib/s{i}.ts", "let f: T;");
+                }
+                Test.Put("wwwroot/js/page.ts", "let p: T;");
+                Test.Put("wwwroot/js/other.ts", "let o: T;");
+                Test.Put("Custom/rel.ts", "let r: T;");
+                Test.Put("Components/Pages/Counter.razor", "<p>count</p>\n");
+                Test.Put("Components/Pages/Counter.razor.ts", "export function onLoad(): void {}\n");
+                Test.Put("Components/Pages/Counter.razor.js", "old;");
+                return [.. Enumerable.Range(0, 2).Select(_ =>
+                {
+                    var (exit, output) = Test.Build();
+                    Assert.True(exit == 0, output);
+                    return output;
+                })];
+            });
+            _publish = new(() =>
+            {
+                _ = _builds.Value;
+                var (exit, output) = Test.Run("publish", "-nologo", "-nodeReuse:false", "--disable-build-servers", "-clp:NoSummary", "-o", Test.P("pub"));
+                Assert.True(exit == 0, output);
+                return Test.P("pub");
+            });
+        }
+
+        /// <summary>The output of the first build and of the second, up-to-date one.</summary>
+        public string[] Builds => _builds.Value;
+
+        public string Published => _publish.Value;
+
+        public void Dispose() => Test.Dispose();
+    }
+
+    private readonly ServedProject? _served;
+
+    public BuildIntegrationTests(ServedProject served) => _served = served;
+
+    private BuildIntegrationTests() { }
+
     [Fact]
     public void A_mapped_source_outside_wwwroot_is_served_at_its_mapped_url()
     {
-        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", items: ScriptsMapping, targets: AssetProbe);
-        Put("Scripts/app.ts", "import { f } from './lib/fmt.ts';\nlet a: T = f();\n");
-        Put("Scripts/lib/fmt.ts", "export let f: T;\n");
-
-        for (int build = 0; build < 2; build++)
+        var served = _served!.Test;
+        foreach (string output in _served.Builds)
         {
-            var (exit, output) = Build();
-            Assert.True(exit == 0, output);
             var assets = Assets(output);
-            string app = Assert.Single(assets, a => a.Contains("app", StringComparison.Ordinal));
-            Assert.StartsWith("js/app#[.{fingerprint}]?.js ", app);
-            string fmt = Assert.Single(assets, a => a.Contains("fmt", StringComparison.Ordinal));
-            Assert.StartsWith("js/lib/fmt#[.{fingerprint}]?.js ", fmt);
-            Assert.EndsWith(Tail(ObjOut + "js/lib/fmt.js"), fmt);
+            Assert.Single(assets, a => a.StartsWith("js/app#[.{fingerprint}]?.js ", StringComparison.Ordinal));
+            string fmt = Assert.Single(assets, a => a.StartsWith("js/lib/fmt#[.{fingerprint}]?.js ", StringComparison.Ordinal));
+            Assert.EndsWith(served.Tail(ObjOut + "js/lib/fmt.js"), fmt);
+            Assert.DoesNotContain("PARE202", output);
         }
-        Assert.Equal("import { f } from './lib/fmt.js';\nlet a    = f();\n", File.ReadAllText(P(ObjOut + "js/app.js")));
-        Assert.False(File.Exists(P("Scripts/app.js")));
-        Assert.DoesNotContain("PARE202", Build().Output);
+        Assert.Equal("import { f } from './lib/fmt.js';\nlet a    = f();\n", File.ReadAllText(served.P(ObjOut + "js/app.js")));
+        Assert.False(File.Exists(served.P("Scripts/app.js")));
     }
 
     [Theory]
@@ -302,104 +366,70 @@ public sealed class BuildIntegrationTests : IDisposable
     public void A_served_mts_source_publishes_as_mjs_and_its_importer_runs(string runtime, string[] evaluate)
     {
         string where = OnPath(runtime);
-        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web",
-            items: """<TypeScriptSource Include="Scripts/**/*.mts" PareServeAt="js" />""");
-        Put("Scripts/main.mts", "import { twice } from './lib/twice.mts';\nexport const four: number = twice(2);\n");
-        Put("Scripts/lib/twice.mts", "export function twice(n: number): number { return n * 2; }\n");
+        string js = Path.Combine(_served!.Published, "wwwroot", "js");
 
-        var (exit, output) = Run("publish", "-nologo", "-nodeReuse:false", "--disable-build-servers", "-clp:NoSummary", "-o", P("pub"));
-
-        Assert.True(exit == 0, output);
-        string js = P("pub/wwwroot/js");
         Assert.Equal(["lib/twice.mjs", "lib/twice.mjs.br", "lib/twice.mjs.gz", "main.mjs", "main.mjs.br", "main.mjs.gz"],
-            Directory.EnumerateFiles(js, "*", SearchOption.AllDirectories).Select(f => Path.GetRelativePath(js, f).Replace('\\', '/')).Order());
+            Directory.EnumerateFiles(js, "*.mjs*", SearchOption.AllDirectories).Select(f => Path.GetRelativePath(js, f).Replace('\\', '/')).Order());
         string main = new Uri(Path.Combine(js, "main.mjs")).AbsoluteUri;
         Assert.Equal("4", Evaluate(where, evaluate, $$"""const { four } = await import("{{main}}"); console.log(four);"""));
     }
 
     [Theory]
-    [InlineData("/", "app#[.{fingerprint}]?.js ", "lib/fmt#[.{fingerprint}]?.js ")]
-    [InlineData("js", "js/app#[.{fingerprint}]?.js ", "js/lib/fmt#[.{fingerprint}]?.js ")]
-    [InlineData("/js/", "js/app#[.{fingerprint}]?.js ", "js/lib/fmt#[.{fingerprint}]?.js ")]
-    [InlineData(@"\static\js\", "static/js/app#[.{fingerprint}]?.js ", "static/js/lib/fmt#[.{fingerprint}]?.js ")]
-    public void Serve_at_is_a_folder_with_its_slashes_trimmed(string serveAt, string app, string fmt)
+    [InlineData("/", "")]
+    [InlineData("js", "js/")]
+    [InlineData("/js/", "js/")]
+    [InlineData(@"\static\js\", "static/js/")]
+    public void Serve_at_is_a_folder_with_its_slashes_trimmed(string serveAt, string folder)
     {
-        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", targets: AssetProbe,
-            items: $"""<TypeScriptSource Include="Scripts/**/*.ts" PareServeAt="{serveAt}" />""");
-        Put("Scripts/app.ts", "let a: T;");
-        Put("Scripts/lib/fmt.ts", "let f: T;");
-
-        var (exit, output) = Build();
-
-        Assert.True(exit == 0, output);
-        var assets = Assets(output);
-        Assert.Single(assets, a => a.StartsWith(app, StringComparison.Ordinal));
-        Assert.Single(assets, a => a.StartsWith(fmt, StringComparison.Ordinal));
+        string name = "s" + Array.IndexOf(ServeAtFolders, serveAt);
+        var assets = Assets(_served!.Builds[0]);
+        Assert.Single(assets, a => a.StartsWith($"{folder}{name}#[.{{fingerprint}}]?.js ", StringComparison.Ordinal));
+        Assert.Single(assets, a => a.StartsWith($"{folder}lib/{name}#[.{{fingerprint}}]?.js ", StringComparison.Ordinal));
     }
 
     [Fact]
     public void A_wwwroot_source_with_serve_at_is_served_there_instead()
     {
-        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", targets: AssetProbe,
-            items: """<TypeScriptSource Update="wwwroot/js/app.ts" PareServeAt="scripts" />""");
-        Put("wwwroot/js/app.ts", "let a: T;");
-        Put("wwwroot/js/other.ts", "let o: T;");
-
-        var (exit, output) = Build();
-
-        Assert.True(exit == 0, output);
-        var assets = Assets(output);
+        var assets = Assets(_served!.Builds[0]);
         // %(RecursiveDir) comes from the default item's wwwroot/**.
-        Assert.Single(assets, a => a.StartsWith("scripts/js/app#[.{fingerprint}]?.js ", StringComparison.Ordinal));
-        Assert.DoesNotContain(assets, a => a.StartsWith("js/app", StringComparison.Ordinal));
+        Assert.Single(assets, a => a.StartsWith("scripts/js/page#[.{fingerprint}]?.js ", StringComparison.Ordinal));
+        Assert.DoesNotContain(assets, a => a.StartsWith("js/page", StringComparison.Ordinal));
         Assert.Single(assets, a => a.StartsWith("js/other#[.{fingerprint}]?.js ", StringComparison.Ordinal));
     }
 
     [Fact]
     public void Pare_relative_path_wins_over_serve_at()
     {
-        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", targets: AssetProbe,
-            items: """<TypeScriptSource Include="Scripts/*.ts" PareServeAt="js" PareRelativePath="custom/%(Filename).js" />""");
-        Put("Scripts/app.ts", "let a: T;");
-
-        var (exit, output) = Build();
-
-        Assert.True(exit == 0, output);
-        Assert.Single(Assets(output), a => a.StartsWith("custom/app#[.{fingerprint}]?.js ", StringComparison.Ordinal));
+        var assets = Assets(_served!.Builds[0]);
+        Assert.Single(assets, a => a.StartsWith("custom/rel#[.{fingerprint}]?.js ", StringComparison.Ordinal));
+        Assert.DoesNotContain(assets, a => a.StartsWith("js/rel", StringComparison.Ordinal));
     }
 
     [Fact]
     public void A_razor_ts_served_at_the_root_replaces_a_stale_razor_js_beside_it()
     {
-        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", targets: AssetProbe,
-            items: """<TypeScriptSource Include="**/*.razor.ts" Exclude="bin/**;obj/**;node_modules/**" PareServeAt="/" />""");
-        Put("Components/Pages/Counter.razor", "<p>count</p>\n");
-        Put("Components/Pages/Counter.razor.ts", "export function onLoad(): void {}\n");
-        Put("Components/Pages/Counter.razor.js", "old;");
-
-        for (int build = 0; build < 2; build++)
+        var served = _served!.Test;
+        foreach (string output in _served.Builds)
         {
-            var (exit, output) = Build();
-            Assert.True(exit == 0, output);
             Assert.DoesNotContain("MSB4018", output);
             Assert.Contains(Path.Combine("Components", "Pages", "Counter.razor.js") + " : warning PARE200: ", output);
             string counter = Assert.Single(Assets(output), a => a.Contains("Counter", StringComparison.Ordinal));
             Assert.StartsWith("Components/Pages/Counter#[.{fingerprint}]?.razor.js ", counter);
-            Assert.EndsWith(Tail(ObjOut + "Components/Pages/Counter.razor.js"), counter);
+            Assert.EndsWith(served.Tail(ObjOut + "Components/Pages/Counter.razor.js"), counter);
         }
-        Assert.Equal("export function onLoad()       {}\n", File.ReadAllText(P(ObjOut + "Components/Pages/Counter.razor.js")));
+        Assert.Equal("export function onLoad()       {}\n", File.ReadAllText(served.P(ObjOut + "Components/Pages/Counter.razor.js")));
     }
 
+    // A mapped source is not reported: A_mapped_source_outside_wwwroot_is_served_at_its_mapped_url.
     [Theory]
-    [InlineData("Microsoft.NET.Sdk.Web", "", "", true)]
-    [InlineData("Microsoft.NET.Sdk.Web", "<NoWarn>$(NoWarn);PARE202</NoWarn>", "", false)]
-    [InlineData("Microsoft.NET.Sdk.Web", "<PareOutDir>gen</PareOutDir>", "", false)]
-    [InlineData("Microsoft.NET.Sdk.Web", "", """ PareServeAt="js" """, false)]
-    [InlineData("Microsoft.NET.Sdk", "", "", false)]
-    public void An_unserved_source_outside_wwwroot_is_reported(string sdk, string properties, string metadata, bool reported)
+    [InlineData("Microsoft.NET.Sdk.Web", "", true)]
+    [InlineData("Microsoft.NET.Sdk.Web", "<NoWarn>$(NoWarn);PARE202</NoWarn>", false)]
+    [InlineData("Microsoft.NET.Sdk.Web", "<PareOutDir>gen</PareOutDir>", false)]
+    [InlineData("Microsoft.NET.Sdk", "", false)]
+    public void An_unserved_source_outside_wwwroot_is_reported(string sdk, string properties, bool reported)
     {
         Project("<OutputType>Library</OutputType>" + properties, sdk: sdk,
-            items: $"""<TypeScriptSource Include="Scripts/*.ts"{metadata}/>""");
+            items: """<TypeScriptSource Include="Scripts/*.ts" />""");
         Put("Scripts/app.ts", "let a: T;");
         Put("wwwroot/js/served.ts", "let s: T;");
 
