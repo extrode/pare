@@ -84,6 +84,20 @@ keeps `$(PareTsconfig)` out of the build and publish output; the sample marks it
 `CopyToPublishDirectory="Never"` by hand.
 The launch profile avoids port 5000, which macOS AirPlay Receiver also listens on.
 
+`tests/Extrode.Pare.Integration` checks the sample end to end, packing the package into a private
+feed first:
+
+- the Development build, the Release publish and the NativeAOT publish each served and clicked
+  through in Chromium, Firefox and WebKit (Playwright). The counter and the htmx call must work,
+  with no console error and no failed request, and the modules the browser loads must be Pare's
+  output at the TypeScript positions.
+- published output holds only `.js` with `.br`/`.gz` copies; `.ts`, `.d.ts` and `tsconfig.json`
+  answer 404, and `counter.js` comes back brotli-compressed as `text/javascript`.
+- the stripped `counter.js` imported and run in Node and in Deno.
+
+The first run downloads the three browsers (about 250 MB) into Playwright's cache. Alpine and
+htmx load from jsDelivr, so the tests need network.
+
 ## Library
 
 ```csharp

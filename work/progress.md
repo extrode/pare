@@ -151,6 +151,15 @@ convention). Update at the end of every session.
   JS/TS file on disk; unresolved ones Deno reports are added and the run repeats. Result: 2,337 of
   2,388 same tree, 51 same once imports and numeric name suffixes are ignored (`AstDump` `loose`:
   Deno drops unused imports, even `import {} from "m"`, and renames shadowed bindings), 0 differ.
+- **Sample app tests (2026-10-15):** user asked for thorough app testing, Deno as well as Node.
+  `Extrode.Pare.Integration` now: Development build in Chromium, Firefox 155 and WebKit 26.6 (one
+  theory row each); Release publish (no `.ts`/`.d.ts`/`tsconfig.json`, 404 for them, brotli
+  `text/javascript`) in all three; NativeAOT publish (`-r <current rid>`, ILCompiler from the
+  NuGet cache as a fallback folder or nuget.org, no IL warnings, no `WebApp.dll`) in all three;
+  stripped `counter.js` run in Node and Deno. Each browser run fails on console errors, failed
+  requests or 4xx/5xx, and imports `format.js`/`counter.js` in the page to check Pare's output
+  and positions. Break-checks: no `.ts`-to-`.js` rewrite fails all 6 browser/runtime rows; keeping
+  sources in Content fails the publish test.
 
 ## Next
 

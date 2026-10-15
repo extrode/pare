@@ -10,9 +10,10 @@ Progress, next steps, corpus pass rate: [work/progress.md](work/progress.md), up
 - `src/Extrode.Pare.Build/` MSBuild task + `build/*.props`/`.targets`, NuGet package. MSBuild
   packages are compile-only (approved 2026-10-14, 18.9.6). Loads under `dotnet build` only.
 - `tests/Extrode.Pare.Tests/` xUnit v3 on Microsoft.Testing.Platform. Fast unit tests (<1 s).
-- `tests/Extrode.Pare.Integration/` slow (~35 s): real `dotnet build`/`publish` on temp projects;
-  the sample test also drives headless Chromium via Microsoft.Playwright (approved 2026-10-15,
-  1.63.0; needs network for jsDelivr).
+- `tests/Extrode.Pare.Integration/` slow (~2 min): real `dotnet build`/`publish` on temp projects;
+  the sample tests drive Chromium, Firefox and WebKit via Microsoft.Playwright (approved
+  2026-10-15, 1.63.0; needs network for jsDelivr) over the build, publish and NativeAOT publish,
+  and run the stripped modules in Node and Deno.
 - `tests/Extrode.Pare.Conformance/` TypeScript corpus (`dotnet run scripts/get-ts-corpus.cs`) and the
   differential test against tsc (`dotnet run scripts/get-tsc.cs`); each skips when its input is
   missing.

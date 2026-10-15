@@ -390,7 +390,7 @@ public sealed class BuildIntegrationTests : IDisposable
     }
 
     /// <summary>Starts the app on a free port and waits until it answers.</summary>
-    private static async Task<(Process Server, HttpClient Http)> Serve(string dll, string environment)
+    private static async Task<(Process Server, HttpClient Http)> Serve(string app, string environment)
     {
         int port;
         using (var probe = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0))
@@ -398,9 +398,9 @@ public sealed class BuildIntegrationTests : IDisposable
             probe.Start();
             port = ((System.Net.IPEndPoint)probe.LocalEndpoint).Port;
         }
-        var start = new ProcessStartInfo("dotnet", [dll])
+        var start = new ProcessStartInfo(app.EndsWith(".dll", StringComparison.Ordinal) ? "dotnet" : app, app.EndsWith(".dll", StringComparison.Ordinal) ? [app] : [])
         {
-            WorkingDirectory = Path.GetDirectoryName(dll)!,
+            WorkingDirectory = Path.GetDirectoryName(app)!,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
         };
@@ -529,6 +529,51 @@ public sealed class BuildIntegrationTests : IDisposable
                 Assert.Equal("br", Assert.Single(response.Content.Headers.ContentEncoding));
                 Assert.Equal("text/javascript", response.Content.Headers.ContentType?.MediaType);
             }
+            foreach (string engine in Browsers.Select(b => (string)b.Data))
+                await ClickThrough(engine, http.BaseAddress!);
+        }
+        finally
+        {
+            Stop(server);
+            http.Dispose();
+        }
+    }
+
+    [Fact]
+    public async Task NativeAot_published_sample_runs_in_every_browser()
+    {
+        PrepareSample();
+        // ILCompiler comes from the user's NuGet cache (read-only fallback) or nuget.org; only the
+        // package under test goes to the private folder.
+        Put("app/nuget.config", $"""
+            <configuration>
+              <packageSources>
+                <clear />
+                <add key="feed" value="{P("feed")}" />
+                <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+              </packageSources>
+              <packageSourceMapping>
+                <packageSource key="feed"><package pattern="Extrode.*" /></packageSource>
+                <packageSource key="nuget.org"><package pattern="*" /></packageSource>
+              </packageSourceMapping>
+            </configuration>
+            """);
+        string cache = Environment.GetEnvironmentVariable("NUGET_PACKAGES") ??
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
+        string rid = System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier;
+        var (exit, output) = Run("publish", P("app"), "-nologo", "-nodeReuse:false", "--disable-build-servers", "-c", "Release", "-r", rid,
+            "-o", P("aot"), $"-p:RestorePackagesPath={P("packages")}", $"-p:RestoreAdditionalProjectFallbackFolders={cache}");
+        Assert.True(exit == 0, output);
+        Assert.DoesNotContain("warning IL", output);
+        string binary = P(OperatingSystem.IsWindows() ? "aot/WebApp.exe" : "aot/WebApp");
+        Assert.True(File.Exists(binary), output);
+        Assert.False(File.Exists(P("aot/WebApp.dll")));
+
+        var (server, http) = await Serve(binary, "Production");
+        try
+        {
+            using var missing = await http.GetAsync("/js/counter.ts", TestContext.Current.CancellationToken);
+            Assert.Equal(System.Net.HttpStatusCode.NotFound, missing.StatusCode);
             foreach (string engine in Browsers.Select(b => (string)b.Data))
                 await ClickThrough(engine, http.BaseAddress!);
         }

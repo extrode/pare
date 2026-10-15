@@ -31,6 +31,8 @@
   and Deno's own transpiler; `scripts/get-bench-corpus.cs` fetches the corpus. A test asserts 0 B per `Strip` call.
 - `scripts/run-std-tests.cs`: Deno std's own tests on Pare's output; 38 of 42 packages give the
   same result as the TypeScript sources, the other 4 differ for reasons outside Pare.
+- Sample app tests: build, publish and NativeAOT publish clicked through in Chromium, Firefox and
+  WebKit; stripped modules run in Node and Deno.
 - Fixed: a namespace holding only a bodiless function declaration (`function f();`) is now
   rejected; TypeScript counts it as a value.
 - `scripts/get-tsc.cs`: downloads TypeScript 7's native `tsc` (7.0.2) from the npm registry into
