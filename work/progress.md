@@ -258,6 +258,9 @@ convention). Update at the end of every session.
   (both measured). Razor class libraries already worked in 0.3.0; now tested and in README.
   `PareRelativePath` fixes: PARE201 for two sources mapped to one URL (was SDK crash MSB4018),
   backslashes normalized (Windows-only bug, verified on wp1). 416 tests, 0 failed, 1 skipped.
+  `PareServeAt` (public, folder-only URL mapping; name from the Fable consult), PARE202 warning for
+  unserved sources outside wwwroot, PARE203 for a value that is not a folder. 442 tests, 0 failed,
+  1 skipped on macOS; new tests green on wp1; break-checked (4 behaviors, 7 failures).
 
 ## Next
 
