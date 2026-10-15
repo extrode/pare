@@ -66,9 +66,11 @@ public sealed class BuildIntegrationTests : IDisposable
     private (int Exit, string Output) Build(params string[] extra) =>
         Run(["build", "-nologo", "-nodeReuse:false", "--disable-build-servers", "-clp:NoSummary", .. extra]);
 
-    private (int Exit, string Output) Run(params string[] args)
+    private (int Exit, string Output) Run(params string[] args) => Exec("dotnet", args);
+
+    private (int Exit, string Output) Exec(string fileName, params string[] args)
     {
-        var start = new ProcessStartInfo("dotnet")
+        var start = new ProcessStartInfo(fileName)
         {
             WorkingDirectory = _dir.FullName,
             RedirectStandardOutput = true,
@@ -277,6 +279,45 @@ public sealed class BuildIntegrationTests : IDisposable
         Assert.NotEqual(0, exit);
         Assert.Contains(Path.Combine("wwwroot", "app.ts") + "(2,1): error PARE100: 'enum' generates runtime code", output);
         Assert.False(File.Exists(P("wwwroot/app.js")));
+    }
+
+    // MSBuild.exe of the newest Visual Studio, if it is MSBuild 18 or later: the .NET 10 SDK needs 18.
+    private static string? VisualStudioMSBuild()
+    {
+        string vswhere = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft Visual Studio", "Installer", "vswhere.exe");
+        if (!OperatingSystem.IsWindows() || !File.Exists(vswhere))
+            return null;
+        var start = new ProcessStartInfo(vswhere, ["-latest", "-prerelease", "-products", "*", "-requires", "Microsoft.Component.MSBuild", "-find", @"MSBuild\**\Bin\MSBuild.exe"])
+        {
+            RedirectStandardOutput = true,
+        };
+        using var process = Process.Start(start)!;
+        string? msbuild = process.StandardOutput.ReadToEnd().Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault();
+        process.WaitForExit();
+        return msbuild is not null && FileVersionInfo.GetVersionInfo(msbuild).FileMajorPart >= 18 ? msbuild : null;
+    }
+
+    [Fact]
+    public void Visual_Studio_MSBuild_strips_with_the_dotnet_task_host()
+    {
+        string? msbuild = VisualStudioMSBuild();
+        Assert.SkipWhen(msbuild is null, "no Visual Studio with MSBuild 18 or later");
+        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", targets: AssetProbe);
+        Put("wwwroot/js/a.ts", "let n: number = 1;\nexport { n };\n");
+        string[] build = ["-restore", "-nologo", "-nodeReuse:false", "-clp:NoSummary", "app.csproj"];
+
+        var (exit, output) = Exec(msbuild!, build);
+        Assert.True(exit == 0, output);
+        // MSBuild 18.10 falls back to a task host on its own, with this warning, when UsingTask has no Runtime.
+        Assert.DoesNotContain("out-of-process", output, StringComparison.Ordinal);
+        Assert.Equal("let n         = 1;\nexport { n };\n", File.ReadAllText(P(ObjOut + "js/a.js")));
+        Assert.Contains(Assets(output), asset => asset.StartsWith("js/a#[.{fingerprint}]?.js ", StringComparison.Ordinal)
+            && asset.EndsWith(Tail(ObjOut + "js/a.js"), StringComparison.Ordinal));
+
+        Put("wwwroot/js/b.ts", "enum E { A }\n");
+        (exit, output) = Exec(msbuild!, build);
+        Assert.NotEqual(0, exit);
+        Assert.Contains(Path.Combine("wwwroot", "js", "b.ts") + "(1,1): error PARE100: 'enum' generates runtime code", output);
     }
 
     [Theory]
