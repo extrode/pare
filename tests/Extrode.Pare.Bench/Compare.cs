@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Acornima;
 using Acornima.Ast;
 using Extrode.Pare.Conformance;
@@ -12,11 +13,11 @@ namespace Extrode.Pare.Bench;
 /// Runs Pare and other TypeScript-to-JavaScript tools over the real-world corpus files Pare strips,
 /// checks each tool's output against Pare's and times them. Whitespace strippers (Node's
 /// <c>stripTypeScriptTypes</c>, ts-blank-space) are compared byte for byte; emitters that reprint
-/// the code (esbuild, oxc, Deno) as Acornima trees without locations or literal raw text.
+/// the code (esbuild, oxc, Deno's swc emit) as Acornima trees without locations or literal raw text.
 /// Every tool runs in-process over strings already in memory, except Deno, which is timed as one
-/// <c>deno bundle</c> process against one <c>pare</c> CLI process over the same files.
+/// <c>deno cache</c> process against one <c>pare</c> CLI process over the same files.
 /// </summary>
-internal static class Compare
+internal static partial class Compare
 {
     private static readonly string[] NodeTools = ["node-strip", "ts-blank-space", "esbuild", "oxc"];
 
@@ -64,7 +65,7 @@ internal static class Compare
         {
             // Strippers keep the source text; printers reprint literals and `{ a: a }` as `{ a }`.
             bool reprints = r.Tool is not ("node-strip" or "ts-blank-space");
-            int bytes = 0, tree = 0, differ = 0, missing = 0;
+            int bytes = 0, tree = 0, loose = 0, differ = 0, missing = 0;
             foreach (var f in files.Where(f => !pareInvalid.Contains(f.Relative)))
             {
                 string pare = File.ReadAllText(Path.Combine(outRoot, "pare", f.Relative + ".js"));
@@ -83,21 +84,23 @@ internal static class Compare
                 string? why = TreeDifference(parser, pare, other, reprints);
                 if (why is null)
                     tree++;
+                else if (reprints && TreeDifference(parser, pare, other, reprints, loose: true) is null)
+                    loose++;
                 else
                 {
                     differ++;
                     report.AppendLine($"{r.Tool}\t{f.Relative}\t{why}");
                 }
             }
-            rows.Add($"| {r.Tool} {r.Version} | {bytes} | {tree} | {differ} | {missing} |");
+            rows.Add($"| {r.Tool} {r.Version} | {bytes} | {tree} | {(reprints ? loose.ToString() : "-")} | {differ} | {missing} |");
         }
         File.WriteAllText(Path.Combine(outRoot, "differences.tsv"), report.ToString());
 
         Console.WriteLine();
         Console.WriteLine($"Pare output that does not parse: {pareInvalid.Count} files{(pareInvalid.Count > 0 ? ": " : "")}{string.Join(", ", pareInvalid.Order())}");
         Console.WriteLine($"Output against Pare's (the other {files.Count - pareInvalid.Count} files):");
-        Console.WriteLine("| Tool | Same bytes | Same tree | Differ | Failed or skipped |");
-        Console.WriteLine("|---|---|---|---|---|");
+        Console.WriteLine("| Tool | Same bytes | Same tree | Same but imports elided or bindings renamed | Differ | Failed or skipped |");
+        Console.WriteLine("|---|---|---|---|---|---|");
         rows.ForEach(Console.WriteLine);
 
         Console.WriteLine();
@@ -111,7 +114,7 @@ internal static class Compare
         Console.WriteLine();
         Console.WriteLine("Whole process, all files, wall clock (one run each):");
         Console.WriteLine($"| pare CLI (NativeAOT) | {deno.PareCliMs:F0} ms |");
-        Console.WriteLine($"| deno bundle --inline-imports=false | {deno.DenoMs:F0} ms |");
+        Console.WriteLine($"| deno cache --no-check (transpile, cold cache) | {deno.DenoMs:F0} ms |");
         Console.WriteLine();
         Console.WriteLine($"Differences: {Path.GetRelativePath(Inputs.RepoRoot, Path.Combine(outRoot, "differences.tsv"))}");
         return 0;
@@ -173,57 +176,128 @@ internal static class Compare
             root.GetProperty("bytes").GetInt64(), [.. root.GetProperty("passes").EnumerateArray().Select(e => e.GetDouble())]);
     }
 
+    /// <summary>
+    /// Deno's own transpiler (swc, as <c>deno run</c> uses it): <c>deno cache --no-check</c> writes
+    /// the emit of every module in the graph to <c>$DENO_DIR/gen</c> without running anything. The
+    /// graph must resolve, so an import map points every specifier that is not a JS or TS file on
+    /// disk (packages, extensionless paths, .svelte, .css, URLs) at an empty module.
+    /// </summary>
     private static (Result Result, double DenoMs, double PareCliMs) RunDeno(List<(string Path, string Relative, string Text)> files, string outRoot)
     {
         string version = RunProcess("deno", ["--version"], out _).Split(' ', 3) is [_, var v, ..] ? v : "";
-        // deno names a.ts, a.mts and a.cts all a.js, so each extension runs as its own bundle.
-        string dest = Path.Combine(outRoot, "deno");
-        var errors = new StringBuilder();
-        double denoMs = 0;
-        int exit = 0;
-        foreach (var batch in files.GroupBy(f => Path.GetExtension(f.Path)))
+        const string Stub = "data:application/javascript,export%20default%200";
+        var map = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        foreach (var f in files)
         {
-            string raw = Path.Combine(outRoot, "deno-raw", batch.Key.TrimStart('.'));
-            long t0 = Stopwatch.GetTimestamp();
-            string output = RunProcess("deno", ["bundle", "--no-config", "--no-lock", "--quiet", "--inline-imports=false", "--packages", "external",
-                "--platform", "browser", "--outdir", raw, .. batch.Select(f => f.Path)], out int code);
-            denoMs += Stopwatch.GetElapsedTime(t0).TotalMilliseconds;
-            if (code != 0)
+            foreach (Match m in Specifier().Matches(f.Text))
             {
-                exit = code;
+                string spec = m.Groups["s"].Value;
+                if (spec.StartsWith("./", StringComparison.Ordinal) || spec.StartsWith("../", StringComparison.Ordinal))
+                {
+                    string target = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(f.Path)!, spec));
+                    if (!SloppyResolves(target))
+                        map[new Uri(target).AbsoluteUri] = Stub;
+                }
+                else
+                {
+                    map[spec] = Stub;
+                }
+            }
+        }
+
+        string denoDir = Path.Combine(outRoot, "deno-dir");
+        string importMap = Path.Combine(outRoot, "deno-imports.json");
+        string[] Args() => ["cache", "--no-check", "--sloppy-imports", "--no-config", "--no-lock", "--import-map", importMap, .. files.Select(f => f.Path)];
+        var errors = new StringBuilder();
+        int exit = 0;
+        // Specifiers the scan misses (JSDoc `@import`, `require` in odd places) come back as errors.
+        for (int round = 0; round < 50; round++)
+        {
+            File.WriteAllText(importMap, JsonSerializer.Serialize(new Dictionary<string, object> { ["imports"] = map }));
+            string output = RunDenoCache(denoDir, Args(), out exit);
+            if (exit == 0)
+                break;
+            var missing = Unresolved().Match(output);
+            if (!missing.Success)
+            {
                 errors.Append(output);
+                break;
             }
-            if (!Directory.Exists(raw))
-                continue;
-            // deno mirrors the inputs' layout below their deepest common directory.
-            string common = Path.GetDirectoryName(batch.First().Path)!;
-            foreach (var f in batch)
-                while (!f.Path.StartsWith(common + Path.DirectorySeparatorChar, StringComparison.Ordinal))
-                    common = Path.GetDirectoryName(common)!;
-            var relative = batch.ToDictionary(f => Path.GetRelativePath(common, f.Path), f => f.Relative);
-            foreach (string file in Directory.EnumerateFiles(raw, "*.js", SearchOption.AllDirectories))
-            {
-                string rel = Path.GetRelativePath(raw, file);
-                if (!relative.TryGetValue(rel[..^3] + batch.Key, out var target))
-                    continue;
-                Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(dest, target))!);
-                File.Copy(file, Path.Combine(dest, target + ".js"), overwrite: true);
-            }
+            map[missing.Groups["s"].Value] = Stub;
         }
         if (exit != 0)
             File.WriteAllText(Path.Combine(outRoot, "deno-errors.txt"), errors.ToString());
+
+        // Timed from a cold cache: graph, transpile and write.
+        if (Directory.Exists(denoDir))
+            Directory.Delete(denoDir, recursive: true);
+        long t0 = Stopwatch.GetTimestamp();
+        RunDenoCache(denoDir, Args(), out _);
+        double denoMs = Stopwatch.GetElapsedTime(t0).TotalMilliseconds;
+
+        string dest = Path.Combine(outRoot, "deno");
+        int ok = 0;
+        foreach (var f in files)
+        {
+            string full = Path.GetFullPath(f.Path);
+            string gen = Path.Combine(denoDir, "gen", "file", full.Replace(":", "").TrimStart('/', '\\') + ".js");
+            if (!File.Exists(gen))
+                continue;
+            string js = File.ReadAllText(gen);
+            // Deno appends an inline source map and a cache stamp.
+            int map0 = js.LastIndexOf("//# sourceMappingURL=", StringComparison.Ordinal);
+            if (map0 >= 0)
+                js = js[..map0];
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(dest, f.Relative))!);
+            File.WriteAllText(Path.Combine(dest, f.Relative + ".js"), js);
+            ok++;
+        }
 
         string pare = Path.Combine(Inputs.RepoRoot, "tmp", "aot", OperatingSystem.IsWindows() ? "pare.exe" : "pare");
         double pareMs = double.NaN;
         if (File.Exists(pare))
         {
-            long t0 = Stopwatch.GetTimestamp();
+            long p0 = Stopwatch.GetTimestamp();
             RunProcess(pare, [.. files.Select(f => f.Path), "--outdir", Path.Combine(outRoot, "pare-cli")], out _);
-            pareMs = Stopwatch.GetElapsedTime(t0).TotalMilliseconds;
+            pareMs = Stopwatch.GetElapsedTime(p0).TotalMilliseconds;
         }
-        int ok = Directory.Exists(dest) ? Directory.EnumerateFiles(dest, "*.js", SearchOption.AllDirectories).Count() : 0;
         return (new Result("deno", version + (exit == 0 ? "" : $" (exit {exit})"), ok, 0, []), denoMs, pareMs);
     }
+
+    private static readonly string[] Modules = [".ts", ".mts", ".cts", ".js", ".mjs", ".cjs", ".json"];
+
+    /// <summary>Whether <c>--sloppy-imports</c> finds a module: as written, with an extension, as a
+    /// directory's index, or <c>.js</c> written for a <c>.ts</c> file.</summary>
+    private static bool SloppyResolves(string target)
+    {
+        string bare = target.TrimEnd('/', '\\');
+        if (File.Exists(bare) && Modules.Contains(Path.GetExtension(bare)))
+            return true;
+        if (Path.GetExtension(bare) is ".js" or ".mjs" or ".cjs" && File.Exists(bare[..^Path.GetExtension(bare).Length] + Path.GetExtension(bare).Replace('j', 't')))
+            return true;
+        return Modules.Any(ext => File.Exists(bare + ext) || File.Exists(Path.Combine(bare, "index" + ext)));
+    }
+
+    private static string RunDenoCache(string denoDir, string[] args, out int exit)
+    {
+        var start = new ProcessStartInfo("deno", args) { RedirectStandardOutput = true, RedirectStandardError = true };
+        start.Environment["DENO_DIR"] = denoDir;
+        start.Environment["NO_COLOR"] = "1";
+        using var process = Process.Start(start)!;
+        var stderr = process.StandardError.ReadToEndAsync();
+        string stdout = process.StandardOutput.ReadToEnd();
+        process.WaitForExit();
+        exit = process.ExitCode;
+        return stdout + stderr.Result;
+    }
+
+    // import/export ... from "x", import "x", import("x"), require("x"), /// <reference path|types="x" />.
+    [GeneratedRegex("""(?:\bfrom|\bimport|\brequire)\s*\(?\s*(["'])(?<s>[^"'\r\n]+)\1|<reference\s+(?:path|types)\s*=\s*(["'])(?<s>[^"'\r\n]+)\2""")]
+    private static partial Regex Specifier();
+
+    // Module not found "file:///...", or Relative import path "x" not prefixed..., or Import "x" not a dependency.
+    [GeneratedRegex(""""(?:Module not found|Relative import path|Import)\s+"(?<s>[^"]+)"""")]
+    private static partial Regex Unresolved();
 
     private static string RunProcess(string file, string[] args, out int exit)
     {
@@ -237,7 +311,7 @@ internal static class Compare
     }
 
     /// <summary>Null when both parse to the same tree (as modules, else as scripts); otherwise why not.</summary>
-    private static string? TreeDifference(Parser parser, string pare, string other, bool reprints)
+    private static string? TreeDifference(Parser parser, string pare, string other, bool reprints, bool loose = false)
     {
         var (a, b) = (TryParse(() => parser.ParseModule(pare)), TryParse(() => parser.ParseModule(other)));
         if (a is null || b is null)
@@ -246,7 +320,7 @@ internal static class Compare
             return "Pare output does not parse";
         if (b is null)
             return "tool output does not parse";
-        string x = AstDump.Dump(a, reprints), y = AstDump.Dump(b, reprints);
+        string x = AstDump.Dump(a, reprints, loose), y = AstDump.Dump(b, reprints, loose);
         return x == y ? null : FirstDifference(x, y);
     }
 

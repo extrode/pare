@@ -28,7 +28,7 @@
   writes `;` there. Found in Hono by the cross-tool comparison.
 - Benchmarks (M7): `tests/Extrode.Pare.Bench` with BenchmarkDotNet (218 MB/s on 2,392 real-world
   files, 0 B allocated per call) and a `compare` mode against Node, oxc, ts-blank-space, esbuild
-  and Deno; `scripts/get-bench-corpus.cs` fetches the corpus. A test asserts 0 B per `Strip` call.
+  and Deno's own transpiler; `scripts/get-bench-corpus.cs` fetches the corpus. A test asserts 0 B per `Strip` call.
 - `scripts/run-std-tests.cs`: Deno std's own tests on Pare's output; 38 of 42 packages give the
   same result as the TypeScript sources, the other 4 differ for reasons outside Pare.
 - Fixed: a namespace holding only a bodiless function declaration (`function f();`) is now
