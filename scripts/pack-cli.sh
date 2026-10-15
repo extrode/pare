@@ -5,8 +5,8 @@
 #   Extrode.Pare.Cli.any.<v>.nupkg      framework-dependent fallback for unlisted RIDs
 #   pare-<v>-<rid>.tar.gz               the same binary as a standalone archive
 # NativeAOT cannot cross OS, so this packs osx-arm64 and osx-x64 on macOS, the host RID on
-# Linux, and linux-{arm64,x64} and linux-musl-{arm64,x64} in Docker when it runs. win-* need a Windows machine:
-#   dotnet pack src/Extrode.Pare.Cli -c Release -r win-x64 -o tmp/dist
+# Linux, and linux-{arm64,x64} and linux-musl-{arm64,x64} in Docker when it runs. win-* need a
+# Windows machine: scripts/pack-cli.ps1.
 # Usage: scripts/pack-cli.sh [--version 0.1.0] [--no-docker]
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
