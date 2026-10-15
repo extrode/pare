@@ -79,6 +79,19 @@ public sealed class DevelopmentWatcherTests : IDisposable
         Assert.Contains(_log.Lines, l => l.Contains("Stripped wwwroot/js/new.ts to wwwroot/js/new.js".Replace('/', Path.DirectorySeparatorChar)));
     }
 
+    // Linux watches each directory on its own and adds a new one only after it is reported, so a
+    // file written into a new directory before then raises no event.
+    [Fact]
+    public void A_source_in_a_new_directory_is_stripped()
+    {
+        Put("wwwroot/a.ts", "let a: T;\n");
+        using var watcher = Watcher();
+        watcher.Start();
+
+        Put("wwwroot/lib/deep/b.ts", "let b: T;\n");
+        WaitFor(() => ReadOrNull(P("wwwroot/lib/deep/b.js")) == "let b   ;\n");
+    }
+
     [Fact]
     public void A_rejected_source_is_logged_and_its_output_kept()
     {
