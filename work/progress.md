@@ -262,6 +262,16 @@ convention). Update at the end of every session.
   unserved sources outside wwwroot, PARE203 for a value that is not a folder. 442 tests, 0 failed,
   1 skipped on macOS; new tests green on wp1; break-checked (4 behaviors, 7 failures).
 
+- **Dev map and fixes (2026-10-15):** `AddPareDevelopment` re-strips `PareServeAt` and Razor
+  class library sources on save: the development map lists every mapped source and output, and
+  each project's map is copied to referencing projects' output as
+  `Extrode.Pare.development.<Project>.json` (0.3.0 maps still read). Checked under real
+  `dotnet watch`. A new `.ts` outside `wwwroot` waits for the next build (todo). Fixed BLAZOR106
+  with `PareOutDir` and `.razor.ts`/`.cshtml.ts` (out-dir copies removed from Content and None).
+  `PareServeAt` serving tests share one built project (13 builds and 2 publishes down to 2 and 1).
+  Merged dev 9736908: macOS 384 unit, 63 integration (1 skip), 3 conformance, 0 failed; wp1 384
+  unit (1 skip), 63 integration (2 skip), 0 failed.
+
 ## Next
 
 Order from the 2026-10-15 fable consult:
