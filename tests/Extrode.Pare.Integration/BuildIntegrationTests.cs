@@ -175,11 +175,15 @@ public sealed class BuildIntegrationTests : IDisposable
                 <TargetFramework>net10.0</TargetFramework>
                 <PareTaskAssembly>{TaskAssembly}</PareTaskAssembly>
               </PropertyGroup>
+              <ItemGroup>
+                <TypeScriptSource Include="Scripts/*.ts" PareServeAt="/" />
+              </ItemGroup>
               <Import Project="{Path.Combine(BuildDir, "Extrode.Pare.Build.targets")}" />
             </Project>
             """);
         Put("Lib/wwwroot/js/widget.ts", "import { f } from './lib.ts';\nlet n: number = f();\n");
         Put("Lib/wwwroot/js/lib.ts", "export function f(): number { return 1; }\n");
+        Put("Lib/Scripts/extra.ts", "let e: T;\n");
         Put("App/App.csproj", """
             <Project Sdk="Microsoft.NET.Sdk.Web">
               <PropertyGroup>
@@ -197,7 +201,7 @@ public sealed class BuildIntegrationTests : IDisposable
         string content = P("pub/wwwroot/_content/Lib");
         var published = Directory.EnumerateFiles(content, "*", SearchOption.AllDirectories)
             .Select(f => Path.GetRelativePath(content, f).Replace('\\', '/')).Order().ToList();
-        Assert.Equal(["js/lib.js", "js/lib.js.br", "js/lib.js.gz", "js/widget.js", "js/widget.js.br", "js/widget.js.gz"], published);
+        Assert.Equal(["extra.js", "extra.js.br", "extra.js.gz", "js/lib.js", "js/lib.js.br", "js/lib.js.gz", "js/widget.js", "js/widget.js.br", "js/widget.js.gz"], published);
         Assert.Equal("import { f } from './lib.js';\nlet n         = f();\n", File.ReadAllText(Path.Combine(content, "js/widget.js")));
         Assert.Equal("export function f()         { return 1; }\n", File.ReadAllText(Path.Combine(content, "js/lib.js")));
         foreach (string js in published.Where(f => f.EndsWith(".js", StringComparison.Ordinal)))
