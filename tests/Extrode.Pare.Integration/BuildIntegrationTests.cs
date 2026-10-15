@@ -165,6 +165,52 @@ public sealed class BuildIntegrationTests : IDisposable
         }
     }
 
+    [Fact]
+    public void Razor_class_library_sources_publish_stripped_under_content()
+    {
+        Put("Lib/Lib.csproj", $"""
+            <Project Sdk="Microsoft.NET.Sdk.Razor">
+              <Import Project="{Path.Combine(BuildDir, "Extrode.Pare.Build.props")}" />
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+                <PareTaskAssembly>{TaskAssembly}</PareTaskAssembly>
+              </PropertyGroup>
+              <Import Project="{Path.Combine(BuildDir, "Extrode.Pare.Build.targets")}" />
+            </Project>
+            """);
+        Put("Lib/wwwroot/js/widget.ts", "import { f } from './lib.ts';\nlet n: number = f();\n");
+        Put("Lib/wwwroot/js/lib.ts", "export function f(): number { return 1; }\n");
+        Put("App/App.csproj", """
+            <Project Sdk="Microsoft.NET.Sdk.Web">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+                <OutputType>Library</OutputType>
+              </PropertyGroup>
+              <ItemGroup>
+                <ProjectReference Include="../Lib/Lib.csproj" />
+              </ItemGroup>
+            </Project>
+            """);
+
+        var (exit, output) = Run("publish", "App/App.csproj", "-nologo", "-nodeReuse:false", "--disable-build-servers", "-clp:NoSummary", "-o", P("pub"));
+        Assert.True(exit == 0, output);
+        string content = P("pub/wwwroot/_content/Lib");
+        var published = Directory.EnumerateFiles(content, "*", SearchOption.AllDirectories)
+            .Select(f => Path.GetRelativePath(content, f).Replace('\\', '/')).Order().ToList();
+        Assert.Equal(["js/lib.js", "js/lib.js.br", "js/lib.js.gz", "js/widget.js", "js/widget.js.br", "js/widget.js.gz"], published);
+        Assert.Equal("import { f } from './lib.js';\nlet n         = f();\n", File.ReadAllText(Path.Combine(content, "js/widget.js")));
+        Assert.Equal("export function f()         { return 1; }\n", File.ReadAllText(Path.Combine(content, "js/lib.js")));
+        foreach (string js in published.Where(f => f.EndsWith(".js", StringComparison.Ordinal)))
+        {
+            byte[] plain = File.ReadAllBytes(Path.Combine(content, js));
+            using (var gz = new System.IO.Compression.GZipStream(File.OpenRead(Path.Combine(content, js + ".gz")), System.IO.Compression.CompressionMode.Decompress))
+                Assert.Equal(plain, ReadAll(gz));
+            using (var br = new System.IO.Compression.BrotliStream(File.OpenRead(Path.Combine(content, js + ".br")), System.IO.Compression.CompressionMode.Decompress))
+                Assert.Equal(plain, ReadAll(br));
+        }
+        Assert.Empty(Directory.EnumerateFiles(P("pub"), "*.ts", SearchOption.AllDirectories));
+    }
+
     private const string AssetProbe = """
         <Target Name="Probe" AfterTargets="Build">
           <Message Importance="high" Text="asset: %(StaticWebAsset.RelativePath) %(StaticWebAsset.Identity)" Condition="'@(StaticWebAsset)' != ''" />
