@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+- Web projects: `Extrode.Pare.Build` writes the output of `wwwroot/**/*.ts` under
+  `obj/<configuration>/<tfm>/pare/` and registers it as static web assets (served, compressed and
+  published as before), instead of next to each source. Breaking for anything that read the `.js`
+  from `wwwroot` on disk. `PareOutDir` turns it off. A `foo.js` left next to `foo.ts` is not served
+  and gets `warning PARE200`.
+- The build deletes the output of a deleted source; so does `AddPareDevelopment` while the app
+  runs. `AddPareDevelopment` writes where the build does, read from
+  `Extrode.Pare.development.json` in the build output. A source added during `dotnet watch` is
+  served after the next build.
+
 ## [0.2.0] - 2026-10-15
 
 - `Extrode.Pare.AspNetCore`: `builder.AddPareDevelopment()` re-strips `wwwroot` TypeScript as it

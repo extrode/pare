@@ -205,6 +205,21 @@ convention). Update at the end of every session.
   -SkipPack` verified win-arm64 (20 byte-exact runs, tool install picks win-arm64), unit tests
   348 (1 Unix skip) on SDK 10.0.402 win-arm64. UTM 4.7.5 hangs or crashes on macOS 26.6.2, so
   plain QEMU replaced it (user approved).
+- **obj/ output (2026-10-15, plan `docs/plans/2026-10-15-001-obj-output.md`):** in a project with
+  static web assets and no `PareOutDir`, wwwroot outputs go to `$(IntermediateOutputPath)pare/`
+  and are registered in the SDK's inputs stage like scoped CSS (`DefineStaticWebAssets`
+  `SourceType="Computed"`), so they are compressed, fingerprinted and published. No
+  `OriginalItemSpec` on the candidates: the SDK's compression reads that file, and pointing it at
+  the `.ts` published `.br`/`.gz` of the source (found by the publish browser test; the published
+  test now decompresses every copy). A sibling `.js` gets PARE200 and leaves Content (else the SDK
+  fails with "Conflicting assets"). Stale outputs: the SDK's incremental clean already drops what
+  an earlier build wrote; `_PareDeleteStaleOutputs` also drops what the watcher wrote. The build
+  writes `bin/.../Extrode.Pare.development.json` (`sourceRoot`, `outputRoot`; not when
+  publishing); `AddPareDevelopment` reads it and writes there, deletes a deleted source's output,
+  and logs that a new source is served after the next build. `dotnet watch` hot reload refreshes
+  the browser from the obj file (integration test). Deviation from the plan: the map holds the two
+  roots, not every source/output pair, and `PareDevelopmentOptions.OutDir` stays (not obsolete)
+  for `PareOutDir` projects. Tests: 353 unit, 28 integration.
 
 ## Next
 
@@ -220,9 +235,7 @@ Order from the 2026-10-15 fable consult:
 5. ~~**M7 perf**~~: done 2026-10-15 (see above).
 6. **M4 lexer validation:** only if M5 shows a divergence that matters.
 
-Not in the plan yet: stale `.js` left after deleting a `.ts`; output under `obj/` as static web
-assets (v0.2, retires the publish and overwrite questions); a PARE1xx
-error-code page; `.gitignore` guidance for generated `.js`.
+Not in the plan yet: a PARE1xx error-code page. (Stale `.js` and obj/ output: done, above.)
 
 ## Open questions
 
