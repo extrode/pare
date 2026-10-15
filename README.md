@@ -28,13 +28,14 @@ dotnet tool install -g Extrode.Pare.Cli
 ```
 
 The tool package installs the NativeAOT binary for osx-arm64, osx-x64, linux-arm64, linux-x64,
-linux-musl-arm64, linux-musl-x64 and win-x64, and a framework-dependent build (needs the .NET 10
-runtime) on any other platform. win-arm64 is listed but not packed yet, so installing there fails. The same binaries come as `pare-<version>-<rid>.tar.gz`
+linux-musl-arm64, linux-musl-x64, win-x64 and win-arm64, and a framework-dependent build (needs
+the .NET 10 runtime) on any other platform. The same binaries come as `pare-<version>-<rid>.tar.gz`
 archives (`.zip` on Windows) with no .NET needed. `scripts/pack-cli.sh` writes them to `tmp/dist`:
 macOS natively, Linux in Docker (`mcr.microsoft.com/dotnet/sdk:10.0` and `-alpine`), then runs
 each Linux build 20 times and installs the tool on its own platform. Windows NativeAOT needs a
 Windows machine with Visual Studio's C++ tools: `pwsh scripts/pack-cli.ps1` packs win-x64, and
-win-arm64 when the ARM64 C++ tools are installed, and checks the host's build the same way.
+win-arm64 when the ARM64 C++ tools are installed, and checks the host's build the same way
+(win-arm64 is cross-compiled on x64 and has not been run on an ARM64 machine yet).
 
 ```
 pare src                      # src/**/*.ts -> .js next to each source

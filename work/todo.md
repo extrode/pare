@@ -15,13 +15,8 @@ Small, clear, and could be picked up without a design decision.
 
 ## Later
 
-- win-arm64 `pare`: `scripts/pack-cli.ps1` skips it until Visual Studio on the Windows build
-  machine has `Microsoft.VisualStudio.Component.VC.Tools.ARM64`, and running it needs a Windows on
-  ARM machine. A release missing the package fails `dotnet tool install` there rather than falling
-  back to `any`. win-x64 is packed and checked on wp1.
-
-- Windows browser tests: the 4 Playwright tests have not run on Windows (wp1 lacks Playwright
-  1.63's browser builds, ~250 MB). The other 15 integration tests and all unit tests pass there.
+- win-arm64 `pare`: packed on wp1 (cross-compiled, PE machine 0xAA64) but never run. Needs a
+  Windows on ARM machine: the 20-run check and tool install in `scripts/pack-cli.ps1` run there.
 
 - .NET bug, not reported: NativeAOT on linux-musl-arm64,
   `RuntimeHelpers.TryEnsureSufficientExecutionStack()` on the main thread returns false in about

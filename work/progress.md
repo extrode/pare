@@ -195,6 +195,11 @@ convention). Update at the end of every session.
   sample's `.js` as CommonJS. `scripts/pack-cli.ps1` packs win-x64 (NativeAOT, 1.35 MB `pare.exe`,
   ~8 s), zips it, runs it 20 times byte-exact and tool-installs it (break-checked with a wrong
   expected output). win-arm64 needs VS's ARM64 C++ tools (not installed on wp1).
+  Later the same day: installed VS's ARM64 C++ tools on wp1 (user approved); `pack-cli.ps1` packs
+  win-x64 and win-arm64 in 15 s, arm64 `pare.exe` 1.37 MB, PE machine 0xAA64, not run (wp1 is
+  x64). Playwright 1.63 browsers installed on wp1; all 24 integration tests run there (2 skip:
+  fake `tsc`). The hot reload test needed two test fixes: `\` in the expected log line, and a
+  delete retry because Windows keeps the killed app's `.exe` locked briefly.
 
 ## Next
 
@@ -211,7 +216,7 @@ Order from the 2026-10-15 fable consult:
 6. **M4 lexer validation:** only if M5 shows a divergence that matters.
 
 Not in the plan yet: stale `.js` left after deleting a `.ts`; output under `obj/` as static web
-assets (v0.2, retires the publish and overwrite questions); win-arm64 `pare` (see todo); a PARE1xx
+assets (v0.2, retires the publish and overwrite questions); running win-arm64 `pare` (see todo); a PARE1xx
 error-code page; `.gitignore` guidance for generated `.js`.
 
 ## Open questions
