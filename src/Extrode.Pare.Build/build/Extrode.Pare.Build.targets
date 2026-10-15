@@ -1,8 +1,10 @@
 <Project>
   <!-- Output: in a project with static web assets (the Web SDK), each wwwroot source's output goes
        under $(IntermediateOutputPath)pare/ and is registered as a static web asset at the source's
-       path below wwwroot; outputs whose source is gone are deleted. Elsewhere, and for sources
-       outside wwwroot, output goes next to each source.
+       path below wwwroot; outputs whose source is gone are deleted. A source with PareServeAt
+       metadata (a URL folder, `/` for the root) is served there instead, wherever it sits:
+       folder + %(RecursiveDir) + its name with .ts, .mts, .cts made .js, .mjs, .cjs. Elsewhere,
+       and for other sources outside wwwroot (PARE202), output goes next to each source.
        Properties:
          PareOutDir         write output under this directory (relative paths kept) instead; turns
                             off the obj/ output
@@ -39,8 +41,22 @@
         <_PareDir>$([MSBuild]::MakeRelative('$([MSBuild]::NormalizeDirectory($(MSBuildProjectDirectory)))', '%(RootDir)%(Directory)').Replace('\', '/'))</_PareDir>
         <_PareJs>%(Filename)$([System.String]::Copy('%(Extension)').Replace('ts', 'js'))</_PareJs>
         <_PareSourceSpec>%(Identity)</_PareSourceSpec>
+        <_PareServeAt>$([System.String]::Copy('%(_PareSource.PareServeAt)').Replace('\', '/'))</_PareServeAt>
       </_PareSource>
-      <_PareSource Condition="'$(_PareObjRoot)' != '' and $([System.String]::Copy('%(_PareDir)').StartsWith('wwwroot/'))">
+      <!-- A folder, never a file: no `.`/`..` segment, `:`, `//` or script extension. -->
+      <_PareBadServeAt Include="@(_PareSource)"
+                       Condition="'%(_PareSource._PareServeAt)' != '' and $([System.Text.RegularExpressions.Regex]::IsMatch($([System.String]::Copy('%(_PareSource._PareServeAt)').ToLowerInvariant()), ':|//|(^|/)\.\.?(/|\z)|\.[mc]?[jt]s/*\z'))" />
+      <!-- PareRelativePath, when also set, wins. `/` is the root: mapped is decided before trimming. -->
+      <_PareSource Condition="'%(_PareSource._PareServeAt)' != '' and '%(_PareSource.PareRelativePath)' == ''">
+        <_PareFolder>$([System.String]::Copy('%(_PareSource._PareServeAt)').Trim('/'))</_PareFolder>
+      </_PareSource>
+      <_PareSource Condition="'%(_PareSource._PareFolder)' != ''">
+        <_PareFolder>%(_PareSource._PareFolder)/</_PareFolder>
+      </_PareSource>
+      <_PareSource Condition="'%(_PareSource._PareServeAt)' != '' and '%(_PareSource.PareRelativePath)' == ''">
+        <PareRelativePath>%(_PareSource._PareFolder)%(_PareSource.RecursiveDir)%(_PareSource._PareJs)</PareRelativePath>
+      </_PareSource>
+      <_PareSource Condition="'$(_PareObjRoot)' != '' and '%(_PareSource.PareRelativePath)' == '' and $([System.String]::Copy('%(_PareDir)').StartsWith('wwwroot/'))">
         <PareRelativePath>$([System.String]::Copy('%(_PareDir)').Substring(8))%(_PareJs)</PareRelativePath>
       </_PareSource>
       <!-- A URL path: %(RecursiveDir) in a mapping is `lib\` on Windows. -->
@@ -60,9 +76,17 @@
       <!-- Two sources at one URL: the SDK would crash on the duplicate asset (MSB4018). Batches
            group case-insensitively, as one obj/ file on macOS and Windows would. -->
       <_PareUrl Include="@(_PareSource->'%(PareRelativePath)')" Condition="'%(_PareSource.PareRelativePath)' != ''" />
+      <!-- Outside wwwroot with no URL: written next to the source, which serves nothing. A
+           .razor.js or .cshtml.js there is the SDK's collocated JS, which it serves itself. -->
+      <_PareUnserved Include="@(_PareSource)"
+                     Condition="'$(_PareObjRoot)' != '' and '%(_PareSource.PareRelativePath)' == '' and !$([System.String]::Copy('%(_PareSource._PareJs)').EndsWith('.razor.js')) and !$([System.String]::Copy('%(_PareSource._PareJs)').EndsWith('.cshtml.js'))" />
     </ItemGroup>
+    <Error Code="PARE203" File="%(_PareBadServeAt.Identity)" Condition="'@(_PareBadServeAt)' != ''"
+           Text="PareServeAt=&quot;%(_PareBadServeAt.PareServeAt)&quot; is not a URL folder. Give a folder such as js, or / for the root, with no . or .. segment, colon, double slash or file name: the file name comes from the source." />
     <Error Code="PARE201" File="$(MSBuildProjectFullPath)" Condition="'@(_PareUrl->Count())' &gt; '1'"
-           Text="two TypeScript sources map to one URL, %(_PareUrl.Identity): @(_PareUrl->'%(_PareSourceSpec)', ', '). Give each its own PareRelativePath, or remove one from TypeScriptSource." />
+           Text="two TypeScript sources map to one URL, %(_PareUrl.Identity): @(_PareUrl->'%(_PareSourceSpec)', ', '). Serve one under a different PareServeAt folder, or remove one from TypeScriptSource." />
+    <Warning Code="PARE202" File="%(_PareUnserved.Identity)" Condition="'@(_PareUnserved)' != ''"
+             Text="not served: outside wwwroot with no PareServeAt, so the .js goes next to the source and is not a static web asset. Add PareServeAt=&quot;js&quot; to the TypeScriptSource item to serve it under js/, or add PARE202 to NoWarn to keep it as is." />
   </Target>
 
   <Target Name="PareTypeCheck" BeforeTargets="PareStripTypeScript"
@@ -90,10 +114,12 @@
       <Content Remove="@(_PareContentOutput)" />
       <Content Include="@(_PareContentOutput)" />
       <!-- A .js beside a source whose output is in obj/: left by Pare 0.2 or hand-written. As
-           Content it would be a second asset at the same path, which the SDK rejects. -->
+           Content it would be a second asset at the same path, which the SDK rejects; a
+           .razor.js is also found as None (collocated JS). -->
       <_PareShadowed Include="@(_PareSource->'%(RelativeDir)%(_PareJs)')"
                      Condition="'%(_PareSource.PareRelativePath)' != '' and Exists('%(_PareSource.RelativeDir)%(_PareSource._PareJs)')" />
       <Content Remove="@(_PareShadowed)" />
+      <None Remove="@(_PareShadowed)" />
       <Content Remove="@(TypeScriptSource);wwwroot/**/*.d.ts;wwwroot/**/*.d.mts;wwwroot/**/*.d.cts"
                Condition="'$(PareKeepSources)' != 'true'" />
       <!-- The Web SDK makes every root .json Content. -->

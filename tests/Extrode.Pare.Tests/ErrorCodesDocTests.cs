@@ -71,6 +71,8 @@ public partial class ErrorCodesDocTests
     [Theory]
     [InlineData("PARE200", "warning")]
     [InlineData("PARE201", "error")]
+    [InlineData("PARE202", "warning")]
+    [InlineData("PARE203", "error")]
     public void Build_diagnostic_section_quotes_the_targets_text(string code, string kind)
     {
         var task = BuildDiagnostic().Matches(Targets).Single(m => m.Groups[2].Value == code);
@@ -78,7 +80,7 @@ public partial class ErrorCodesDocTests
         Assert.Contains($"| [{code}](#{code.ToLowerInvariant()}) | {kind} (MSBuild) |", Doc);
 
         // MSBuild expressions in the text (%(...), @(...)) stand for the example's values.
-        string text = task.Groups[3].Value;
+        string text = System.Net.WebUtility.HtmlDecode(task.Groups[3].Value);
         string pattern = "\n`" + Regex.Escape($"{kind} {code}: ") +
             string.Join(".+", MSBuildExpression().Split(text).Select(Regex.Escape)) + "`\n";
         Assert.Matches(pattern, Section(code));

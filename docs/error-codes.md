@@ -25,6 +25,8 @@ reported in one run.
 | [PARE107](#pare107) | error | a type-only import cannot have both a default and named bindings |
 | [PARE200](#pare200) | warning (MSBuild) | not served: the build now writes this file's TypeScript output under obj/ and serves that. Delete it. |
 | [PARE201](#pare201) | error (MSBuild) | two TypeScript sources map to one URL |
+| [PARE202](#pare202) | warning (MSBuild) | not served: outside wwwroot with no PareServeAt |
+| [PARE203](#pare203) | error (MSBuild) | PareServeAt is not a URL folder |
 
 Errors print as `file:line:col: error PARE100: message (hint)` from the CLI and the hot-reload
 watcher, and as `file(line,col): error PARE100: message (hint)` from MSBuild.
@@ -220,13 +222,44 @@ hand-written `foo.js` is the one you want served, rename it or the `.ts`.
 
 ## PARE201
 
-`error PARE201: two TypeScript sources map to one URL, js/app.js: wwwroot/js/app.ts, Scripts/app.ts. Give each its own PareRelativePath, or remove one from TypeScriptSource.`
+`error PARE201: two TypeScript sources map to one URL, js/app.js: wwwroot/js/app.ts, Scripts/app.ts. Serve one under a different PareServeAt folder, or remove one from TypeScriptSource.`
 
 MSBuild package only, for web projects whose output goes under `obj/`. Each source's output is
-served at its `PareRelativePath`: the path below `wwwroot` by default, or the value a
-`TypeScriptSource` item sets. Two sources ended up with the same one, which would also make them
-write the same file. Paths that differ only in case count as the same, as they do on macOS and
-Windows file systems. The build stops before stripping anything.
+served at a URL: its path below `wwwroot` by default, or below the folder its `PareServeAt` names.
+Two sources ended up with the same one, which would also make them write the same file. Paths
+that differ only in case count as the same, as they do on macOS and Windows file systems. The
+build stops before stripping anything.
 
-Change the `PareRelativePath` of one of the named sources, or exclude one of them from
+Give one of the named sources a different `PareServeAt`, or exclude one of them from
 `TypeScriptSource` (`<TypeScriptSource Remove="Scripts/app.ts" />`).
+
+## PARE202
+
+`warning PARE202: not served: outside wwwroot with no PareServeAt, so the .js goes next to the source and is not a static web asset. Add PareServeAt="js" to the TypeScriptSource item to serve it under js/, or add PARE202 to NoWarn to keep it as is.`
+
+MSBuild package only, for web projects whose output goes under `obj/`. A `TypeScriptSource` item
+outside `wwwroot`, such as `Scripts/app.ts`, has no `PareServeAt`. Its output is written next to
+it, as `Scripts/app.js`, which the web app does not serve or publish. The build still succeeds.
+Not reported for `PareOutDir`, outside web projects, or for a `.razor.ts` or `.cshtml.ts`, whose
+output beside the component the SDK serves itself.
+
+To serve it, name the URL folder:
+
+```xml
+<TypeScriptSource Include="Scripts/**/*.ts" PareServeAt="js" />
+```
+
+To keep the output next to the source on purpose, add `<NoWarn>$(NoWarn);PARE202</NoWarn>` to the
+project.
+
+## PARE203
+
+`error PARE203: PareServeAt="js/app.js" is not a URL folder. Give a folder such as js, or / for the root, with no . or .. segment, colon, double slash or file name: the file name comes from the source.`
+
+MSBuild package only. `PareServeAt` names a folder; each file's name and extension come from its
+source (`app.ts` gives `app.js`, `app.mts` gives `app.mjs`). Values with a `.` or `..` segment, a
+colon, `//` (or `\\`), or ending in a script extension such as `.js` or `.ts` are rejected. The
+build stops before stripping anything.
+
+Use a folder: `PareServeAt="js"`, or `PareServeAt="/"` to serve at the root of the project's
+static web assets.
