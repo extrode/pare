@@ -13,6 +13,27 @@ public class CliTests
     }
 
     [Fact]
+    public void Main_runs_on_its_own_thread_and_returns_the_exit_code()
+    {
+        var caller = Environment.CurrentManagedThreadId;
+        int ran = 0;
+        int exit = Program.OnOwnStack(() =>
+        {
+            ran = Environment.CurrentManagedThreadId;
+            return 7;
+        });
+        Assert.Equal(7, exit);
+        Assert.NotEqual(caller, ran);
+    }
+
+    [Fact]
+    public void Main_rethrows_what_its_thread_throws()
+    {
+        var e = Assert.Throws<IOException>(() => Program.OnOwnStack(() => throw new IOException("disk")));
+        Assert.Equal("disk", e.Message);
+    }
+
+    [Fact]
     public void Stdin_mode_writes_stripped_source_to_stdout()
     {
         var (exit, stdout, stderr) = Run("let a = 1;\n", "--stdin");

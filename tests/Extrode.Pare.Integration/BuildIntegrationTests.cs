@@ -9,10 +9,31 @@ public sealed class BuildIntegrationTests : IDisposable
     private static readonly string BuildDir = Path.Combine(RepoRoot, "src", "Extrode.Pare.Build", "build");
     // By path: loading the task type would need the MSBuild assemblies, which only the host ships.
     private static readonly string TaskAssembly = Path.Combine(AppContext.BaseDirectory, "Extrode.Pare.Build.dll");
+
+    // The sample references `<version>-*`, so test packages carry the repo's version.
+    private static readonly string TestVersion = typeof(BuildIntegrationTests).Assembly.GetName().Version!.ToString(3) + "-test.1";
+
     private readonly DirectoryInfo _dir = Directory.CreateTempSubdirectory("pare-build-");
     private string? _pathPrefix;
+    private string? _nugetPackages;
 
-    public void Dispose() => _dir.Delete(recursive: true);
+    // Windows keeps a killed app's .exe locked for a moment after the kill returns.
+    public void Dispose()
+    {
+        var until = DateTime.UtcNow.AddSeconds(10);
+        while (true)
+        {
+            try
+            {
+                _dir.Delete(recursive: true);
+                return;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException && DateTime.UtcNow < until)
+            {
+                Thread.Sleep(200);
+            }
+        }
+    }
 
     private string P(string relative) => Path.Combine(_dir.FullName, relative);
 
@@ -54,6 +75,8 @@ public sealed class BuildIntegrationTests : IDisposable
             start.Environment.Remove(key);
         if (_pathPrefix is not null)
             start.Environment["PATH"] = _pathPrefix + Path.PathSeparator + start.Environment["PATH"];
+        if (_nugetPackages is not null)
+            start.Environment["NUGET_PACKAGES"] = _nugetPackages;
         using var process = Process.Start(start)!;
         var stderr = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
         string stdout = process.StandardOutput.ReadToEnd();
@@ -258,8 +281,10 @@ public sealed class BuildIntegrationTests : IDisposable
         var (exit, output) = Run("msbuild", "-nologo", "-getItem:Watch");
 
         Assert.True(exit == 0, output);
-        Assert.Contains(Path.Combine("wwwroot", "app.ts"), output);
-        Assert.Contains(Path.Combine("src", "a.ts"), output);
+        // JSON output: a Windows path comes back with escaped backslashes.
+        string items = output.Replace(@"\\", "/");
+        Assert.Contains("wwwroot/app.ts", items);
+        Assert.Contains("src/a.ts", items);
     }
 
     [Fact]
@@ -326,10 +351,10 @@ public sealed class BuildIntegrationTests : IDisposable
         const string configuration = "Release";
 #endif
         var (exit, output) = Run("pack", Path.Combine(RepoRoot, "src", "Extrode.Pare.Build"), "-nologo", "-nodeReuse:false", "--no-build",
-            "-c", configuration, "-o", P("feed"), "-p:Version=0.1.0-test.1");
+            "-c", configuration, "-o", P("feed"), $"-p:Version={TestVersion}");
         Assert.True(exit == 0, output);
 
-        using var package = System.IO.Compression.ZipFile.OpenRead(P("feed/Extrode.Pare.Build.0.1.0-test.1.nupkg"));
+        using var package = System.IO.Compression.ZipFile.OpenRead(P($"feed/Extrode.Pare.Build.{TestVersion}.nupkg"));
         var entries = package.Entries.Select(e => e.FullName).ToList();
         Assert.Contains("LICENSE.md", entries);
         Assert.Contains("NOTICE.md", entries);
@@ -369,9 +394,12 @@ public sealed class BuildIntegrationTests : IDisposable
               </packageSources>
             </configuration>
             """);
-        var (exit, output) = Run("pack", Path.Combine(RepoRoot, "src", "Extrode.Pare.Build"), "-nologo", "-nodeReuse:false", "--no-build", "-c", Configuration,
-            "-o", P("feed"), "-p:Version=0.1.0-test.1");
-        Assert.True(exit == 0, output);
+        foreach (string project in new[] { "Extrode.Pare", "Extrode.Pare.Build", "Extrode.Pare.AspNetCore" })
+        {
+            var (exit, output) = Run("pack", Path.Combine(RepoRoot, "src", project), "-nologo", "-nodeReuse:false", "--no-build", "-c", Configuration,
+                "-o", P("feed"), $"-p:Version={TestVersion}");
+            Assert.True(exit == 0, output);
+        }
     }
 
     // PublishAot would restore the ILCompiler package, which the private package folder lacks.
@@ -475,6 +503,100 @@ public sealed class BuildIntegrationTests : IDisposable
             "() => import('/js/counter.js').then(m => { const c = m.counter(2); c.increment(); return c.label(); })"));
         Assert.Empty(errors);
         Assert.Empty(failed);
+    }
+
+    [Fact]
+    public async Task Dotnet_watch_hot_reload_refreshes_the_browser_with_the_restripped_source()
+    {
+        PrepareSample();
+        // dotnet watch takes no -p. The sample keeps PublishAot, whose ILCompiler package comes from the user's cache.
+        string cache = Environment.GetEnvironmentVariable("NUGET_PACKAGES") ??
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
+        Put("app/Directory.Build.props", $"""
+            <Project>
+              <PropertyGroup>
+                <RestorePackagesPath>{P("packages")}</RestorePackagesPath>
+                <RestoreAdditionalProjectFallbackFolders>{cache}</RestoreAdditionalProjectFallbackFolders>
+              </PropertyGroup>
+            </Project>
+            """);
+        int port;
+        using (var probe = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0))
+        {
+            probe.Start();
+            port = ((System.Net.IPEndPoint)probe.LocalEndpoint).Port;
+        }
+        // The sample's launch profile uses port 5180.
+        var start = new ProcessStartInfo("dotnet", ["watch", "--non-interactive", "--no-launch-profile"])
+        {
+            WorkingDirectory = P("app"),
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        foreach (var key in start.Environment.Keys.Where(k => k.StartsWith("MSBuild", StringComparison.OrdinalIgnoreCase)).ToList())
+            start.Environment.Remove(key);
+        start.Environment["ASPNETCORE_URLS"] = $"http://127.0.0.1:{port}";
+        start.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
+        var output = new System.Text.StringBuilder();
+        using var watch = new Process { StartInfo = start };
+        watch.OutputDataReceived += (_, e) => { lock (output) output.AppendLine(e.Data); };
+        watch.ErrorDataReceived += (_, e) => { lock (output) output.AppendLine(e.Data); };
+        watch.Start();
+        watch.BeginOutputReadLine();
+        watch.BeginErrorReadLine();
+        string Output() { lock (output) return output.ToString(); }
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            using var http = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
+            var deadline = DateTime.UtcNow.AddSeconds(180);
+            while (true)
+            {
+                Assert.True(DateTime.UtcNow < deadline && !watch.HasExited, Output());
+                try
+                {
+                    using var _ = await http.GetAsync("/fragments/time", ct);
+                    break;
+                }
+                catch (HttpRequestException)
+                {
+                    await Task.Delay(200, ct);
+                }
+            }
+
+            Assert.Equal(0, Microsoft.Playwright.Program.Main(["install", "chromium", "--only-shell"]));
+            using var playwright = await Microsoft.Playwright.Playwright.CreateAsync();
+            await using var browser = await playwright.Chromium.LaunchAsync();
+            var page = await browser.NewPageAsync();
+            // An edit before the refresh socket opens never reaches the page, and the refresh script
+            // connects 500 ms after load without saying so.
+            await page.AddInitScriptAsync("""
+                const Native = WebSocket;
+                window.WebSocket = class extends Native {
+                  constructor(...args) { super(...args); this.addEventListener('open', () => window.pareSocketOpen = true); }
+                };
+                """);
+            await page.GotoAsync(http.BaseAddress.ToString());
+            await page.WaitForFunctionAsync("() => window.pareSocketOpen === true");
+            var counter = page.Locator("[x-data] span");
+            await Microsoft.Playwright.Assertions.Expect(counter).ToHaveTextAsync("0 clicks");
+            string built = Output();
+
+            string source = P("app/wwwroot/js/counter.ts");
+            File.WriteAllText(source, File.ReadAllText(source).Replace("other: \"clicks\"", "other: \"taps\""));
+            // No reload from the test: dotnet watch refreshes the page itself.
+            await Microsoft.Playwright.Assertions.Expect(counter).ToHaveTextAsync("0 taps", new() { Timeout = 30_000 });
+            Assert.Contains("const clicks = { one: \"click\", other: \"taps\" }                 ;", File.ReadAllText(P("app/wwwroot/js/counter.js")));
+            string after = Output()[built.Length..];
+            Assert.Contains("Stripped wwwroot/js/counter.ts to wwwroot/js/counter.js".Replace('/', Path.DirectorySeparatorChar), after);
+            Assert.Contains("Static asset changes applied", after);
+            Assert.DoesNotContain("Restarting", after);
+        }
+        finally
+        {
+            watch.Kill(entireProcessTree: true);
+            watch.WaitForExit();
+        }
     }
 
     [Theory]
@@ -593,6 +715,8 @@ public sealed class BuildIntegrationTests : IDisposable
             .Select(d => Path.Combine(d, OperatingSystem.IsWindows() ? runtime + ".exe" : runtime)).FirstOrDefault(File.Exists);
         Assert.SkipWhen(where is null, $"{runtime} is not on PATH");
         BuildSample();
+        // A package.json further up can say "commonjs" (one in a Windows %TEMP% did).
+        Put("app/wwwroot/package.json", """{ "type": "module" }""");
         string counter = new Uri(P("app/wwwroot/js/counter.js")).AbsoluteUri;
         var start = new ProcessStartInfo(where!) { RedirectStandardOutput = true, RedirectStandardError = true };
         foreach (string arg in evaluate)
@@ -612,6 +736,41 @@ public sealed class BuildIntegrationTests : IDisposable
         process.WaitForExit();
         Assert.True(process.ExitCode == 0, stderr);
         Assert.Equal("0 clicks|1 click|2 clicks", stdout.Trim());
+    }
+
+    [Fact]
+    public void Cli_tool_installs_the_native_binary_for_this_platform()
+    {
+        string rid = System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier;
+        string cli = Path.Combine(RepoRoot, "src", "Extrode.Pare.Cli");
+        foreach (string[] target in new[] { Array.Empty<string>(), ["-r", rid], ["-r", "any"] })
+        {
+            var (packed, packOutput) = Run(["pack", cli, "-nologo", "-nodeReuse:false", "-c", Configuration, "-o", P("feed"), $"-p:Version={TestVersion}", .. target]);
+            Assert.True(packed == 0, packOutput);
+        }
+
+        // A private package folder, so the fixed test version never lands in the user's cache.
+        _nugetPackages = P("packages");
+        var (exit, output) = Run("tool", "install", "Extrode.Pare.Cli", "--version", TestVersion, "--tool-path", P("tool"), "--add-source", P("feed"));
+        Assert.True(exit == 0, output);
+        string store = P($"tool/.store/extrode.pare.cli/{TestVersion}");
+        Assert.Equal(["extrode.pare.cli", "extrode.pare.cli." + rid],
+            Directory.GetDirectories(store).Select(Path.GetFileName).Order());
+        Assert.Empty(Directory.GetFiles(store, "pare.dll", SearchOption.AllDirectories));
+
+        // On Windows the SDK puts a pare.cmd shim on the tool path for a native tool.
+        var start = new ProcessStartInfo(P(OperatingSystem.IsWindows() ? "tool/pare.cmd" : "tool/pare"), "--stdin")
+        {
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+        };
+        using var pare = Process.Start(start)!;
+        pare.StandardInput.Write("type T = 1;\nlet x: number = 1;\n");
+        pare.StandardInput.Close();
+        string stripped = pare.StandardOutput.ReadToEnd();
+        pare.WaitForExit();
+        Assert.Equal(0, pare.ExitCode);
+        Assert.Equal("           \nlet x         = 1;\n", stripped);
     }
 
     private static string FindRepoRoot()

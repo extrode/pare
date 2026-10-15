@@ -9,9 +9,11 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest</AnalysisLevel>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Authors>Extrode</Authors>
     <Company>Extrode</Company>
     <Copyright>Copyright (c) 2026 Extrode (extrode.com)</Copyright>
+    <RepositoryUrl>https://github.com/extrode/pare</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 </Project>

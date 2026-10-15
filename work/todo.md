@@ -15,9 +15,17 @@ Small, clear, and could be picked up without a design decision.
 
 ## Later
 
-- `dotnet watch` 10.0.401 hot reload, macOS: after a file is added (an editor saving via rename)
-  it failed to read `obj\Debug/net10.0/staticwebassets.development.json` (backslash path). SDK
-  side; check whether static-asset refresh still works after such a save.
+- .NET bug, not reported: NativeAOT on linux-musl-arm64,
+  `RuntimeHelpers.TryEnsureSufficientExecutionStack()` on the main thread returns false in 24 of
+  60 runs (SDK 10.0.402, Alpine 3.24.2; JIT and glibc arm64 always true). Library callers there
+  need a thread they created; README says so. Issue draft and repro: `tmp/issues/musl-stack/`.
+
+- .NET SDK bug, reported as dotnet/sdk#54309, fixed on `main` by dotnet/sdk#54536 (2026-07-20), no
+  10.0.x backport found: `dotnet watch` 10.0.401 on macOS, started outside the project
+  directory (`--project`), fails to read `obj\Debug/net10.0/staticwebassets.development.json`
+  (`IntermediateOutputPath` keeps MSBuild's backslash) and sends no static-asset refresh. A plain
+  `Microsoft.NET.Sdk.Web` project shows it too; from the project directory it works, saves via
+  rename included. README says to run it from the project directory.
 
 - MSBuild in Visual Studio: untested; would need the .NET task host (`Runtime="NET"` on
   `UsingTask`, MSBuild 18) or a netstandard2.0 core.

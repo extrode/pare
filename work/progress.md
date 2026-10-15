@@ -124,6 +124,19 @@ convention). Update at the end of every session.
   `Sources_are_watch_items` (`msbuild -getItem:Watch`) and
   `Dotnet_watch_without_hot_reload_restrips_an_edited_source` (real `dotnet watch`, ~5 s).
 
+- **CLI distribution (2026-10-15, user's call: both):** `Extrode.Pare.Cli` is a .NET tool with
+  `ToolPackageRuntimeIdentifiers` (SDK 10): a pointer package, one NativeAOT package per RID
+  (osx, linux, linux-musl; arm64 and x64) and an `any` framework-dependent fallback.
+  `scripts/pack-cli.sh` (~4 min) packs them plus `pare-<v>-<rid>.tar.gz`: macOS natively, Linux in
+  Docker. glibc x64 builds under amd64 emulation; musl x64 is cross-compiled on arm64 Alpine against
+  an x64 sysroot (`-p:SysRoot -p:LinkerFlavor=lld`, needs `llvm` for `llvm-objcopy`) because ilc
+  aborts (134) on emulated Alpine. Each Linux build is run 20 times and tool-installed on its
+  platform. A listed RID whose package is missing fails the install (no fallback to `any`), so
+  win-* must be packed on Windows before a release. Found on the way: on linux-musl-arm64,
+  `TryEnsureSufficientExecutionStack` on the main thread is false in ~1 process in 4 (17/60),
+  so `pare` rejected everything; the CLI now runs on an 8 MB thread (0/200 failures on every
+  build). Test: `Cli_tool_installs_the_native_binary_for_this_platform` (~11 s).
+
 - **M7 perf (2026-10-15):** `tests/Extrode.Pare.Bench` (BenchmarkDotNet 0.15.8, approved).
   `scripts/get-bench-corpus.cs` sparse-clones TypeScript 5.9.3 `src/compiler`, Vue, Hono, Deno
   std, Svelte and Zod at pinned commits (2,504 files, ~25 MB; 2,392 strip). BenchmarkDotNet:
@@ -160,6 +173,38 @@ convention). Update at the end of every session.
   requests or 4xx/5xx, and imports `format.js`/`counter.js` in the page to check Pare's output
   and positions. Break-checks: no `.ts`-to-`.js` rewrite fails all 6 browser/runtime rows; keeping
   sources in Content fails the publish test.
+- **M8 hot reload (2026-10-15, user's call: package):** `src/Extrode.Pare.AspNetCore`,
+  `builder.AddPareDevelopment()`. In Development a hosted service strips stale `wwwroot` sources at
+  start and re-strips on save (FileSystemWatcher, 50 ms settle, write only on change, rejections
+  logged and old `.js` kept). Found: `CreateSlimBuilder` runs no hosting startups, so `dotnet
+  watch` never injected its refresh script into the sample; the package applies
+  `Microsoft.AspNetCore.Watch.BrowserRefresh.HostingStartup` by reflection when that assembly is
+  loaded (injected once even with `CreateBuilder`; no IL warning in the NativeAOT publish).
+  `PublishAot` projects need `StartupHookSupport` in Debug for hot reload. Two SDK 10.0.401 traps:
+  `dotnet watch --project` from another directory fails to read the static web assets manifest
+  (`obj\Debug/...` path) and never refreshes; the refresh script connects 500 ms after load, so an
+  edit before that is lost. Tests: 7 in `DevelopmentWatcherTests`, and
+  `Dotnet_watch_hot_reload_refreshes_the_browser_with_the_restripped_source` (dotnet watch +
+  Chromium, ~15 s; break-checked without the refresh hook and without the sample's call). Core
+  now packs as `Extrode.Pare`. 375 tests pass.
+- **Windows (2026-10-15, wp1 over ssh):** first run on Windows (10.0.26200 x64, SDK 10.0.401,
+  repo copied by `git bundle`). Unit tests 348 pass (1 Unix-permissions skip). Integration
+  without the 4 browser tests: 15 run, 2 skip (fake `tsc` is a shell script); 3 failed on test
+  assumptions, now fixed: the tool shim is `pare.cmd`, `msbuild -getItem` JSON escapes
+  backslashes, and a stray `%TEMP%\package.json` with `"type": "commonjs"` made Node load the
+  sample's `.js` as CommonJS. `scripts/pack-cli.ps1` packs win-x64 (NativeAOT, 1.35 MB `pare.exe`,
+  ~8 s), zips it, runs it 20 times byte-exact and tool-installs it (break-checked with a wrong
+  expected output). win-arm64 needs VS's ARM64 C++ tools (not installed on wp1).
+  Later the same day: installed VS's ARM64 C++ tools on wp1 (user approved); `pack-cli.ps1` packs
+  win-x64 and win-arm64 in 15 s, arm64 `pare.exe` 1.37 MB, PE machine 0xAA64, not run (wp1 is
+  x64). Playwright 1.63 browsers installed on wp1; all 24 integration tests run there (2 skip:
+  fake `tsc`). The hot reload test needed two test fixes: `\` in the expected log line, and a
+  delete retry because Windows keeps the killed app's `.exe` locked briefly.
+  win-arm64 run on Windows 11 Pro ARM64 (build 26300) in a QEMU 11.1.2 VM on the M1 Max (`hvf`,
+  unattended install, SSH on 127.0.0.1:2222; setup in gitignored `tmp/winvm`): `pack-cli.ps1
+  -SkipPack` verified win-arm64 (20 byte-exact runs, tool install picks win-arm64), unit tests
+  348 (1 Unix skip) on SDK 10.0.402 win-arm64. UTM 4.7.5 hangs or crashes on macOS 26.6.2, so
+  plain QEMU replaced it (user approved).
 
 ## Next
 
@@ -170,15 +215,14 @@ Order from the 2026-10-15 fable consult:
    WITH ISL-OE 1.2, Licensor `Extrode (extrode.com)`), package metadata done. Left: tag 0.1.0
    (release on `main`: user's call).
 3. ~~M5 tsgo differential and `scripts/get-tsc.cs`~~: done 2026-10-15, 99.96%, all triaged.
-4. ~~**Dev loop:**~~ done 2026-10-15 for `dotnet watch --no-hot-reload` (see below). Default
-   hot reload mode still needs M8 (user's call: `Watch` items now, M8 later).
+4. ~~**Dev loop:**~~ done 2026-10-15: `--no-hot-reload` via `Watch` items, default hot reload
+   via M8 (see above).
 5. ~~**M7 perf**~~: done 2026-10-15 (see above).
 6. **M4 lexer validation:** only if M5 shows a divergence that matters.
 
 Not in the plan yet: stale `.js` left after deleting a `.ts`; output under `obj/` as static web
-assets (v0.2, retires the publish and overwrite questions); a core `Extrode.Pare` library package
-(needed by M8); CLI distribution (`PackAsTool` or binaries); a PARE1xx error-code page;
-`.gitignore` guidance for generated `.js`; Windows has never run.
+assets (v0.2, retires the publish and overwrite questions); a PARE1xx
+error-code page; `.gitignore` guidance for generated `.js`.
 
 ## Open questions
 

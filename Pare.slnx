@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Extrode.Pare/Extrode.Pare.csproj" />
+    <Project Path="src/Extrode.Pare.AspNetCore/Extrode.Pare.AspNetCore.csproj" />
     <Project Path="src/Extrode.Pare.Build/Extrode.Pare.Build.csproj" />
     <Project Path="src/Extrode.Pare.Cli/Extrode.Pare.Cli.csproj" />
   </Folder>

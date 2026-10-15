@@ -23,6 +23,22 @@ dotnet pack src/Extrode.Pare.Build -c Release -o tmp/pack                # MSBui
 
 ## CLI
 
+```sh
+dotnet tool install -g Extrode.Pare.Cli
+```
+
+The tool package installs the NativeAOT binary for osx-arm64, osx-x64, linux-arm64, linux-x64,
+linux-musl-arm64, linux-musl-x64, win-x64 and win-arm64, and a framework-dependent build (needs
+the .NET 10 runtime) on any other platform. The same binaries come as `pare-<version>-<rid>.tar.gz`
+archives (`.zip` on Windows) with no .NET needed. `scripts/pack-cli.sh` writes them to `tmp/dist`:
+macOS natively, Linux in Docker (`mcr.microsoft.com/dotnet/sdk:10.0` and `-alpine`), then runs
+each Linux build 20 times and installs the tool on its own platform. Windows NativeAOT needs a
+Windows machine with Visual Studio's C++ tools: `pwsh scripts/pack-cli.ps1` packs win-x64, and
+win-arm64 when the ARM64 C++ tools are installed, and checks the host's build the same way
+(win-arm64 is cross-compiled on x64 and checked on a Windows 11 ARM64 machine).
+`-SkipPack` runs only that check, on archives already in `tmp/dist`, for a machine without Visual
+Studio.
+
 ```
 pare src                      # src/**/*.ts -> .js next to each source
 pare src --outdir dist        # mirror into dist/
@@ -39,7 +55,7 @@ JavaScript out of the source folders, or use `--outdir`.
 ## MSBuild
 
 ```xml
-<PackageReference Include="Extrode.Pare.Build" Version="0.1.0" PrivateAssets="all" />
+<PackageReference Include="Extrode.Pare.Build" Version="0.2.0" PrivateAssets="all" />
 ```
 
 Before `Build`, every `wwwroot/**/*.ts` and `*.mts` (not `.d.ts`, not `node_modules`) is stripped
@@ -54,9 +70,30 @@ any file on disk, with a warning; `UseStaticFiles` serves everything under `wwwr
 build that strips `foo.ts`. `.cts` sources are not in the default glob, since CommonJS does not run
 in a browser; an explicit `<TypeScriptSource Include="x.cts" />` produces `x.cjs`.
 
-Dev loop: run `dotnet watch --no-hot-reload`. Saving a `.ts` file rebuilds and restarts the app
-(about 3 s on the sample); reload the page. In its default hot reload mode `dotnet watch` treats
-`wwwroot` files as static assets and runs no build, so the `.js` goes stale until the next build.
+Dev loop: in its default hot reload mode `dotnet watch` runs no build on a `.ts` save, so the
+`.js` would go stale. `Extrode.Pare.AspNetCore` re-strips in the running app instead:
+
+```xml
+<PackageReference Include="Extrode.Pare.AspNetCore" Version="0.2.0" />
+```
+
+```csharp
+builder.AddPareDevelopment();   // before builder.Build(); does nothing outside Development
+```
+
+In Development it strips stale sources when the app starts, then each `.ts`/`.mts` as it is
+saved; `dotnet watch` sees the new `.js` and reloads the page. Rejections are logged in the
+`file:line:col: error PARE...` form and the old `.js` stays. Pass `o => o.OutDir = "..."` when the
+project sets `PareOutDir`. It also applies `dotnet watch`'s browser refresh to
+`WebApplication.CreateSlimBuilder` apps, which never run the hosting startup that adds it.
+
+- A `PublishAot` project needs `<StartupHookSupport Condition="'$(Configuration)' == 'Debug'">true</StartupHookSupport>`;
+  without it `dotnet watch` says "Project does not support Hot Reload".
+- Run `dotnet watch` from the project directory. With `--project` from elsewhere, .NET SDK
+  10.0.401 on macOS fails to read `obj\Debug/.../staticwebassets.development.json` and never
+  refreshes the page.
+- Without the package, `dotnet watch --no-hot-reload` rebuilds and restarts on each save
+  (about 3 s on the sample); reload the page yourself.
 
 | Property | Default | |
 |---|---|---|
@@ -73,9 +110,9 @@ Dev loop: run `dotnet watch --no-hot-reload`. Saving a `.ts` file rebuilds and r
 an htmx call to a minimal API. It references the package from a local feed, as a consumer would:
 
 ```sh
-scripts/pack-local.sh               # pack into tmp/feed as 0.1.0-dev.<time>, re-restore the sample
+scripts/pack-local.sh               # pack into tmp/feed as 0.2.0-dev.<time>, re-restore the sample
 dotnet run --project samples/WebApp   # http://localhost:5180, Development
-dotnet watch --no-hot-reload --project samples/WebApp   # re-strips on each .ts save
+dotnet watch            # from samples/WebApp: a .ts save re-strips and reloads the page
 dotnet publish samples/WebApp -c Release -r osx-arm64 -o tmp/sample-aot
 ```
 
@@ -94,6 +131,8 @@ feed first:
 - published output holds only `.js` with `.br`/`.gz` copies; `.ts`, `.d.ts` and `tsconfig.json`
   answer 404, and `counter.js` comes back brotli-compressed as `text/javascript`.
 - the stripped `counter.js` imported and run in Node and in Deno.
+- `dotnet watch` on the sample: a `.ts` edit is re-stripped and Chromium reloads to the new text
+  with no restart.
 
 The first run downloads the three browsers (about 250 MB) into Playwright's cache. Alpine and
 htmx load from jsDelivr, so the tests need network.
@@ -106,7 +145,9 @@ bool ok = TypeStripper.Strip(source, output, diagnostics, StripOptions.RewriteRe
 ```
 
 `source` is `ReadOnlySpan<char>`, `output` an `IBufferWriter<char>`, `diagnostics` an
-`IDiagnosticSink`. Why UTF-16: [docs/decisions/2026-10-14-001-utf16-input.md](docs/decisions/2026-10-14-001-utf16-input.md).
+`IDiagnosticSink`. Deep nesting fails with a diagnostic, not a stack overflow; on linux-musl-arm64
+NativeAOT call `Strip` from a thread you created, since .NET misreads the main thread's stack size
+there and the check fails at once. Why UTF-16: [docs/decisions/2026-10-14-001-utf16-input.md](docs/decisions/2026-10-14-001-utf16-input.md).
 
 ## Non-whitespace changes
 
