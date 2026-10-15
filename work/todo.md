@@ -27,10 +27,10 @@ Small, clear, and could be picked up without a design decision.
   `Microsoft.NET.Sdk.Web` project shows it too; from the project directory it works, saves via
   rename included. README says to run it from the project directory.
 
-- Sources outside `wwwroot`: decide whether to document `PareRelativePath` and add PARE202
-  (unmapped source warning). Memo: docs/decisions/2026-10-15-002-ts-outside-wwwroot.md.
-  Open gaps there: a `.mts` mapped to `.js` is imported as `.mjs` (404); `AddPareDevelopment`
-  doesn't re-strip mapped sources on save (needs every source and URL in the development map).
+- `PareServeAt` sources: `AddPareDevelopment` doesn't re-strip them on save (needs every source
+  and URL in the development map). docs/decisions/2026-10-15-002-ts-outside-wwwroot.md.
+- `PareOutDir` with a `.razor.ts` source: the `.js` under the out dir becomes Content with no
+  component beside it, so the SDK fails the build with BLAZOR106 (seen 2026-10-15, not fixed).
 - Razor class libraries: tested and in README. `AddPareDevelopment` doesn't re-strip library
   sources on save (option B in docs/decisions/2026-10-15-003-razor-class-libraries.md).
 - README `## CLI` install line assumes nuget.org; until then it needs `--add-source` (as

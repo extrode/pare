@@ -1,6 +1,26 @@
 # TypeScript sources outside wwwroot
 
-Status: proposed
+Status: accepted 2026-10-15
+
+## Decision
+
+The user chose to document a public way (option B) that never has to break, and the PARE202
+warning. A Fable review named it and set the rules:
+
+- **`PareServeAt`** item metadata, a URL folder only: URL = folder + `%(RecursiveDir)` + file name
+  with `.ts`/`.mts`/`.cts` made `.js`/`.mjs`/`.cjs`. Pare owns the name and extension, so the
+  `.mts` gap below cannot happen. `/` is the root (of `_content/<Library>/` in a Razor class
+  library); leading/trailing slashes are trimmed and `\` is `/`. It also moves a `wwwroot`
+  source. Item metadata only, no project property, never inferred.
+- **PARE202** warning: a web project's source outside `wwwroot` with no `PareServeAt`, except a
+  `.razor.ts`/`.cshtml.ts` (served beside its component by the SDK); not with `PareOutDir` or
+  outside web projects. Silenced by `NoWarn`.
+- **PARE203** error: a value with a `.`/`..` segment, `:`, `//`, or a script extension.
+- `PareRelativePath` stays undocumented and wins when both are set. A stale `.razor.js` beside a
+  served `.razor.ts` also leaves `None`, or the SDK rejects two assets at one path.
+- Still open: `AddPareDevelopment` re-strips `wwwroot` sources only (`work/todo.md`).
+
+The proposal as written follows.
 
 Todo item: "obj/ output for sources outside `wwwroot` (for example `Scripts/**/*.ts`, routed by a
 `PareRelativePath`)". Measured 2026-10-15 on macOS arm64, SDK 10.0.401, Extrode.Pare.Build built

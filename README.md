@@ -71,7 +71,8 @@ In a web project (the Web SDK's static web assets), `wwwroot/js/app.ts` becomes
 `obj/<configuration>/<tfm>/pare/js/app.js`, registered as the static web asset `js/app.js`: served
 from the first build on, compressed and published like a file in `wwwroot`, and never in the source
 tree, so nothing needs gitignoring. The build deletes the output of a deleted source. Elsewhere, and
-for sources outside `wwwroot`, the `.js` goes next to its source.
+for sources outside `wwwroot` without `PareServeAt` ([below](#typescript-outside-wwwroot)), the
+`.js` goes next to its source.
 
 - A `foo.js` next to `foo.ts` in `wwwroot` (left by Pare 0.2, or hand-written) is not served:
   `warning PARE200` names it, and the build serves the stripped `foo.ts`. Delete it.
@@ -123,6 +124,44 @@ a source deletes its output under `obj/`. Pass `o => o.OutDir = "..."` when the 
 | `PareTscPath` | `tsc` | e.g. `$(MSBuildThisFileDirectory).tools/typescript/tsc` |
 | `PareTsconfig` | `tsconfig.json` in the project | never copied to the build or publish output |
 | `PareKeepSources` | `false` | `true` serves and publishes the `.ts` sources next to the output |
+
+### TypeScript outside wwwroot
+
+Give the item a `PareServeAt`: the URL folder to serve it under. The file's name and extension
+come from the source, and the folders matched by `**` are kept:
+
+```xml
+<TypeScriptSource Include="Scripts/**/*.ts;Scripts/**/*.mts" PareServeAt="js" />
+```
+
+| Source | Served at |
+|---|---|
+| `Scripts/app.ts` | `/js/app.js` |
+| `Scripts/lib/fmt.ts` | `/js/lib/fmt.js` |
+| `Scripts/worker.mts` | `/js/worker.mjs` |
+
+Output goes under `obj/` like a `wwwroot` source's: served from the first build, compressed and
+published. A Blazor component's script, served beside the component as the SDK serves a
+hand-written `Counter.razor.js`:
+
+```xml
+<TypeScriptSource Include="**/*.razor.ts" Exclude="bin/**;obj/**;node_modules/**" PareServeAt="/" />
+```
+
+`Components/Pages/Counter.razor.ts` is served at `/Components/Pages/Counter.razor.js`.
+
+- `/` is the root. Leading and trailing slashes are ignored, and `\` counts as `/`.
+- The URL is the folder, then the part of the path matched by `**` in the `Include` that created
+  the item, then the file name. Without `**` (`Scripts/*.ts`) there is no subfolder.
+- In a Razor class library the folder is below `/_content/<Library>/`, like `wwwroot`.
+- A `wwwroot` source with `PareServeAt` is served there instead of at its `wwwroot` path.
+- Not a folder (`..`, `:`, `//`, or a file name such as `js/app.js`): `error PARE203`. Two sources
+  at one URL: `error PARE201`.
+- A source outside `wwwroot` without `PareServeAt` is not served: `warning PARE202`. Add
+  `PARE202` to `NoWarn` if its `.js` is meant to stay next to it. Not reported for a `.razor.ts`
+  or `.cshtml.ts`, whose `.js` beside the component the SDK serves.
+- Not re-stripped on save yet: `AddPareDevelopment` covers `wwwroot` only. Under `dotnet watch`,
+  rebuild after editing these sources (Ctrl+R).
 
 ### Razor class libraries
 

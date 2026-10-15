@@ -2,10 +2,15 @@
 
 ## [Unreleased]
 
-- PARE201: two TypeScript sources mapped to the same URL now fail with a Pare error naming both,
+- `PareServeAt` serves TypeScript outside `wwwroot`:
+  `<TypeScriptSource Include="Scripts/**/*.ts" PareServeAt="js" />` serves `Scripts/lib/fmt.ts`
+  at `/js/lib/fmt.js`, and `.mts` as `.mjs`. `PareServeAt="/"` serves Blazor `**/*.razor.ts`
+  beside their components. Not re-stripped on save by `AddPareDevelopment` yet.
+- PARE202 warning: a source outside `wwwroot` with no `PareServeAt` is not served. Builds that
+  include such sources now show it; add `PARE202` to `NoWarn` to keep the output next to the source.
+- PARE203 error: a `PareServeAt` that is not a folder.
+- PARE201: two TypeScript sources at the same URL now fail with a Pare error naming both,
   instead of crashing the static web assets SDK (MSB4018).
-- Backslashes in `PareRelativePath` become `/` (on Windows a mapped subfolder could slip past the
-  duplicate check).
 - Razor class libraries: tested and documented (`/_content/<Lib>/...`).
 - CLI quickstart (`docs/cli-quickstart.md`) and the `samples/CliSite` static-site sample.
 
