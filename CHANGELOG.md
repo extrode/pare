@@ -13,6 +13,8 @@
   runs. `AddPareDevelopment` writes where the build does, read from
   `Extrode.Pare.development.json` in the build output. A source added during `dotnet watch` is
   served after the next build.
+- `Extrode.Pare.Build` runs under Visual Studio 2026's MSBuild (MSBuild 18, .NET Framework) in the
+  .NET task host, without MSBuild's out-of-process fallback warning.
 
 ## [0.2.0] - 2026-10-15
 

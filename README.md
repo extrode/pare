@@ -62,7 +62,8 @@ JavaScript out of the source folders, or use `--outdir`.
 Before `Build`, every `wwwroot/**/*.ts` and `*.mts` (not `.d.ts`, not `node_modules`) is stripped.
 The step is incremental, runs in-process and needs no Node. Rejections fail the build as
 `file(line,col): error PARE100: ...` ([what each code means](docs/error-codes.md)). Runs under
-`dotnet build` (CLI, CI, Rider, VS Code), not inside Visual Studio's .NET Framework MSBuild.
+`dotnet build` (CLI, CI, Rider, VS Code) and Visual Studio 2026 (MSBuild 18), where the task runs in
+MSBuild's .NET task host, a separate process. Visual Studio 2022 cannot build `net10.0` projects.
 
 In a web project (the Web SDK's static web assets), `wwwroot/js/app.ts` becomes
 `obj/<configuration>/<tfm>/pare/js/app.js`, registered as the static web asset `js/app.js`: served
