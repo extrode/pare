@@ -343,8 +343,14 @@ public sealed class BuildIntegrationTests : IDisposable
         Assert.Contains("means **`Extrode (extrode.com)`**", license.ReadToEnd());
     }
 
-    [Fact]
-    public async Task Sample_app_builds_serves_and_runs_in_a_browser()
+#if DEBUG
+    private const string Configuration = "Debug";
+#else
+    private const string Configuration = "Release";
+#endif
+
+    /// <summary>Copies samples/WebApp to app/ and packs the package into a private feed it restores from.</summary>
+    private void PrepareSample()
     {
         string sample = Path.Combine(RepoRoot, "samples", "WebApp");
         foreach (var file in Directory.EnumerateFiles(sample, "*", SearchOption.AllDirectories))
@@ -363,88 +369,249 @@ public sealed class BuildIntegrationTests : IDisposable
               </packageSources>
             </configuration>
             """);
-#if DEBUG
-        const string configuration = "Debug";
-#else
-        const string configuration = "Release";
-#endif
-        var (exit, output) = Run("pack", Path.Combine(RepoRoot, "src", "Extrode.Pare.Build"), "-nologo", "-nodeReuse:false", "--no-build", "-c", configuration,
+        var (exit, output) = Run("pack", Path.Combine(RepoRoot, "src", "Extrode.Pare.Build"), "-nologo", "-nodeReuse:false", "--no-build", "-c", Configuration,
             "-o", P("feed"), "-p:Version=0.1.0-test.1");
         Assert.True(exit == 0, output);
+    }
 
-        // PublishAot would restore the ILCompiler package, which the private package folder lacks.
-        (exit, output) = Run("build", P("app"), "-nologo", "-nodeReuse:false", "--disable-build-servers", "-p:PublishAot=false", $"-p:RestorePackagesPath={P("packages")}");
+    // PublishAot would restore the ILCompiler package, which the private package folder lacks.
+    private (int Exit, string Output) SampleCommand(string command, params string[] extra) =>
+        Run([command, P("app"), "-nologo", "-nodeReuse:false", "--disable-build-servers", "-p:PublishAot=false", $"-p:RestorePackagesPath={P("packages")}", .. extra]);
 
+    private void BuildSample()
+    {
+        PrepareSample();
+        var (exit, output) = SampleCommand("build");
         Assert.True(exit == 0, output);
         Assert.Equal("import { plural,             } from \"./format.js\";", File.ReadLines(P("app/wwwroot/js/counter.js")).First());
         Assert.Contains("import { counter } from \"./counter.js\";", File.ReadAllText(P("app/wwwroot/js/app.js")));
         Assert.StartsWith("export function plural(n        , forms        )         {", File.ReadAllLines(P("app/wwwroot/js/format.js"))[2]);
         Assert.False(File.Exists(P("app/wwwroot/js/alpine.d.js")));
+    }
 
-        // Browsers send Accept-Encoding; MapStaticAssets answers with the build's compressed copies.
+    /// <summary>Starts the app on a free port and waits until it answers.</summary>
+    private static async Task<(Process Server, HttpClient Http)> Serve(string app, string environment)
+    {
         int port;
         using (var probe = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0))
         {
             probe.Start();
             port = ((System.Net.IPEndPoint)probe.LocalEndpoint).Port;
         }
-        var start = new ProcessStartInfo("dotnet", [P($"app/bin/{configuration}/net10.0/WebApp.dll")])
+        var start = new ProcessStartInfo(app.EndsWith(".dll", StringComparison.Ordinal) ? "dotnet" : app, app.EndsWith(".dll", StringComparison.Ordinal) ? [app] : [])
         {
-            WorkingDirectory = P("app"),
+            WorkingDirectory = Path.GetDirectoryName(app)!,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
         };
         start.Environment["ASPNETCORE_URLS"] = $"http://127.0.0.1:{port}";
-        start.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
-        using var server = Process.Start(start)!;
+        start.Environment["ASPNETCORE_ENVIRONMENT"] = environment;
+        var server = Process.Start(start)!;
+        server.OutputDataReceived += (_, _) => { };
+        server.ErrorDataReceived += (_, _) => { };
+        server.BeginOutputReadLine();
+        server.BeginErrorReadLine();
+        // Browsers send Accept-Encoding; MapStaticAssets answers with the build's compressed copies.
+        var http = new HttpClient(new HttpClientHandler { AutomaticDecompression = System.Net.DecompressionMethods.All })
+        {
+            BaseAddress = new Uri($"http://127.0.0.1:{port}"),
+        };
+        var ct = TestContext.Current.CancellationToken;
+        for (int i = 0; ; i++)
+        {
+            try
+            {
+                using var _ = await http.GetAsync("/fragments/time", ct);
+                break;
+            }
+            catch (HttpRequestException) when (i < 100)
+            {
+                await Task.Delay(100, ct);
+            }
+        }
+        return (server, http);
+    }
+
+    private static void Stop(Process server)
+    {
+        server.Kill(entireProcessTree: true);
+        server.WaitForExit();
+        server.Dispose();
+    }
+
+    public static TheoryData<string> Browsers => ["chromium", "firefox", "webkit"];
+
+    /// <summary>Clicks through the page in one browser engine; fails on any console or page error.</summary>
+    private static async Task ClickThrough(string engine, Uri site)
+    {
+        // Downloads the browser on first run; Alpine and htmx come from jsDelivr.
+        Assert.Equal(0, Microsoft.Playwright.Program.Main(engine == "chromium" ? ["install", "chromium", "--only-shell"] : ["install", engine]));
+        using var playwright = await Microsoft.Playwright.Playwright.CreateAsync();
+        await using var browser = await playwright[engine].LaunchAsync();
+        var page = await browser.NewPageAsync();
+        var errors = new List<string>();
+        page.Console += (_, m) => { if (m.Type == "error") errors.Add(m.Text); };
+        page.PageError += (_, e) => errors.Add(e);
+        var failed = new List<string>();
+        page.RequestFailed += (_, r) => failed.Add(r.Url);
+        page.Response += (_, r) => { if (r.Status >= 400) failed.Add($"{r.Status} {r.Url}"); };
+        await page.GotoAsync(site.ToString());
+
+        var counter = page.Locator("[x-data] span");
+        var button = page.Locator("[x-data] button");
+        await Microsoft.Playwright.Assertions.Expect(counter).ToHaveTextAsync("0 clicks");
+        await button.ClickAsync();
+        await Microsoft.Playwright.Assertions.Expect(counter).ToHaveTextAsync("1 click");
+        await button.ClickAsync();
+        await Microsoft.Playwright.Assertions.Expect(counter).ToHaveTextAsync("2 clicks");
+        await page.GetByText("Server time").ClickAsync();
+        await Microsoft.Playwright.Assertions.Expect(page.Locator("#time")).ToHaveTextAsync(
+            new System.Text.RegularExpressions.Regex(@"^\d\d:\d\d:\d\d UTC$"));
+
+        // The modules the browser loaded are Pare's output, at the TypeScript positions.
+        string format = await page.EvaluateAsync<string>("() => import('/js/format.js').then(m => m.plural.toString())");
+        Assert.StartsWith("function plural(n        , forms        )         {", format);
+        Assert.Equal("3 clicks", await page.EvaluateAsync<string>(
+            "() => import('/js/counter.js').then(m => { const c = m.counter(2); c.increment(); return c.label(); })"));
+        Assert.Empty(errors);
+        Assert.Empty(failed);
+    }
+
+    [Theory]
+    [MemberData(nameof(Browsers))]
+    public async Task Sample_app_builds_serves_and_runs_in_a_browser(string engine)
+    {
+        BuildSample();
+        var (server, http) = await Serve(P($"app/bin/{Configuration}/net10.0/WebApp.dll"), "Development");
         try
         {
-            using var http = new HttpClient(new HttpClientHandler { AutomaticDecompression = System.Net.DecompressionMethods.All })
-            {
-                BaseAddress = new Uri($"http://127.0.0.1:{port}"),
-            };
             var ct = TestContext.Current.CancellationToken;
-            for (int i = 0; ; i++)
-            {
-                try
-                {
-                    using var _ = await http.GetAsync("/fragments/time", ct);
-                    break;
-                }
-                catch (HttpRequestException) when (i < 100)
-                {
-                    await Task.Delay(100, ct);
-                }
-            }
             Assert.Contains("x-data=\"counter(0)\"", await http.GetStringAsync("/", ct));
             Assert.Contains("import { counter } from \"./counter.js\";", await http.GetStringAsync("/js/app.js", ct));
-
-            // Downloads the browser on first run; Alpine and htmx come from jsDelivr.
-            Assert.Equal(0, Microsoft.Playwright.Program.Main(["install", "chromium", "--only-shell"]));
-            using var playwright = await Microsoft.Playwright.Playwright.CreateAsync();
-            await using var browser = await playwright.Chromium.LaunchAsync();
-            var page = await browser.NewPageAsync();
-            var errors = new List<string>();
-            page.Console += (_, m) => { if (m.Type == "error") errors.Add(m.Text); };
-            page.PageError += (_, e) => errors.Add(e);
-            await page.GotoAsync(http.BaseAddress.ToString());
-
-            var counter = page.Locator("[x-data] span");
-            await Microsoft.Playwright.Assertions.Expect(counter).ToHaveTextAsync("0 clicks");
-            await page.Locator("[x-data] button").ClickAsync();
-            await Microsoft.Playwright.Assertions.Expect(counter).ToHaveTextAsync("1 click");
-            await page.Locator("[x-data] button").ClickAsync();
-            await Microsoft.Playwright.Assertions.Expect(counter).ToHaveTextAsync("2 clicks");
-            await page.GetByText("Server time").ClickAsync();
-            await Microsoft.Playwright.Assertions.Expect(page.Locator("#time")).ToHaveTextAsync(
-                new System.Text.RegularExpressions.Regex(@"^\d\d:\d\d:\d\d UTC$"));
-            Assert.Empty(errors);
+            await ClickThrough(engine, http.BaseAddress!);
         }
         finally
         {
-            server.Kill(entireProcessTree: true);
-            server.WaitForExit();
+            Stop(server);
+            http.Dispose();
         }
+    }
+
+    [Fact]
+    public async Task Published_sample_serves_only_javascript_compressed_and_runs_in_every_browser()
+    {
+        PrepareSample();
+        var (exit, output) = SampleCommand("publish", "-c", "Release", "-o", P("pub"));
+        Assert.True(exit == 0, output);
+        var published = Directory.EnumerateFiles(P("pub/wwwroot"), "*", SearchOption.AllDirectories)
+            .Select(f => Path.GetRelativePath(P("pub/wwwroot"), f).Replace('\\', '/')).Order().ToList();
+        Assert.Contains("js/app.js", published);
+        Assert.Contains("js/counter.js.br", published);
+        Assert.Contains("js/format.js.gz", published);
+        Assert.DoesNotContain(published, f => f.EndsWith(".ts", StringComparison.Ordinal) || f.Contains(".ts.", StringComparison.Ordinal));
+        Assert.False(File.Exists(P("pub/tsconfig.json")));
+
+        var (server, http) = await Serve(P("pub/WebApp.dll"), "Production");
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            foreach (string source in (string[])["/js/app.ts", "/js/counter.ts", "/js/alpine.d.ts", "/tsconfig.json"])
+            {
+                using var missing = await http.GetAsync(source, ct);
+                Assert.Equal(System.Net.HttpStatusCode.NotFound, missing.StatusCode);
+            }
+            using (var raw = new HttpClient { BaseAddress = http.BaseAddress })
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, "/js/counter.js");
+                request.Headers.AcceptEncoding.ParseAdd("br");
+                using var response = await raw.SendAsync(request, ct);
+                Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+                Assert.Equal("br", Assert.Single(response.Content.Headers.ContentEncoding));
+                Assert.Equal("text/javascript", response.Content.Headers.ContentType?.MediaType);
+            }
+            foreach (string engine in Browsers.Select(b => (string)b.Data))
+                await ClickThrough(engine, http.BaseAddress!);
+        }
+        finally
+        {
+            Stop(server);
+            http.Dispose();
+        }
+    }
+
+    [Fact]
+    public async Task NativeAot_published_sample_runs_in_every_browser()
+    {
+        PrepareSample();
+        // ILCompiler comes from the user's NuGet cache (read-only fallback) or nuget.org; only the
+        // package under test goes to the private folder.
+        Put("app/nuget.config", $"""
+            <configuration>
+              <packageSources>
+                <clear />
+                <add key="feed" value="{P("feed")}" />
+                <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+              </packageSources>
+              <packageSourceMapping>
+                <packageSource key="feed"><package pattern="Extrode.*" /></packageSource>
+                <packageSource key="nuget.org"><package pattern="*" /></packageSource>
+              </packageSourceMapping>
+            </configuration>
+            """);
+        string cache = Environment.GetEnvironmentVariable("NUGET_PACKAGES") ??
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
+        string rid = System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier;
+        var (exit, output) = Run("publish", P("app"), "-nologo", "-nodeReuse:false", "--disable-build-servers", "-c", "Release", "-r", rid,
+            "-o", P("aot"), $"-p:RestorePackagesPath={P("packages")}", $"-p:RestoreAdditionalProjectFallbackFolders={cache}");
+        Assert.True(exit == 0, output);
+        Assert.DoesNotContain("warning IL", output);
+        string binary = P(OperatingSystem.IsWindows() ? "aot/WebApp.exe" : "aot/WebApp");
+        Assert.True(File.Exists(binary), output);
+        Assert.False(File.Exists(P("aot/WebApp.dll")));
+
+        var (server, http) = await Serve(binary, "Production");
+        try
+        {
+            using var missing = await http.GetAsync("/js/counter.ts", TestContext.Current.CancellationToken);
+            Assert.Equal(System.Net.HttpStatusCode.NotFound, missing.StatusCode);
+            foreach (string engine in Browsers.Select(b => (string)b.Data))
+                await ClickThrough(engine, http.BaseAddress!);
+        }
+        finally
+        {
+            Stop(server);
+            http.Dispose();
+        }
+    }
+
+    [Theory]
+    [InlineData("node", new[] { "--input-type=module", "-e" })]
+    [InlineData("deno", new[] { "eval" })]
+    public void Sample_modules_run_outside_the_browser(string runtime, string[] evaluate)
+    {
+        var where = Environment.GetEnvironmentVariable("PATH")!.Split(Path.PathSeparator)
+            .Select(d => Path.Combine(d, OperatingSystem.IsWindows() ? runtime + ".exe" : runtime)).FirstOrDefault(File.Exists);
+        Assert.SkipWhen(where is null, $"{runtime} is not on PATH");
+        BuildSample();
+        string counter = new Uri(P("app/wwwroot/js/counter.js")).AbsoluteUri;
+        var start = new ProcessStartInfo(where!) { RedirectStandardOutput = true, RedirectStandardError = true };
+        foreach (string arg in evaluate)
+            start.ArgumentList.Add(arg);
+        start.ArgumentList.Add($$"""
+            const { counter } = await import("{{counter}}");
+            const c = counter();
+            const seen = [c.label()];
+            c.increment(); seen.push(c.label());
+            c.increment(); seen.push(c.label());
+            console.log(seen.join("|"));
+            """);
+        start.Environment["NO_COLOR"] = "1";
+        using var process = Process.Start(start)!;
+        string stderr = process.StandardError.ReadToEnd();
+        string stdout = process.StandardOutput.ReadToEnd();
+        process.WaitForExit();
+        Assert.True(process.ExitCode == 0, stderr);
+        Assert.Equal("0 clicks|1 click|2 clicks", stdout.Trim());
     }
 
     private static string FindRepoRoot()
