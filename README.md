@@ -35,7 +35,7 @@ macOS natively, Linux in Docker (`mcr.microsoft.com/dotnet/sdk:10.0` and `-alpin
 each Linux build 20 times and installs the tool on its own platform. Windows NativeAOT needs a
 Windows machine with Visual Studio's C++ tools: `pwsh scripts/pack-cli.ps1` packs win-x64, and
 win-arm64 when the ARM64 C++ tools are installed, and checks the host's build the same way
-(win-arm64 is cross-compiled on x64 and has not been run on an ARM64 machine yet).
+(win-arm64 is cross-compiled on x64 and checked on a Windows 11 ARM64 machine).
 `-SkipPack` runs only that check, on archives already in `tmp/dist`, for a machine without Visual
 Studio.
 

@@ -15,13 +15,10 @@ Small, clear, and could be picked up without a design decision.
 
 ## Later
 
-- win-arm64 `pare`: packed on wp1 (cross-compiled, PE machine 0xAA64) but never run. Needs a
-  Windows on ARM machine: the 20-run check and tool install in `scripts/pack-cli.ps1` run there.
-
 - .NET bug, not reported: NativeAOT on linux-musl-arm64,
-  `RuntimeHelpers.TryEnsureSufficientExecutionStack()` on the main thread returns false in about
-  one process in four (repro: a console app printing it, run 60 times on `sdk:10.0-alpine`
-  arm64). Library callers there need a thread they created; README says so.
+  `RuntimeHelpers.TryEnsureSufficientExecutionStack()` on the main thread returns false in 24 of
+  60 runs (SDK 10.0.402, Alpine 3.24.2; JIT and glibc arm64 always true). Library callers there
+  need a thread they created; README says so. Issue draft and repro: `tmp/issues/musl-stack/`.
 
 - .NET SDK bug, reported as dotnet/sdk#54309, fixed on `main` by dotnet/sdk#54536 (2026-07-20), no
   10.0.x backport found: `dotnet watch` 10.0.401 on macOS, started outside the project

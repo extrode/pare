@@ -200,6 +200,11 @@ convention). Update at the end of every session.
   x64). Playwright 1.63 browsers installed on wp1; all 24 integration tests run there (2 skip:
   fake `tsc`). The hot reload test needed two test fixes: `\` in the expected log line, and a
   delete retry because Windows keeps the killed app's `.exe` locked briefly.
+  win-arm64 run on Windows 11 Pro ARM64 (build 26300) in a QEMU 11.1.2 VM on the M1 Max (`hvf`,
+  unattended install, SSH on 127.0.0.1:2222; setup in gitignored `tmp/winvm`): `pack-cli.ps1
+  -SkipPack` verified win-arm64 (20 byte-exact runs, tool install picks win-arm64), unit tests
+  348 (1 Unix skip) on SDK 10.0.402 win-arm64. UTM 4.7.5 hangs or crashes on macOS 26.6.2, so
+  plain QEMU replaced it (user approved).
 
 ## Next
 
@@ -216,7 +221,7 @@ Order from the 2026-10-15 fable consult:
 6. **M4 lexer validation:** only if M5 shows a divergence that matters.
 
 Not in the plan yet: stale `.js` left after deleting a `.ts`; output under `obj/` as static web
-assets (v0.2, retires the publish and overwrite questions); running win-arm64 `pare` (see todo); a PARE1xx
+assets (v0.2, retires the publish and overwrite questions); a PARE1xx
 error-code page; `.gitignore` guidance for generated `.js`.
 
 ## Open questions
