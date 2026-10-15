@@ -18,14 +18,24 @@ jobs:
             rid: osx-arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
+      # The sample test runs the stripped modules in Deno as well as Node (preinstalled).
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: 2.x
       - name: Fetch TypeScript corpus
         run: dotnet run scripts/get-ts-corpus.cs
+      - name: Fetch tsc
+        run: dotnet run scripts/get-tsc.cs
       - name: Build
         run: dotnet build Pare.slnx -c Release
+      # The tests install the browsers; WebKit and Firefox also need system libraries on Linux.
+      - name: Browser dependencies
+        if: runner.os == 'Linux'
+        run: pwsh tests/Extrode.Pare.Integration/bin/Release/net10.0/playwright.ps1 install-deps
       - name: Test
         run: dotnet test --solution Pare.slnx -c Release --no-build
       - name: NativeAOT publish
