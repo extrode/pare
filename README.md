@@ -36,6 +36,8 @@ each Linux build 20 times and installs the tool on its own platform. Windows Nat
 Windows machine with Visual Studio's C++ tools: `pwsh scripts/pack-cli.ps1` packs win-x64, and
 win-arm64 when the ARM64 C++ tools are installed, and checks the host's build the same way
 (win-arm64 is cross-compiled on x64 and has not been run on an ARM64 machine yet).
+`-SkipPack` runs only that check, on archives already in `tmp/dist`, for a machine without Visual
+Studio.
 
 ```
 pare src                      # src/**/*.ts -> .js next to each source
