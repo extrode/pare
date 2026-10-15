@@ -145,6 +145,12 @@ convention). Update at the end of every session.
   pass on both, 5,521 on the .js in all); csv (`Function.prototype.toString`), testing (snapshot file named after the test
   file), http (`serveDir` refuses the `.corpus` dot path for the TS run) and expect (rejected
   files) explained in the script. Exit 1 on an unexplained difference.
+- **Deno transpiler comparison (2026-10-15):** `compare` now reads Deno's own swc emit
+  (`deno cache --no-check --sloppy-imports` writes `$DENO_DIR/gen/file/<path>.js` without running
+  anything) instead of `deno bundle` (esbuild). An import map stubs every specifier that is not a
+  JS/TS file on disk; unresolved ones Deno reports are added and the run repeats. Result: 2,337 of
+  2,388 same tree, 51 same once imports and numeric name suffixes are ignored (`AstDump` `loose`:
+  Deno drops unused imports, even `import {} from "m"`, and renames shadowed bindings), 0 differ.
 
 ## Next
 
