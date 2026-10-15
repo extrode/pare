@@ -21,7 +21,7 @@ done
 act() { if [ $execute -eq 1 ]; then printf 'run:   %s\n' "$*"; "$@" || { printf '  failed\n'; failed=1; }; else printf 'would: %s\n' "$*"; fi; }
 
 branch=$(git -C "$repo" branch --show-current)
-if [ "$branch" != dev ]; then printf 'refuse: on %s, expected dev\n' "$branch"; exit 1; fi
+if [ "$branch" != dev ]; then printf 'refuse: on %s, expected dev\n' "$branch"; exit $execute; fi
 if pgrep -f qemu-system-aarch64 >/dev/null; then printf 'refuse: the VM is running; shut it down first\n'; exit $execute; fi
 
 # 1. tmp/winvm
@@ -34,7 +34,7 @@ elif git -C "$repo" ls-files --error-unmatch -- "$rel" >/dev/null 2>&1; then
 elif [ $vm -eq 1 ]; then
     act rm -rf "${repo:?}/$rel"
 else
-    printf 'keep:  %s (%s); pass --delete-vm-files to remove\n' "$rel" "$(du -sh "$repo/$rel" | cut -f1)"
+    printf 'keep:  %s (%s); pass --delete-vm-files to remove\n' "$rel" "$(du -sh "$repo/$rel" | cut -f1 | tr -d " ")"
 fi
 
 # 2. UTM containers
