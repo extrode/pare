@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- `Extrode.Pare.AspNetCore`: `builder.AddPareDevelopment()` re-strips `wwwroot` TypeScript as it
+  is saved while the app runs in Development, so `dotnet watch` hot reload reloads the page with
+  fresh JavaScript. It also gives `CreateSlimBuilder` apps `dotnet watch`'s browser refresh.
+- The core library packs as `Extrode.Pare`.
 - `pare` CLI as a .NET tool: `dotnet tool install -g Extrode.Pare.Cli` installs the NativeAOT
   binary for osx, linux and linux-musl (arm64 and x64), and a framework-dependent build on other
   platforms. `scripts/pack-cli.sh` packs the tool packages and `pare-<version>-<rid>.tar.gz`

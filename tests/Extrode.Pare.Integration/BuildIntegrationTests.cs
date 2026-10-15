@@ -372,9 +372,12 @@ public sealed class BuildIntegrationTests : IDisposable
               </packageSources>
             </configuration>
             """);
-        var (exit, output) = Run("pack", Path.Combine(RepoRoot, "src", "Extrode.Pare.Build"), "-nologo", "-nodeReuse:false", "--no-build", "-c", Configuration,
-            "-o", P("feed"), "-p:Version=0.1.0-test.1");
-        Assert.True(exit == 0, output);
+        foreach (string project in new[] { "Extrode.Pare", "Extrode.Pare.Build", "Extrode.Pare.AspNetCore" })
+        {
+            var (exit, output) = Run("pack", Path.Combine(RepoRoot, "src", project), "-nologo", "-nodeReuse:false", "--no-build", "-c", Configuration,
+                "-o", P("feed"), "-p:Version=0.1.0-test.1");
+            Assert.True(exit == 0, output);
+        }
     }
 
     // PublishAot would restore the ILCompiler package, which the private package folder lacks.
@@ -478,6 +481,100 @@ public sealed class BuildIntegrationTests : IDisposable
             "() => import('/js/counter.js').then(m => { const c = m.counter(2); c.increment(); return c.label(); })"));
         Assert.Empty(errors);
         Assert.Empty(failed);
+    }
+
+    [Fact]
+    public async Task Dotnet_watch_hot_reload_refreshes_the_browser_with_the_restripped_source()
+    {
+        PrepareSample();
+        // dotnet watch takes no -p. The sample keeps PublishAot, whose ILCompiler package comes from the user's cache.
+        string cache = Environment.GetEnvironmentVariable("NUGET_PACKAGES") ??
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
+        Put("app/Directory.Build.props", $"""
+            <Project>
+              <PropertyGroup>
+                <RestorePackagesPath>{P("packages")}</RestorePackagesPath>
+                <RestoreAdditionalProjectFallbackFolders>{cache}</RestoreAdditionalProjectFallbackFolders>
+              </PropertyGroup>
+            </Project>
+            """);
+        int port;
+        using (var probe = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0))
+        {
+            probe.Start();
+            port = ((System.Net.IPEndPoint)probe.LocalEndpoint).Port;
+        }
+        // The sample's launch profile uses port 5180.
+        var start = new ProcessStartInfo("dotnet", ["watch", "--non-interactive", "--no-launch-profile"])
+        {
+            WorkingDirectory = P("app"),
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        foreach (var key in start.Environment.Keys.Where(k => k.StartsWith("MSBuild", StringComparison.OrdinalIgnoreCase)).ToList())
+            start.Environment.Remove(key);
+        start.Environment["ASPNETCORE_URLS"] = $"http://127.0.0.1:{port}";
+        start.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
+        var output = new System.Text.StringBuilder();
+        using var watch = new Process { StartInfo = start };
+        watch.OutputDataReceived += (_, e) => { lock (output) output.AppendLine(e.Data); };
+        watch.ErrorDataReceived += (_, e) => { lock (output) output.AppendLine(e.Data); };
+        watch.Start();
+        watch.BeginOutputReadLine();
+        watch.BeginErrorReadLine();
+        string Output() { lock (output) return output.ToString(); }
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            using var http = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
+            var deadline = DateTime.UtcNow.AddSeconds(180);
+            while (true)
+            {
+                Assert.True(DateTime.UtcNow < deadline && !watch.HasExited, Output());
+                try
+                {
+                    using var _ = await http.GetAsync("/fragments/time", ct);
+                    break;
+                }
+                catch (HttpRequestException)
+                {
+                    await Task.Delay(200, ct);
+                }
+            }
+
+            Assert.Equal(0, Microsoft.Playwright.Program.Main(["install", "chromium", "--only-shell"]));
+            using var playwright = await Microsoft.Playwright.Playwright.CreateAsync();
+            await using var browser = await playwright.Chromium.LaunchAsync();
+            var page = await browser.NewPageAsync();
+            // An edit before the refresh socket opens never reaches the page, and the refresh script
+            // connects 500 ms after load without saying so.
+            await page.AddInitScriptAsync("""
+                const Native = WebSocket;
+                window.WebSocket = class extends Native {
+                  constructor(...args) { super(...args); this.addEventListener('open', () => window.pareSocketOpen = true); }
+                };
+                """);
+            await page.GotoAsync(http.BaseAddress.ToString());
+            await page.WaitForFunctionAsync("() => window.pareSocketOpen === true");
+            var counter = page.Locator("[x-data] span");
+            await Microsoft.Playwright.Assertions.Expect(counter).ToHaveTextAsync("0 clicks");
+            string built = Output();
+
+            string source = P("app/wwwroot/js/counter.ts");
+            File.WriteAllText(source, File.ReadAllText(source).Replace("other: \"clicks\"", "other: \"taps\""));
+            // No reload from the test: dotnet watch refreshes the page itself.
+            await Microsoft.Playwright.Assertions.Expect(counter).ToHaveTextAsync("0 taps", new() { Timeout = 30_000 });
+            Assert.Contains("const clicks = { one: \"click\", other: \"taps\" }                 ;", File.ReadAllText(P("app/wwwroot/js/counter.js")));
+            string after = Output()[built.Length..];
+            Assert.Contains("Stripped wwwroot/js/counter.ts to wwwroot/js/counter.js", after);
+            Assert.Contains("Static asset changes applied", after);
+            Assert.DoesNotContain("Restarting", after);
+        }
+        finally
+        {
+            watch.Kill(entireProcessTree: true);
+            watch.WaitForExit();
+        }
     }
 
     [Theory]

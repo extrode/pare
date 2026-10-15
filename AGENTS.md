@@ -9,6 +9,8 @@ Progress, next steps, corpus pass rate: [work/progress.md](work/progress.md), up
 - `src/Extrode.Pare.Cli/` `pare` CLI, NativeAOT.
 - `src/Extrode.Pare.Build/` MSBuild task + `build/*.props`/`.targets`, NuGet package. MSBuild
   packages are compile-only (approved 2026-10-14, 18.9.6). Loads under `dotnet build` only.
+- `src/Extrode.Pare.AspNetCore/` `AddPareDevelopment`: re-strips on save in Development for
+  `dotnet watch`. Shared framework only. Core also packs as `Extrode.Pare`.
 - `tests/Extrode.Pare.Tests/` xUnit v3 on Microsoft.Testing.Platform. Fast unit tests (<1 s).
 - `tests/Extrode.Pare.Integration/` slow (~2 min): real `dotnet build`/`publish` on temp projects;
   the sample tests drive Chromium, Firefox and WebKit via Microsoft.Playwright (approved

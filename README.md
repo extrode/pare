@@ -65,9 +65,30 @@ any file on disk, with a warning; `UseStaticFiles` serves everything under `wwwr
 build that strips `foo.ts`. `.cts` sources are not in the default glob, since CommonJS does not run
 in a browser; an explicit `<TypeScriptSource Include="x.cts" />` produces `x.cjs`.
 
-Dev loop: run `dotnet watch --no-hot-reload`. Saving a `.ts` file rebuilds and restarts the app
-(about 3 s on the sample); reload the page. In its default hot reload mode `dotnet watch` treats
-`wwwroot` files as static assets and runs no build, so the `.js` goes stale until the next build.
+Dev loop: in its default hot reload mode `dotnet watch` runs no build on a `.ts` save, so the
+`.js` would go stale. `Extrode.Pare.AspNetCore` re-strips in the running app instead:
+
+```xml
+<PackageReference Include="Extrode.Pare.AspNetCore" Version="0.1.0" />
+```
+
+```csharp
+builder.AddPareDevelopment();   // before builder.Build(); does nothing outside Development
+```
+
+In Development it strips stale sources when the app starts, then each `.ts`/`.mts` as it is
+saved; `dotnet watch` sees the new `.js` and reloads the page. Rejections are logged in the
+`file:line:col: error PARE...` form and the old `.js` stays. Pass `o => o.OutDir = "..."` when the
+project sets `PareOutDir`. It also applies `dotnet watch`'s browser refresh to
+`WebApplication.CreateSlimBuilder` apps, which never run the hosting startup that adds it.
+
+- A `PublishAot` project needs `<StartupHookSupport Condition="'$(Configuration)' == 'Debug'">true</StartupHookSupport>`;
+  without it `dotnet watch` says "Project does not support Hot Reload".
+- Run `dotnet watch` from the project directory. With `--project` from elsewhere, .NET SDK
+  10.0.401 on macOS fails to read `obj\Debug/.../staticwebassets.development.json` and never
+  refreshes the page.
+- Without the package, `dotnet watch --no-hot-reload` rebuilds and restarts on each save
+  (about 3 s on the sample); reload the page yourself.
 
 | Property | Default | |
 |---|---|---|
@@ -86,7 +107,7 @@ an htmx call to a minimal API. It references the package from a local feed, as a
 ```sh
 scripts/pack-local.sh               # pack into tmp/feed as 0.1.0-dev.<time>, re-restore the sample
 dotnet run --project samples/WebApp   # http://localhost:5180, Development
-dotnet watch --no-hot-reload --project samples/WebApp   # re-strips on each .ts save
+dotnet watch            # from samples/WebApp: a .ts save re-strips and reloads the page
 dotnet publish samples/WebApp -c Release -r osx-arm64 -o tmp/sample-aot
 ```
 
@@ -105,6 +126,8 @@ feed first:
 - published output holds only `.js` with `.br`/`.gz` copies; `.ts`, `.d.ts` and `tsconfig.json`
   answer 404, and `counter.js` comes back brotli-compressed as `text/javascript`.
 - the stripped `counter.js` imported and run in Node and in Deno.
+- `dotnet watch` on the sample: a `.ts` edit is re-stripped and Chromium reloads to the new text
+  with no restart.
 
 The first run downloads the three browsers (about 250 MB) into Playwright's cache. Alpine and
 htmx load from jsDelivr, so the tests need network.
