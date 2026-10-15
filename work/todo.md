@@ -32,9 +32,6 @@ Small, clear, and could be picked up without a design decision.
 - Razor class library outputs under `_content/<lib>/`: should follow from `StaticWebAssetBasePath`
   but untested. User: later (2026-10-15).
 
-- MSBuild in Visual Studio: untested; would need the .NET task host (`Runtime="NET"` on
-  `UsingTask`, MSBuild 18) or a netstandard2.0 core.
-
 Real, but needs a decision, a dependency, or more information first. Say which.
 
 - Lexer leniency vs TypeScript (M4): no validation of escapes inside strings, templates and

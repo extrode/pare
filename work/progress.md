@@ -232,6 +232,17 @@ convention). Update at the end of every session.
   archives for osx, linux, linux-musl, win (arm64, x64), the pointer and `any` packages, and the
   `Extrode.Pare`, `.Build`, `.AspNetCore` packages.
 
+- **Visual Studio MSBuild (2026-10-15, plan `docs/plans/2026-10-15-002-vs-msbuild.md`):** two
+  `UsingTask`s: in process under `dotnet build` (`MSBuildRuntimeType` Core), `Runtime="NET"
+  TaskFactory="TaskHostFactory"` otherwise. Before it, VS 18.10's `MSBuild.exe` worked through its
+  own out-of-process fallback and warned on every build. The .NET 10 SDK needs MSBuild 18, so VS
+  2022 cannot build net10.0 at all. `Visual_Studio_MSBuild_strips_with_the_dotnet_task_host` runs
+  `MSBuild.exe` (vswhere, major version 18 or later; skips otherwise, e.g. macOS, Linux): no
+  fallback warning, `obj` output registered as a static web asset, PARE100 located in `b.ts`.
+  Passes on wp1 (VS 18 Community); break-checked there by dropping `Runtime="NET"` and by dropping
+  the `Core` condition (both bring back the fallback warning). CI's `windows-latest` is Windows
+  2025 with VS Enterprise 2026 18.10, so it runs there too. Not checked: the VS IDE itself.
+
 ## Next
 
 Order from the 2026-10-15 fable consult:
