@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.0] - 2026-10-15
 
 - License: Islamic Software License - Permissive (ISL-P) 1.2 WITH the Output Exception (ISL-OE)
   1.2 (`LICENSE.md`, `NOTICE.md`). The package carries both files, the README and author metadata.
