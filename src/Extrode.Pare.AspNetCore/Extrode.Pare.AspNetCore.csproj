@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Development-time re-strip for ASP.NET Core. Depends on the shared framework only. -->
+  <PropertyGroup>
+    <RootNamespace>Extrode.Pare.AspNetCore</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+    <PackageId>Extrode.Pare.AspNetCore</PackageId>
+    <Description>Re-strips changed TypeScript under wwwroot while an ASP.NET Core app runs in Development, so dotnet watch hot reload serves fresh JavaScript.</Description>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>typescript;type-stripping;aspnetcore;hot-reload;dotnet-watch</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Extrode.Pare\Extrode.Pare.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\LICENSE.md;..\..\NOTICE.md;..\..\README.md" Pack="true" PackagePath="" Visible="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Extrode.Pare.Tests" />
+  </ItemGroup>
+</Project>
