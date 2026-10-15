@@ -604,7 +604,7 @@ public sealed class BuildIntegrationTests : IDisposable
     public async Task Sample_app_builds_serves_and_runs_in_a_browser(string engine)
     {
         BuildSample();
-        var (server, http) = await Serve(P($"app/bin/{Configuration}/net10.0/WebApp.dll"), "Development");
+        var (server, http) = await Serve(P("app/bin/Debug/net10.0/WebApp.dll"), "Development");
         try
         {
             var ct = TestContext.Current.CancellationToken;
