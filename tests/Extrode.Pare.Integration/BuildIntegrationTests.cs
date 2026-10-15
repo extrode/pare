@@ -37,6 +37,12 @@ public sealed class BuildIntegrationTests : IDisposable
 
     private string P(string relative) => Path.Combine(_dir.FullName, relative);
 
+    // Where a web project's build writes the output of wwwroot/<path>.ts.
+    private const string ObjOut = "obj/Debug/net10.0/pare/";
+
+    // The end of a full path MSBuild prints: it resolves links above the temp directory (/var on macOS).
+    private string Tail(string relative) => Path.Combine(_dir.Name, relative).Replace('/', Path.DirectorySeparatorChar);
+
     private void Put(string relative, string text)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(P(relative))!);
@@ -111,13 +117,39 @@ public sealed class BuildIntegrationTests : IDisposable
     }
 
     [Fact]
+    public void Web_projects_strip_into_obj_and_leave_wwwroot_alone()
+    {
+        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web");
+        Put("wwwroot/js/app.ts", "import { f } from './lib.ts';\nlet n: number = f();\n");
+        Put("wwwroot/js/lib.ts", "export function f(): number { return 1; }\n");
+        Put("wwwroot/m.mts", "export let m: T;\n");
+
+        var (exit, output) = Build();
+        Assert.True(exit == 0, output);
+        Assert.Equal("import { f } from './lib.js';\nlet n         = f();\n", File.ReadAllText(P(ObjOut + "js/app.js")));
+        Assert.Equal("export let m   ;\n", File.ReadAllText(P(ObjOut + "m.mjs")));
+        Assert.Equal(["app.ts", "lib.ts"], Directory.GetFiles(P("wwwroot/js")).Select(Path.GetFileName).Order());
+
+        var stamp = File.GetLastWriteTimeUtc(P(ObjOut + "js/app.js"));
+        Put("wwwroot/js/lib.ts", "export function f(): string { return ''; }\n");
+        Assert.Equal(0, Build().Exit);
+        Assert.Equal("export function f()         { return ''; }\n", File.ReadAllText(P(ObjOut + "js/lib.js")));
+        Assert.Equal(stamp, File.GetLastWriteTimeUtc(P(ObjOut + "js/app.js")));
+
+        // AddPareDevelopment reads where the outputs go from the build output.
+        using var map = System.Text.Json.JsonDocument.Parse(File.ReadAllText(P("bin/Debug/net10.0/Extrode.Pare.development.json")));
+        Assert.EndsWith(Tail("wwwroot/"), map.RootElement.GetProperty("sourceRoot").GetString());
+        Assert.EndsWith(Tail(ObjOut), map.RootElement.GetProperty("outputRoot").GetString());
+    }
+
+    [Fact]
     public void Outputs_become_static_web_assets_once_on_the_first_and_later_builds()
     {
         // The Web SDK globs wwwroot into Content at evaluation: absent on the first build, present
         // on the second, where a duplicate would be a second asset.
         Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", targets: """
             <Target Name="Probe" AfterTargets="Build">
-              <Message Importance="high" Text="asset: %(StaticWebAsset.RelativePath)" Condition="'@(StaticWebAsset)' != ''" />
+              <Message Importance="high" Text="asset: %(StaticWebAsset.RelativePath) %(StaticWebAsset.Identity)" Condition="'@(StaticWebAsset)' != ''" />
             </Target>
             """);
         Put("wwwroot/app.ts", "let a: T;");
@@ -126,9 +158,67 @@ public sealed class BuildIntegrationTests : IDisposable
         {
             var (exit, output) = Build();
             Assert.True(exit == 0, output);
-            Assert.Single(output.Split('\n'), line => line.Contains("asset: app#[.{fingerprint}]?.js", StringComparison.Ordinal) &&
-                                                      !line.Contains(".js.gz", StringComparison.Ordinal));
+            string asset = Assert.Single(output.Split('\n'), line => line.Contains("asset: app#[.{fingerprint}]?.js ", StringComparison.Ordinal));
+            Assert.EndsWith(Tail(ObjOut + "app.js"), asset.TrimEnd());
         }
+    }
+
+    private const string AssetProbe = """
+        <Target Name="Probe" AfterTargets="Build">
+          <Message Importance="high" Text="asset: %(StaticWebAsset.RelativePath) %(StaticWebAsset.Identity)" Condition="'@(StaticWebAsset)' != ''" />
+        </Target>
+        """;
+
+    private static List<string> Assets(string output) =>
+        [.. output.Split('\n').Where(line => line.Contains("asset: ", StringComparison.Ordinal) && !line.Contains(".gz", StringComparison.Ordinal))
+            .Select(line => line[(line.IndexOf("asset: ", StringComparison.Ordinal) + 7)..].TrimEnd())];
+
+    [Fact]
+    public void A_js_left_next_to_its_source_is_reported_and_not_served()
+    {
+        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", targets: AssetProbe);
+        Put("wwwroot/js/app.ts", "let a: T;");
+        Put("wwwroot/js/app.js", "old;");
+        Put("wwwroot/js/plain.js", "plain;");
+
+        for (int build = 0; build < 2; build++)
+        {
+            var (exit, output) = Build();
+            Assert.True(exit == 0, output);
+            Assert.Contains(Path.Combine("wwwroot", "js", "app.js") + " : warning PARE200: ", output);
+            var assets = Assets(output);
+            string app = Assert.Single(assets, a => a.StartsWith("js/app", StringComparison.Ordinal));
+            Assert.StartsWith("js/app#[.{fingerprint}]?.js ", app);
+            Assert.EndsWith(Tail(ObjOut + "js/app.js"), app);
+            Assert.Contains(assets, a => a.StartsWith("js/plain#[.{fingerprint}]?.js ", StringComparison.Ordinal));
+        }
+        Assert.Equal("old;", File.ReadAllText(P("wwwroot/js/app.js")));
+    }
+
+    [Fact]
+    public void Deleting_a_source_removes_its_output()
+    {
+        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", targets: AssetProbe);
+        Put("wwwroot/a.ts", "let a: T;");
+        Put("wwwroot/js/b.ts", "let b: T;");
+        Assert.Equal(0, Build().Exit);
+        Assert.True(File.Exists(P(ObjOut + "js/b.js")));
+
+        File.Delete(P("wwwroot/js/b.ts"));
+        // Written by AddPareDevelopment for a source deleted before the next build, so not in the
+        // build's file list, which the SDK's incremental clean works from.
+        Put(ObjOut + "js/orphan.js", "orphan;");
+        var (exit, output) = Build();
+        Assert.True(exit == 0, output);
+        Assert.False(File.Exists(P(ObjOut + "js/b.js")));
+        Assert.False(File.Exists(P(ObjOut + "js/orphan.js")));
+        Assert.True(File.Exists(P(ObjOut + "a.js")));
+        Assert.DoesNotContain(Assets(output), a => a.StartsWith("js/b", StringComparison.Ordinal));
+
+        File.Delete(P("wwwroot/a.ts"));
+        (exit, output) = Build();
+        Assert.True(exit == 0, output);
+        Assert.False(File.Exists(P(ObjOut + "a.js")));
     }
 
     [Theory]
@@ -172,6 +262,7 @@ public sealed class BuildIntegrationTests : IDisposable
         Assert.True(File.Exists(P("pub/other.json")), output);
         Assert.True(File.Exists(P("bin/Release/net10.0/other.json")), output);
         Assert.False(File.Exists(P("pub/" + tsconfig)));
+        Assert.False(File.Exists(P("pub/Extrode.Pare.development.json")));
         Assert.False(File.Exists(P("bin/Release/net10.0/" + tsconfig)));
     }
 
@@ -188,10 +279,12 @@ public sealed class BuildIntegrationTests : IDisposable
         Assert.False(File.Exists(P("wwwroot/app.js")));
     }
 
-    [Fact]
-    public void Out_dir_keeps_the_relative_layout()
+    [Theory]
+    [InlineData("Microsoft.NET.Sdk")]
+    [InlineData("Microsoft.NET.Sdk.Web")]
+    public void Out_dir_keeps_the_relative_layout(string sdk)
     {
-        Project("<PareOutDir>gen</PareOutDir>");
+        Project("<OutputType>Library</OutputType><PareOutDir>gen</PareOutDir>", sdk: sdk, targets: AssetProbe);
         Put("wwwroot/js/app.mts", "let a: T;");
 
         var (exit, output) = Build();
@@ -199,6 +292,9 @@ public sealed class BuildIntegrationTests : IDisposable
         Assert.True(exit == 0, output);
         Assert.Equal("let a   ;", File.ReadAllText(P("gen/wwwroot/js/app.mjs")));
         Assert.False(File.Exists(P("wwwroot/js/app.mjs")));
+        Assert.False(File.Exists(P(ObjOut + "js/app.mjs")));
+        // Outside wwwroot, so the Web SDK does not serve it either: PareOutDir is for other tools.
+        Assert.DoesNotContain(Assets(output), a => a.Contains("app", StringComparison.Ordinal));
     }
 
     private void FakeTsc(string relative)
@@ -329,11 +425,11 @@ public sealed class BuildIntegrationTests : IDisposable
             }
 
             await Until(() => Volatile.Read(ref starts) == 1);
-            Assert.Equal("let a         = 1;", File.ReadAllText(P("wwwroot/app.js")));
+            Assert.Equal("let a         = 1;", File.ReadAllText(P(ObjOut + "app.js")));
 
             File.WriteAllText(P("wwwroot/app.ts"), "let b: string = \"edited\";");
             await Until(() => Volatile.Read(ref starts) == 2);
-            Assert.Equal("let b         = \"edited\";", File.ReadAllText(P("wwwroot/app.js")));
+            Assert.Equal("let b         = \"edited\";", File.ReadAllText(P(ObjOut + "app.js")));
         }
         finally
         {
@@ -411,10 +507,11 @@ public sealed class BuildIntegrationTests : IDisposable
         PrepareSample();
         var (exit, output) = SampleCommand("build");
         Assert.True(exit == 0, output);
-        Assert.Equal("import { plural,             } from \"./format.js\";", File.ReadLines(P("app/wwwroot/js/counter.js")).First());
-        Assert.Contains("import { counter } from \"./counter.js\";", File.ReadAllText(P("app/wwwroot/js/app.js")));
-        Assert.StartsWith("export function plural(n        , forms        )         {", File.ReadAllLines(P("app/wwwroot/js/format.js"))[2]);
-        Assert.False(File.Exists(P("app/wwwroot/js/alpine.d.js")));
+        Assert.Equal("import { plural,             } from \"./format.js\";", File.ReadLines(P("app/" + ObjOut + "js/counter.js")).First());
+        Assert.Contains("import { counter } from \"./counter.js\";", File.ReadAllText(P("app/" + ObjOut + "js/app.js")));
+        Assert.StartsWith("export function plural(n        , forms        )         {", File.ReadAllLines(P("app/" + ObjOut + "js/format.js"))[2]);
+        Assert.False(File.Exists(P("app/" + ObjOut + "js/alpine.d.js")));
+        Assert.Empty(Directory.GetFiles(P("app/wwwroot"), "*.js", SearchOption.AllDirectories));
     }
 
     /// <summary>Starts the app on a free port and waits until it answers.</summary>
@@ -586,9 +683,10 @@ public sealed class BuildIntegrationTests : IDisposable
             File.WriteAllText(source, File.ReadAllText(source).Replace("other: \"clicks\"", "other: \"taps\""));
             // No reload from the test: dotnet watch refreshes the page itself.
             await Microsoft.Playwright.Assertions.Expect(counter).ToHaveTextAsync("0 taps", new() { Timeout = 30_000 });
-            Assert.Contains("const clicks = { one: \"click\", other: \"taps\" }                 ;", File.ReadAllText(P("app/wwwroot/js/counter.js")));
+            Assert.Contains("const clicks = { one: \"click\", other: \"taps\" }                 ;", File.ReadAllText(P("app/" + ObjOut + "js/counter.js")));
+            Assert.Empty(Directory.GetFiles(P("app/wwwroot"), "*.js", SearchOption.AllDirectories));
             string after = Output()[built.Length..];
-            Assert.Contains("Stripped wwwroot/js/counter.ts to wwwroot/js/counter.js".Replace('/', Path.DirectorySeparatorChar), after);
+            Assert.Contains(("Stripped wwwroot/js/counter.ts to " + ObjOut + "js/counter.js").Replace('/', Path.DirectorySeparatorChar), after);
             Assert.Contains("Static asset changes applied", after);
             Assert.DoesNotContain("Restarting", after);
         }
@@ -632,6 +730,15 @@ public sealed class BuildIntegrationTests : IDisposable
         Assert.Contains("js/format.js.gz", published);
         Assert.DoesNotContain(published, f => f.EndsWith(".ts", StringComparison.Ordinal) || f.Contains(".ts.", StringComparison.Ordinal));
         Assert.False(File.Exists(P("pub/tsconfig.json")));
+        // The compressed copies are of Pare's output, not of the source.
+        foreach (string js in published.Where(f => f.EndsWith(".js", StringComparison.Ordinal)))
+        {
+            byte[] plain = File.ReadAllBytes(P("pub/wwwroot/" + js));
+            using (var gz = new System.IO.Compression.GZipStream(File.OpenRead(P("pub/wwwroot/" + js + ".gz")), System.IO.Compression.CompressionMode.Decompress))
+                Assert.Equal(plain, ReadAll(gz));
+            using (var br = new System.IO.Compression.BrotliStream(File.OpenRead(P("pub/wwwroot/" + js + ".br")), System.IO.Compression.CompressionMode.Decompress))
+                Assert.Equal(plain, ReadAll(br));
+        }
 
         var (server, http) = await Serve(P("pub/WebApp.dll"), "Production");
         try
@@ -659,6 +766,13 @@ public sealed class BuildIntegrationTests : IDisposable
             Stop(server);
             http.Dispose();
         }
+    }
+
+    private static byte[] ReadAll(Stream stream)
+    {
+        using var buffer = new MemoryStream();
+        stream.CopyTo(buffer);
+        return buffer.ToArray();
     }
 
     [Fact]
@@ -716,8 +830,8 @@ public sealed class BuildIntegrationTests : IDisposable
         Assert.SkipWhen(where is null, $"{runtime} is not on PATH");
         BuildSample();
         // A package.json further up can say "commonjs" (one in a Windows %TEMP% did).
-        Put("app/wwwroot/package.json", """{ "type": "module" }""");
-        string counter = new Uri(P("app/wwwroot/js/counter.js")).AbsoluteUri;
+        Put("app/" + ObjOut + "package.json", """{ "type": "module" }""");
+        string counter = new Uri(P("app/" + ObjOut + "js/counter.js")).AbsoluteUri;
         var start = new ProcessStartInfo(where!) { RedirectStandardOutput = true, RedirectStandardError = true };
         foreach (string arg in evaluate)
             start.ArgumentList.Add(arg);

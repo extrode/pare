@@ -102,6 +102,87 @@ public sealed class DevelopmentWatcherTests : IDisposable
         Assert.False(File.Exists(P("wwwroot/js/a.js")));
     }
 
+    private TypeScriptWatcher BuildOutputWatcher() => TypeScriptWatcher.ForBuildOutput(_dir.FullName, P("wwwroot"), P("obj/pare"), _log);
+
+    [Fact]
+    public void Build_output_keeps_the_path_below_the_web_root()
+    {
+        Put("wwwroot/js/a.ts", "let a: T;\n");
+        Put("wwwroot/m.mts", "let m: T;\n");
+        using var watcher = BuildOutputWatcher();
+        watcher.Start();
+        Assert.Equal("let a   ;\n", File.ReadAllText(P("obj/pare/js/a.js")));
+        Assert.Equal("let m   ;\n", File.ReadAllText(P("obj/pare/m.mjs")));
+        Assert.False(File.Exists(P("wwwroot/js/a.js")));
+    }
+
+    [Fact]
+    public void Deleting_a_source_deletes_its_build_output()
+    {
+        Put("wwwroot/js/a.ts", "let a: T;\n");
+        Put("wwwroot/js/b.ts", "let b: T;\n");
+        using var watcher = BuildOutputWatcher();
+        watcher.Start();
+
+        File.Delete(P("wwwroot/js/a.ts"));
+        WaitFor(() => !File.Exists(P("obj/pare/js/a.js")));
+        Assert.True(File.Exists(P("obj/pare/js/b.js")));
+        Assert.Contains(_log.Lines, l => l.Contains("Removed " + Path.Combine("obj", "pare", "js", "a.js")));
+    }
+
+    [Fact]
+    public void Deleting_a_source_keeps_a_js_next_to_it()
+    {
+        Put("wwwroot/a.ts", "let a: T;\n");
+        using var watcher = Watcher();
+        watcher.Start();
+
+        File.Delete(P("wwwroot/a.ts"));
+        Put("wwwroot/b.ts", "let b: T;\n");
+        WaitFor(() => File.Exists(P("wwwroot/b.js")));
+        Assert.True(File.Exists(P("wwwroot/a.js")));
+    }
+
+    [Fact]
+    public void A_new_source_is_served_after_the_next_build()
+    {
+        Put("wwwroot/a.ts", "let a: T;\n");
+        using var watcher = BuildOutputWatcher();
+        watcher.Start();
+        Assert.DoesNotContain(_log.Lines, l => l.Contains("next build"));
+
+        Put("wwwroot/a.ts", "let a: U;\n");
+        Put("wwwroot/js/new.ts", "let n: T;\n");
+        WaitFor(() => File.Exists(P("obj/pare/js/new.js")) && ReadOrNull(P("obj/pare/a.js")) == "let a   ;\n" && _log.Lines.Length >= 2);
+        string newLine = Assert.Single(_log.Lines, l => l.Contains("next build"));
+        Assert.Contains(Path.Combine("wwwroot", "js", "new.ts"), newLine);
+    }
+
+    [Fact]
+    public async Task AddPareDevelopment_writes_where_the_build_map_says()
+    {
+        Put("wwwroot/a.ts", "let a: T;\n");
+        Put("map.json", System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string>
+        {
+            ["sourceRoot"] = P("wwwroot") + Path.DirectorySeparatorChar,
+            ["outputRoot"] = P("obj/pare") + Path.DirectorySeparatorChar,
+        }));
+        var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions
+        {
+            ContentRootPath = _dir.FullName,
+            WebRootPath = "wwwroot",
+            EnvironmentName = "Development",
+        });
+        builder.Logging.ClearProviders();
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.AddPareDevelopment(o => o.DevelopmentMapPath = P("map.json"));
+        await using var app = builder.Build();
+        await app.StartAsync(TestContext.Current.CancellationToken);
+        Assert.True(File.Exists(P("obj/pare/a.js")));
+        Assert.False(File.Exists(P("wwwroot/a.js")));
+        await app.StopAsync(TestContext.Current.CancellationToken);
+    }
+
     [Theory]
     [InlineData("Development", true)]
     [InlineData("Production", false)]
