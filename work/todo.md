@@ -27,10 +27,14 @@ Small, clear, and could be picked up without a design decision.
   `Microsoft.NET.Sdk.Web` project shows it too; from the project directory it works, saves via
   rename included. README says to run it from the project directory.
 
-- obj/ output for sources outside `wwwroot` (for example `Scripts/**/*.ts`, routed by a
-  `PareRelativePath`): they write next to the source today. User: later (2026-10-15).
-- Razor class library outputs under `_content/<lib>/`: work in 0.3.0 (measured), untested and
-  undocumented. Options and recommendation: docs/decisions/2026-10-15-003-razor-class-libraries.md.
+- Sources outside `wwwroot`: decide whether to document `PareRelativePath` and add PARE202
+  (unmapped source warning). Memo: docs/decisions/2026-10-15-002-ts-outside-wwwroot.md.
+  Open gaps there: a `.mts` mapped to `.js` is imported as `.mjs` (404); `AddPareDevelopment`
+  doesn't re-strip mapped sources on save (needs every source and URL in the development map).
+- Razor class libraries: tested and in README. `AddPareDevelopment` doesn't re-strip library
+  sources on save (option B in docs/decisions/2026-10-15-003-razor-class-libraries.md).
+- README `## CLI` install line assumes nuget.org; until then it needs `--add-source` (as
+  docs/cli-quickstart.md says).
 - In Development the SDK serves every `wwwroot` file through a `**` pattern, so `.ts` sources
   return 200 (app and RCL); publish has none. Decide whether `AddPareDevelopment` should 404 them.
 
