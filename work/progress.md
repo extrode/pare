@@ -206,14 +206,25 @@ convention). Update at the end of every session.
   348 (1 Unix skip) on SDK 10.0.402 win-arm64. UTM 4.7.5 hangs or crashes on macOS 26.6.2, so
   plain QEMU replaced it (user approved).
 
+- **0.2.0 release (2026-10-15):** version 0.2.0 (`chore/release-0.2.0`), tag `v0.2.0`, private
+  repo `extrode/pare` (user's call: private now, public once CI is green; nuget.org later).
+  Integration tests now pack with the repo's version (`TestVersion`), since the sample references
+  `<version>-*`. First CI run: the Release-configured sample test looked for `bin/Release` though
+  the sample builds Debug (fixed), and Ubuntu lacked WebKit/Firefox libraries (`playwright.ps1
+  install-deps` step). CI also sets up Deno 2.x, fetches tsc and uses checkout v7, setup-dotnet v6.
+  CI green on ubuntu, macos and windows: 375 tests, 0 skipped on Linux/macOS, 3 on Windows (Unix
+  permissions, fake `tsc`). GitHub release `v0.2.0` carries 21 assets: per-RID tool packages and
+  archives for osx, linux, linux-musl, win (arm64, x64), the pointer and `any` packages, and the
+  `Extrode.Pare`, `.Build`, `.AspNetCore` packages.
+
 ## Next
 
 Order from the 2026-10-15 fable consult:
 
 1. ~~Browser check of `samples/WebApp`~~: done 2026-10-15 (headless Chromium).
-2. **v0.1 release prep:** license done 2026-10-15 (user: pick from islamiclicense.org; ISL-P 1.2
-   WITH ISL-OE 1.2, Licensor `Extrode (extrode.com)`), package metadata done. Left: tag 0.1.0
-   (release on `main`: user's call).
+2. ~~**v0.1 release prep**~~: license done 2026-10-15 (user: pick from islamiclicense.org; ISL-P 1.2
+   WITH ISL-OE 1.2, Licensor `Extrode (extrode.com)`), package metadata done. v0.1.0 tagged,
+   0.2.0 released on GitHub (above).
 3. ~~M5 tsgo differential and `scripts/get-tsc.cs`~~: done 2026-10-15, 99.96%, all triaged.
 4. ~~**Dev loop:**~~ done 2026-10-15: `--no-hot-reload` via `Watch` items, default hot reload
    via M8 (see above).
@@ -226,8 +237,9 @@ error-code page; `.gitignore` guidance for generated `.js`.
 
 ## Open questions
 
-- CI has not run: the repo has no remote yet.
 - Lexer leniency vs TypeScript (escape and numeric-literal validation): see `work/todo.md`.
+- Pushing `main` is blocked by a hook (user's call): local `main` holds the CI-fix merge,
+  `origin/main` and `v0.2.0` stay at the release commit; product code is identical.
 
 ## Corpus pass rate
 
