@@ -33,6 +33,9 @@ Small, clear, and could be picked up without a design decision.
   sources on save (option B in docs/decisions/2026-10-15-003-razor-class-libraries.md).
 - README `## CLI` install line assumes nuget.org; until then it needs `--add-source` (as
   docs/cli-quickstart.md says).
+- PARE203 stops at the first bad `PareServeAt` (MSBuild ends a batched `Error` at its first
+  batch), so its 9 test cases need 9 builds (~14 s). Reporting every bad item in one build would
+  let them share one. The serving tests share one build since 2026-10-15 (subset 68 s to 42 s).
 - In Development the SDK serves every `wwwroot` file through a `**` pattern, so `.ts` sources
   return 200 (app and RCL); publish has none. Decide whether `AddPareDevelopment` should 404 them.
 
@@ -61,5 +64,3 @@ Not doing, with the reason. Kept so the same idea does not get re-raised every q
   instead; output under `obj/` (v0.2) would remove the problem. (2026-10-15)
 - `.cts` in the MSBuild default items: CommonJS does not run in a browser `wwwroot`. Explicit
   items work. (2026-10-15)
-- Integration suite went from ~160 s to ~545 s on macOS after the `PareServeAt` tests (24 new
-  `dotnet build` runs). Consider sharing one built project across the theory cases.
