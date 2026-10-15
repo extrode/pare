@@ -1,6 +1,17 @@
 # Changelog
 
-## [Unreleased]
+## [0.3.0] - 2026-10-15
+
+### Upgrading from 0.2
+
+- Web projects now get their `.js` under `obj/` by default; set `PareOutDir` to keep 0.2's
+  output next to each source.
+- Delete the `.js` files 0.2 generated in `wwwroot` (`warning PARE200` names each one until you
+  do), and drop any `.gitignore` rules for them.
+- A `.ts` file added while `dotnet watch` runs is served after the next build (Ctrl+R); edits to
+  existing files reload as before.
+
+### Changes
 
 - Web projects: `Extrode.Pare.Build` writes the output of `wwwroot/**/*.ts` under
   `obj/<configuration>/<tfm>/pare/` and registers it as static web assets (served, compressed and
