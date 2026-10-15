@@ -6,8 +6,24 @@
     <PublishAot>true</PublishAot>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
+  <!-- .NET tool. `dotnet pack` makes the pointer package; `dotnet pack -r <rid>` makes the
+       NativeAOT package for one RID and must run on that OS; `dotnet pack -r any` makes the
+       framework-dependent fallback for every other platform. scripts/pack-cli.sh runs them. -->
+  <PropertyGroup>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>pare</ToolCommandName>
+    <PackageId>Extrode.Pare.Cli</PackageId>
+    <ToolPackageRuntimeIdentifiers>osx-arm64;osx-x64;linux-arm64;linux-x64;linux-musl-arm64;linux-musl-x64;win-arm64;win-x64;any</ToolPackageRuntimeIdentifiers>
+    <Description>pare: strips TypeScript type syntax to JavaScript. NativeAOT, no Node.</Description>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>typescript;type-stripping;cli;nativeaot</PackageTags>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Extrode.Pare\Extrode.Pare.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\LICENSE.md;..\..\NOTICE.md;..\..\README.md" Pack="true" PackagePath="" Visible="false" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Extrode.Pare.Tests" />
