@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "Comparison tools for `dotnet run -c Release --project tests/Extrode.Pare.Bench -- compare`. Dev-only; Pare itself needs no Node.",
+  "dependencies": {
+    "esbuild": "0.28.2",
+    "oxc-transform": "0.154.0",
+    "ts-blank-space": "0.9.0",
+    "typescript": "6.0.3"
+  }
+}

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Acornima" />
+    <PackageReference Include="BenchmarkDotNet" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Extrode.Pare\Extrode.Pare.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Extrode.Pare.Conformance\AstDump.cs" Link="Shared\AstDump.cs" />
+  </ItemGroup>
+</Project>

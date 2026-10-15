@@ -124,6 +124,21 @@ convention). Update at the end of every session.
   `Sources_are_watch_items` (`msbuild -getItem:Watch`) and
   `Dotnet_watch_without_hot_reload_restrips_an_edited_source` (real `dotnet watch`, ~5 s).
 
+- **M7 perf (2026-10-15):** `tests/Extrode.Pare.Bench` (BenchmarkDotNet 0.15.8, approved).
+  `scripts/get-bench-corpus.cs` sparse-clones TypeScript 5.9.3 `src/compiler`, Vue, Hono, Deno
+  std, Svelte and Zod at pinned commits (2,504 files, ~25 MB; 2,392 strip). BenchmarkDotNet:
+  checker.ts 13.3 ms (235 MB/s), corpus 75 ms (218 MB/s), `(a = ` x1000 38 ms, 0 B allocated on
+  all three; `AllocationTests` asserts 0 B per call. `compare` mode runs Node 24
+  `stripTypeScriptTypes`, oxc-transform, ts-blank-space, esbuild (pinned in
+  `compare/package.json`) and `deno bundle` per extension, and compares bytes, then Acornima trees
+  (`AstDump`, shared with the differential test; printers skip `Raw`, shorthand and `void 0`).
+  Node and oxc: 0 differences on 2,388 files. ts-blank-space: 1 (its bug). esbuild 416 and Deno
+  1,362: renamed bindings, strings to templates, regrouped exports, all printer rewrites. 4 files
+  need type information (a type imported or re-exported without `type`); every stripper keeps
+  them. Pare in-process 184-229 MB/s vs oxc 81, Node 38, ts-blank-space 25, esbuild 10. Pare
+  bugs found and fixed: `declare` before a non-declaration keyword (`declare namespace = x`) was
+  erased; a `get`/`set`/`static` field with an erased type merged with the next member.
+
 ## Next
 
 Order from the 2026-10-15 fable consult:
@@ -135,7 +150,7 @@ Order from the 2026-10-15 fable consult:
 3. ~~M5 tsgo differential and `scripts/get-tsc.cs`~~: done 2026-10-15, 99.96%, all triaged.
 4. ~~**Dev loop:**~~ done 2026-10-15 for `dotnet watch --no-hot-reload` (see below). Default
    hot reload mode still needs M8 (user's call: `Watch` items now, M8 later).
-5. **M7 perf**, with bench rows for the pathological nesting shapes.
+5. ~~**M7 perf**~~: done 2026-10-15 (see above).
 6. **M4 lexer validation:** only if M5 shows a divergence that matters.
 
 Not in the plan yet: stale `.js` left after deleting a `.ts`; output under `obj/` as static web
