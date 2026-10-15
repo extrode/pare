@@ -106,6 +106,30 @@ The output differs from the input only by spaces, except for:
   at the end of an erased `as`/`satisfies` type when the next line starts with `(`, `[` or a
   template, and at the end of the erased type of a field named `get`, `set` or `static`
 
+## Real-world check
+
+`scripts/run-std-tests.cs` runs Deno's standard library test suite on Pare's output. It strips a
+copy of [denoland/std](https://github.com/denoland/std) (pinned commit, 1,600+ files) with the
+`pare` CLI in about 0.5 s, points the `@std/*` imports at the `.js` files, and runs `deno test` on
+each package's original `*_test.ts` and stripped `*_test.js`:
+
+- 38 of 42 packages give the same result (4,997 passing tests); 5,521 tests pass on Pare's output in all.
+- csv: one test compares `Function.prototype.toString()` with Deno's reprinted `(n)=>n`; a
+  blanking stripper keeps `(n        ) => n`.
+- testing: snapshot tests look for a snapshot file named after the `.ts` test file.
+- http: one test passes only on the `.js` copy, because the TypeScript copy sits under a dot
+  directory (`.corpus`) that `serveDir()` refuses.
+- expect: not run. Pare rejects three of its files (parameter properties and a `<T>x` assertion,
+  which generate runtime code), so `expect.js` is missing.
+
+Failures common to both runs (cli, encoding, fmt, fs and others) come from the environment.
+
+```sh
+dotnet run scripts/get-bench-corpus.cs
+dotnet publish src/Extrode.Pare.Cli -c Release -r osx-arm64 -o tmp/aot
+dotnet run scripts/run-std-tests.cs            # or name packages: ... -- yaml semver
+```
+
 ## Performance
 
 Measured on an Apple M1 Max (osx-arm64), .NET 10.0, Release build.
