@@ -92,7 +92,8 @@
   </Target>
 
   <!-- obj/ output only. Pare owns the directory, so a file no source produces is a deleted
-       source's output. Runs with no sources left too. -->
+       source's output. The SDK's incremental clean removes only what an earlier build wrote; this
+       also removes what AddPareDevelopment wrote. Runs with no sources left too. -->
   <Target Name="_PareDeleteStaleOutputs" AfterTargets="PareStripTypeScript" BeforeTargets="BeforeBuild" DependsOnTargets="_PareComputeOutputs"
           Condition="'$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' and '$(_PareOutRoot)' == ''">
     <ItemGroup Condition="'$(_PareObjRoot)' != ''">

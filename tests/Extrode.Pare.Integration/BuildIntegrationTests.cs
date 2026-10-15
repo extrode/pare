@@ -205,9 +205,13 @@ public sealed class BuildIntegrationTests : IDisposable
         Assert.True(File.Exists(P(ObjOut + "js/b.js")));
 
         File.Delete(P("wwwroot/js/b.ts"));
+        // Written by AddPareDevelopment for a source deleted before the next build, so not in the
+        // build's file list, which the SDK's incremental clean works from.
+        Put(ObjOut + "js/orphan.js", "orphan;");
         var (exit, output) = Build();
         Assert.True(exit == 0, output);
         Assert.False(File.Exists(P(ObjOut + "js/b.js")));
+        Assert.False(File.Exists(P(ObjOut + "js/orphan.js")));
         Assert.True(File.Exists(P(ObjOut + "a.js")));
         Assert.DoesNotContain(Assets(output), a => a.StartsWith("js/b", StringComparison.Ordinal));
 
