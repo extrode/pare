@@ -600,6 +600,29 @@ public sealed class BuildIntegrationTests : IDisposable
         Assert.DoesNotContain(Assets(output), a => a.Contains("app", StringComparison.Ordinal));
     }
 
+    // The SDK fails a .razor.js with no component beside it (BLAZOR106), as Content or None.
+    [Fact]
+    public void Out_dir_takes_a_razor_ts_without_failing_the_build()
+    {
+        Project("<OutputType>Library</OutputType><PareOutDir>gen</PareOutDir>", sdk: "Microsoft.NET.Sdk.Web", targets: AssetProbe,
+            items: """<TypeScriptSource Include="Components/*.razor.ts;Pages/*.cshtml.ts" />""");
+        Put("Components/Counter.razor", "<p>count</p>\n");
+        Put("Components/Counter.razor.ts", "let c: T;");
+        Put("Pages/Index.cshtml", "<p>index</p>\n");
+        Put("Pages/Index.cshtml.ts", "let i: T;");
+
+        for (int build = 0; build < 2; build++)
+        {
+            var (exit, output) = Build();
+            Assert.True(exit == 0, output);
+            Assert.DoesNotContain("BLAZOR106", output);
+            Assert.DoesNotContain(Assets(output), a => a.Contains("Counter", StringComparison.Ordinal) || a.Contains("Index", StringComparison.Ordinal));
+        }
+        Assert.Equal("let c   ;", File.ReadAllText(P("gen/Components/Counter.razor.js")));
+        Assert.Equal("let i   ;", File.ReadAllText(P("gen/Pages/Index.cshtml.js")));
+        Assert.False(File.Exists(P("Components/Counter.razor.js")));
+    }
+
     private void FakeTsc(string relative)
     {
         Put(relative, "#!/bin/sh\necho \"$@\" > \"$(dirname \"$0\")/args.txt\"\nexit $(cat exit-code.txt)\n");
