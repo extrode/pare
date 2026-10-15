@@ -11,6 +11,7 @@ public sealed class BuildIntegrationTests : IDisposable
     private static readonly string TaskAssembly = Path.Combine(AppContext.BaseDirectory, "Extrode.Pare.Build.dll");
     private readonly DirectoryInfo _dir = Directory.CreateTempSubdirectory("pare-build-");
     private string? _pathPrefix;
+    private string? _nugetPackages;
 
     public void Dispose() => _dir.Delete(recursive: true);
 
@@ -54,6 +55,8 @@ public sealed class BuildIntegrationTests : IDisposable
             start.Environment.Remove(key);
         if (_pathPrefix is not null)
             start.Environment["PATH"] = _pathPrefix + Path.PathSeparator + start.Environment["PATH"];
+        if (_nugetPackages is not null)
+            start.Environment["NUGET_PACKAGES"] = _nugetPackages;
         using var process = Process.Start(start)!;
         var stderr = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
         string stdout = process.StandardOutput.ReadToEnd();
@@ -612,6 +615,40 @@ public sealed class BuildIntegrationTests : IDisposable
         process.WaitForExit();
         Assert.True(process.ExitCode == 0, stderr);
         Assert.Equal("0 clicks|1 click|2 clicks", stdout.Trim());
+    }
+
+    [Fact]
+    public void Cli_tool_installs_the_native_binary_for_this_platform()
+    {
+        string rid = System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier;
+        string cli = Path.Combine(RepoRoot, "src", "Extrode.Pare.Cli");
+        foreach (string[] target in new[] { Array.Empty<string>(), ["-r", rid], ["-r", "any"] })
+        {
+            var (packed, packOutput) = Run(["pack", cli, "-nologo", "-nodeReuse:false", "-c", Configuration, "-o", P("feed"), "-p:Version=0.1.0-test.1", .. target]);
+            Assert.True(packed == 0, packOutput);
+        }
+
+        // A private package folder, so the fixed test version never lands in the user's cache.
+        _nugetPackages = P("packages");
+        var (exit, output) = Run("tool", "install", "Extrode.Pare.Cli", "--version", "0.1.0-test.1", "--tool-path", P("tool"), "--add-source", P("feed"));
+        Assert.True(exit == 0, output);
+        string store = P("tool/.store/extrode.pare.cli/0.1.0-test.1");
+        Assert.Equal(["extrode.pare.cli", "extrode.pare.cli." + rid],
+            Directory.GetDirectories(store).Select(Path.GetFileName).Order());
+        Assert.Empty(Directory.GetFiles(store, "pare.dll", SearchOption.AllDirectories));
+
+        var start = new ProcessStartInfo(P(OperatingSystem.IsWindows() ? "tool/pare.exe" : "tool/pare"), "--stdin")
+        {
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+        };
+        using var pare = Process.Start(start)!;
+        pare.StandardInput.Write("type T = 1;\nlet x: number = 1;\n");
+        pare.StandardInput.Close();
+        string stripped = pare.StandardOutput.ReadToEnd();
+        pare.WaitForExit();
+        Assert.Equal(0, pare.ExitCode);
+        Assert.Equal("           \nlet x         = 1;\n", stripped);
     }
 
     private static string FindRepoRoot()

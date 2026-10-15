@@ -124,6 +124,19 @@ convention). Update at the end of every session.
   `Sources_are_watch_items` (`msbuild -getItem:Watch`) and
   `Dotnet_watch_without_hot_reload_restrips_an_edited_source` (real `dotnet watch`, ~5 s).
 
+- **CLI distribution (2026-10-15, user's call: both):** `Extrode.Pare.Cli` is a .NET tool with
+  `ToolPackageRuntimeIdentifiers` (SDK 10): a pointer package, one NativeAOT package per RID
+  (osx, linux, linux-musl; arm64 and x64) and an `any` framework-dependent fallback.
+  `scripts/pack-cli.sh` (~4 min) packs them plus `pare-<v>-<rid>.tar.gz`: macOS natively, Linux in
+  Docker. glibc x64 builds under amd64 emulation; musl x64 is cross-compiled on arm64 Alpine against
+  an x64 sysroot (`-p:SysRoot -p:LinkerFlavor=lld`, needs `llvm` for `llvm-objcopy`) because ilc
+  aborts (134) on emulated Alpine. Each Linux build is run 20 times and tool-installed on its
+  platform. A listed RID whose package is missing fails the install (no fallback to `any`), so
+  win-* must be packed on Windows before a release. Found on the way: on linux-musl-arm64,
+  `TryEnsureSufficientExecutionStack` on the main thread is false in ~1 process in 4 (17/60),
+  so `pare` rejected everything; the CLI now runs on an 8 MB thread (0/200 failures on every
+  build). Test: `Cli_tool_installs_the_native_binary_for_this_platform` (~11 s).
+
 - **M7 perf (2026-10-15):** `tests/Extrode.Pare.Bench` (BenchmarkDotNet 0.15.8, approved).
   `scripts/get-bench-corpus.cs` sparse-clones TypeScript 5.9.3 `src/compiler`, Vue, Hono, Deno
   std, Svelte and Zod at pinned commits (2,504 files, ~25 MB; 2,392 strip). BenchmarkDotNet:
@@ -177,7 +190,7 @@ Order from the 2026-10-15 fable consult:
 
 Not in the plan yet: stale `.js` left after deleting a `.ts`; output under `obj/` as static web
 assets (v0.2, retires the publish and overwrite questions); a core `Extrode.Pare` library package
-(needed by M8); CLI distribution (`PackAsTool` or binaries); a PARE1xx error-code page;
+(needed by M8); Windows `pare` binaries (see todo); a PARE1xx error-code page;
 `.gitignore` guidance for generated `.js`; Windows has never run.
 
 ## Open questions

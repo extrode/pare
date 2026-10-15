@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Runtime.ExceptionServices;
 using Extrode.Pare;
 
 namespace Extrode.Pare.Cli;
@@ -27,7 +28,28 @@ internal static class Program
         exit codes: 0 ok, 1 rejected syntax, 2 I/O or usage error
         """;
 
-    private static int Main(string[] args) => Run(args, Console.In, Console.Out, Console.Error);
+    // The parser's depth guard (RuntimeHelpers.TryEnsureSufficientExecutionStack) needs to know
+    // the stack's size. On linux-musl-arm64 NativeAOT, .NET misreads the main thread's (musl
+    // reports only the part mapped so far), so about one process in four rejected every file. A
+    // thread .NET creates has a known size; 8 MB matches the Linux and macOS main thread.
+    internal const int StackSize = 8 * 1024 * 1024;
+
+    private static int Main(string[] args) => OnOwnStack(() => Run(args, Console.In, Console.Out, Console.Error));
+
+    internal static int OnOwnStack(Func<int> run)
+    {
+        int result = 0;
+        ExceptionDispatchInfo? error = null;
+        var thread = new Thread(() =>
+        {
+            try { result = run(); }
+            catch (Exception e) { error = ExceptionDispatchInfo.Capture(e); }
+        }, StackSize);
+        thread.Start();
+        thread.Join();
+        error?.Throw();
+        return result;
+    }
 
     internal static int Run(string[] args, TextReader stdin, TextWriter stdout, TextWriter stderr)
     {
