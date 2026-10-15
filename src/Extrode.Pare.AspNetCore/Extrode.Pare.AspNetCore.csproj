@@ -4,7 +4,7 @@
     <RootNamespace>Extrode.Pare.AspNetCore</RootNamespace>
     <IsAotCompatible>true</IsAotCompatible>
     <PackageId>Extrode.Pare.AspNetCore</PackageId>
-    <Description>Re-strips changed TypeScript under wwwroot while an ASP.NET Core app runs in Development, so dotnet watch hot reload serves fresh JavaScript.</Description>
+    <Description>Re-strips changed TypeScript (wwwroot, PareServeAt sources, referenced Razor class libraries) while an ASP.NET Core app runs in Development, so dotnet watch hot reload serves fresh JavaScript.</Description>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>typescript;type-stripping;aspnetcore;hot-reload;dotnet-watch</PackageTags>
