@@ -13,5 +13,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Extrode.Pare.Build\Extrode.Pare.Build.csproj" />
+    <!-- Built first; the CLI sample tests run its pare.dll. -->
+    <ProjectReference Include="..\..\src\Extrode.Pare.Cli\Extrode.Pare.Cli.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>
