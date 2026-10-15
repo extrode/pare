@@ -9,6 +9,10 @@ public sealed class BuildIntegrationTests : IDisposable
     private static readonly string BuildDir = Path.Combine(RepoRoot, "src", "Extrode.Pare.Build", "build");
     // By path: loading the task type would need the MSBuild assemblies, which only the host ships.
     private static readonly string TaskAssembly = Path.Combine(AppContext.BaseDirectory, "Extrode.Pare.Build.dll");
+
+    // The sample references `<version>-*`, so test packages carry the repo's version.
+    private static readonly string TestVersion = typeof(BuildIntegrationTests).Assembly.GetName().Version!.ToString(3) + "-test.1";
+
     private readonly DirectoryInfo _dir = Directory.CreateTempSubdirectory("pare-build-");
     private string? _pathPrefix;
     private string? _nugetPackages;
@@ -347,10 +351,10 @@ public sealed class BuildIntegrationTests : IDisposable
         const string configuration = "Release";
 #endif
         var (exit, output) = Run("pack", Path.Combine(RepoRoot, "src", "Extrode.Pare.Build"), "-nologo", "-nodeReuse:false", "--no-build",
-            "-c", configuration, "-o", P("feed"), "-p:Version=0.1.0-test.1");
+            "-c", configuration, "-o", P("feed"), $"-p:Version={TestVersion}");
         Assert.True(exit == 0, output);
 
-        using var package = System.IO.Compression.ZipFile.OpenRead(P("feed/Extrode.Pare.Build.0.1.0-test.1.nupkg"));
+        using var package = System.IO.Compression.ZipFile.OpenRead(P($"feed/Extrode.Pare.Build.{TestVersion}.nupkg"));
         var entries = package.Entries.Select(e => e.FullName).ToList();
         Assert.Contains("LICENSE.md", entries);
         Assert.Contains("NOTICE.md", entries);
@@ -393,7 +397,7 @@ public sealed class BuildIntegrationTests : IDisposable
         foreach (string project in new[] { "Extrode.Pare", "Extrode.Pare.Build", "Extrode.Pare.AspNetCore" })
         {
             var (exit, output) = Run("pack", Path.Combine(RepoRoot, "src", project), "-nologo", "-nodeReuse:false", "--no-build", "-c", Configuration,
-                "-o", P("feed"), "-p:Version=0.1.0-test.1");
+                "-o", P("feed"), $"-p:Version={TestVersion}");
             Assert.True(exit == 0, output);
         }
     }
@@ -741,15 +745,15 @@ public sealed class BuildIntegrationTests : IDisposable
         string cli = Path.Combine(RepoRoot, "src", "Extrode.Pare.Cli");
         foreach (string[] target in new[] { Array.Empty<string>(), ["-r", rid], ["-r", "any"] })
         {
-            var (packed, packOutput) = Run(["pack", cli, "-nologo", "-nodeReuse:false", "-c", Configuration, "-o", P("feed"), "-p:Version=0.1.0-test.1", .. target]);
+            var (packed, packOutput) = Run(["pack", cli, "-nologo", "-nodeReuse:false", "-c", Configuration, "-o", P("feed"), $"-p:Version={TestVersion}", .. target]);
             Assert.True(packed == 0, packOutput);
         }
 
         // A private package folder, so the fixed test version never lands in the user's cache.
         _nugetPackages = P("packages");
-        var (exit, output) = Run("tool", "install", "Extrode.Pare.Cli", "--version", "0.1.0-test.1", "--tool-path", P("tool"), "--add-source", P("feed"));
+        var (exit, output) = Run("tool", "install", "Extrode.Pare.Cli", "--version", TestVersion, "--tool-path", P("tool"), "--add-source", P("feed"));
         Assert.True(exit == 0, output);
-        string store = P("tool/.store/extrode.pare.cli/0.1.0-test.1");
+        string store = P($"tool/.store/extrode.pare.cli/{TestVersion}");
         Assert.Equal(["extrode.pare.cli", "extrode.pare.cli." + rid],
             Directory.GetDirectories(store).Select(Path.GetFileName).Order());
         Assert.Empty(Directory.GetFiles(store, "pare.dll", SearchOption.AllDirectories));

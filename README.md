@@ -55,7 +55,7 @@ JavaScript out of the source folders, or use `--outdir`.
 ## MSBuild
 
 ```xml
-<PackageReference Include="Extrode.Pare.Build" Version="0.1.0" PrivateAssets="all" />
+<PackageReference Include="Extrode.Pare.Build" Version="0.2.0" PrivateAssets="all" />
 ```
 
 Before `Build`, every `wwwroot/**/*.ts` and `*.mts` (not `.d.ts`, not `node_modules`) is stripped
@@ -74,7 +74,7 @@ Dev loop: in its default hot reload mode `dotnet watch` runs no build on a `.ts`
 `.js` would go stale. `Extrode.Pare.AspNetCore` re-strips in the running app instead:
 
 ```xml
-<PackageReference Include="Extrode.Pare.AspNetCore" Version="0.1.0" />
+<PackageReference Include="Extrode.Pare.AspNetCore" Version="0.2.0" />
 ```
 
 ```csharp
@@ -110,7 +110,7 @@ project sets `PareOutDir`. It also applies `dotnet watch`'s browser refresh to
 an htmx call to a minimal API. It references the package from a local feed, as a consumer would:
 
 ```sh
-scripts/pack-local.sh               # pack into tmp/feed as 0.1.0-dev.<time>, re-restore the sample
+scripts/pack-local.sh               # pack into tmp/feed as 0.2.0-dev.<time>, re-restore the sample
 dotnet run --project samples/WebApp   # http://localhost:5180, Development
 dotnet watch            # from samples/WebApp: a .ts save re-strips and reloads the page
 dotnet publish samples/WebApp -c Release -r osx-arm64 -o tmp/sample-aot

@@ -7,7 +7,7 @@
 # NativeAOT cannot cross OS, so this packs osx-arm64 and osx-x64 on macOS, the host RID on
 # Linux, and linux-{arm64,x64} and linux-musl-{arm64,x64} in Docker when it runs. win-* need a
 # Windows machine: scripts/pack-cli.ps1.
-# Usage: scripts/pack-cli.sh [--version 0.1.0] [--no-docker]
+# Usage: scripts/pack-cli.sh [--version 0.2.0] [--no-docker]
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 out="$root/tmp/dist"
