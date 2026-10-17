@@ -10,7 +10,8 @@ namespace Extrode.Pare.AspNetCore;
 /// stripping them as they change. With the build's output root, it also deletes the output of a
 /// deleted source: that directory holds only Pare's output. The build's map may also name sources
 /// and their outputs one by one (<c>PareServeAt</c>, anywhere in the project); those are watched
-/// in their own directories and written where the map says.
+/// in their own directories and written where the map says. Sources of another compiler
+/// (<c>PareCompileSource</c>) are watched the same way and handed to their <see cref="IPareCompiler"/>.
 /// </summary>
 internal sealed class TypeScriptWatcher : IDisposable
 {
@@ -27,6 +28,7 @@ internal sealed class TypeScriptWatcher : IDisposable
     private readonly string _outBase;
     private readonly bool _ownsOutput;
     private readonly Dictionary<string, string> _mapped;
+    private readonly Dictionary<string, CompiledSource> _compiled;
     private readonly ILogger _logger;
     private readonly HashSet<string> _pending = new(StringComparer.Ordinal);
     private readonly Lock _lock = new();
@@ -34,11 +36,12 @@ internal sealed class TypeScriptWatcher : IDisposable
     private readonly List<FileSystemWatcher> _watchers = [];
 
     public TypeScriptWatcher(string contentRoot, string sourceRoot, string? outDir, ILogger logger)
-        : this(contentRoot, sourceRoot, string.IsNullOrEmpty(outDir) ? null : Path.GetFullPath(outDir, Path.GetFullPath(contentRoot)), ownsOutput: false, null, logger)
+        : this(contentRoot, sourceRoot, string.IsNullOrEmpty(outDir) ? null : Path.GetFullPath(outDir, Path.GetFullPath(contentRoot)), ownsOutput: false, null, null, logger)
     {
     }
 
-    private TypeScriptWatcher(string contentRoot, string sourceRoot, string? outRoot, bool ownsOutput, IReadOnlyDictionary<string, string>? mapped, ILogger logger)
+    private TypeScriptWatcher(string contentRoot, string sourceRoot, string? outRoot, bool ownsOutput, IReadOnlyDictionary<string, string>? mapped,
+        IReadOnlyDictionary<string, CompiledSource>? compiled, ILogger logger)
     {
         _contentRoot = Path.GetFullPath(contentRoot);
         _sourceRoot = Path.GetFullPath(sourceRoot);
@@ -48,6 +51,9 @@ internal sealed class TypeScriptWatcher : IDisposable
         _mapped = new Dictionary<string, string>(PathComparer);
         foreach (var (source, output) in mapped ?? new Dictionary<string, string>())
             _mapped[Path.GetFullPath(source)] = Path.GetFullPath(output);
+        _compiled = new Dictionary<string, CompiledSource>(PathComparer);
+        foreach (var (source, entry) in compiled ?? new Dictionary<string, CompiledSource>())
+            _compiled[Path.GetFullPath(source)] = entry with { Outputs = [.. entry.Outputs.Select(o => Path.GetFullPath(o))] };
         _logger = logger;
         _timer = new Timer(_ => Flush());
     }
@@ -55,22 +61,25 @@ internal sealed class TypeScriptWatcher : IDisposable
     /// <summary>
     /// Writes where the build does in a web project: each of <paramref name="sources"/> (full source
     /// path to full output path) where it says, any other source under <paramref name="sourceRoot"/>
-    /// under <paramref name="outputRoot"/>, keeping its path below <paramref name="sourceRoot"/>.
+    /// under <paramref name="outputRoot"/>, keeping its path below <paramref name="sourceRoot"/>, and
+    /// each of <paramref name="compiled"/> through its compiler to its outputs.
     /// </summary>
     public static TypeScriptWatcher ForBuildOutput(string contentRoot, string sourceRoot, string outputRoot, ILogger logger,
-        IReadOnlyDictionary<string, string>? sources = null) =>
-        new(contentRoot, sourceRoot, Path.GetFullPath(outputRoot), ownsOutput: true, sources, logger);
+        IReadOnlyDictionary<string, string>? sources = null, IReadOnlyDictionary<string, CompiledSource>? compiled = null) =>
+        new(contentRoot, sourceRoot, Path.GetFullPath(outputRoot), ownsOutput: true, sources, compiled, logger);
 
     public void Start()
     {
         var initial = new HashSet<string>(_mapped.Keys, PathComparer);
+        initial.UnionWith(_compiled.Keys);
         bool hasRoot = Directory.Exists(_sourceRoot);
         if (hasRoot)
             initial.UnionWith(Directory.EnumerateFiles(_sourceRoot, "*", SearchOption.AllDirectories).Where(IsSource));
         foreach (string source in initial)
         {
-            var target = new FileInfo(OutputPath(source));
-            if (!File.Exists(source) ? target.Exists : !target.Exists || target.LastWriteTimeUtc < File.GetLastWriteTimeUtc(source))
+            bool exists = File.Exists(source);
+            var written = exists ? File.GetLastWriteTimeUtc(source) : default;
+            if (Outputs(source).Select(o => new FileInfo(o)).Any(target => !exists ? target.Exists : !target.Exists || target.LastWriteTimeUtc < written))
                 Strip(source, started: false);
         }
 
@@ -78,7 +87,7 @@ internal sealed class TypeScriptWatcher : IDisposable
         // before Linux starts watching it.
         if (hasRoot)
             Watch(_sourceRoot, recursive: true);
-        foreach (string directory in _mapped.Keys.Select(s => Path.GetDirectoryName(s)!).Distinct(PathComparer))
+        foreach (string directory in _mapped.Keys.Concat(_compiled.Keys).Select(s => Path.GetDirectoryName(s)!).Distinct(PathComparer))
         {
             if (Directory.Exists(directory) && !(hasRoot && IsUnder(_sourceRoot, directory)))
                 Watch(directory, recursive: false);
@@ -112,7 +121,7 @@ internal sealed class TypeScriptWatcher : IDisposable
 
     internal bool IsSource(string path)
     {
-        if (_mapped.ContainsKey(path))
+        if (_mapped.ContainsKey(path) || _compiled.ContainsKey(path))
             return true;
         if (!path.EndsWith(".ts", StringComparison.Ordinal) && !path.EndsWith(".mts", StringComparison.Ordinal))
             return false;
@@ -131,6 +140,9 @@ internal sealed class TypeScriptWatcher : IDisposable
         string js = Path.ChangeExtension(source, source.EndsWith(".mts", StringComparison.Ordinal) ? ".mjs" : ".js");
         return _outRoot is null ? js : Path.Combine(_outRoot, Path.GetRelativePath(_outBase, js));
     }
+
+    private string[] Outputs(string source) =>
+        _compiled.TryGetValue(source, out var compiled) ? compiled.Outputs : [OutputPath(source)];
 
     private void Queue(string path)
     {
@@ -175,8 +187,9 @@ internal sealed class TypeScriptWatcher : IDisposable
     }
 
     /// <summary>
-    /// Strips one source. Logs rejections and I/O errors; leaves the old output in place then. A
-    /// missing source removes its output when the watcher owns the output directory.
+    /// Strips one source, or compiles it with its compiler. Logs rejections and I/O errors; leaves
+    /// the old output in place then. A missing source removes its outputs when the watcher owns the
+    /// output directory.
     /// </summary>
     internal void Strip(string sourcePath, bool started)
     {
@@ -191,7 +204,10 @@ internal sealed class TypeScriptWatcher : IDisposable
             catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException)
             {
                 if (_ownsOutput)
-                    Remove(OutputPath(sourcePath));
+                {
+                    foreach (string stale in Outputs(sourcePath))
+                        Remove(stale);
+                }
                 return;
             }
             catch (IOException) when (attempt < 3)
@@ -206,6 +222,12 @@ internal sealed class TypeScriptWatcher : IDisposable
             }
         }
 
+        if (_compiled.TryGetValue(sourcePath, out var compiled))
+        {
+            Compile(name, sourcePath, source, compiled, started);
+            return;
+        }
+
         var output = new ArrayBufferWriter<char>(source.Length);
         var sink = new Sink();
         if (!TypeStripper.Strip(source, output, sink, StripOptions.RewriteRelativeImportExtensions))
@@ -214,10 +236,36 @@ internal sealed class TypeScriptWatcher : IDisposable
                 _logger.LogError("{Diagnostic}", DiagnosticFormatter.Format(name, source, d));
             return;
         }
+        Write(name, OutputPath(sourcePath), output.WrittenSpan, started, "Stripped");
+    }
 
-        string target = OutputPath(sourcePath);
-        byte[] bytes = new byte[Utf8NoBom.GetByteCount(output.WrittenSpan)];
-        Utf8NoBom.GetBytes(output.WrittenSpan, bytes);
+    private void Compile(string name, string sourcePath, string source, CompiledSource compiled, bool started)
+    {
+        IReadOnlyDictionary<string, string>? outputs;
+        try
+        {
+            outputs = compiled.Compiler.Compile(sourcePath, source, compiled.Outputs, _logger);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError("{File}: {Compiler} failed: {Message}", name, compiled.Compiler.Name, e.Message);
+            return;
+        }
+        if (outputs is null)
+            return;
+        foreach (string target in compiled.Outputs)
+        {
+            if (outputs.TryGetValue(target, out string? text))
+                Write(name, target, text, started, "Compiled");
+            else
+                _logger.LogError("{File}: {Compiler} returned no text for {Target}", name, compiled.Compiler.Name, Path.GetRelativePath(_contentRoot, target));
+        }
+    }
+
+    private void Write(string name, string target, ReadOnlySpan<char> text, bool started, string verb)
+    {
+        byte[] bytes = new byte[Utf8NoBom.GetByteCount(text)];
+        Utf8NoBom.GetBytes(text, bytes);
         bool created = !File.Exists(target);
         try
         {
@@ -233,10 +281,10 @@ internal sealed class TypeScriptWatcher : IDisposable
         }
         // The build registers each output as a static web asset; dotnet watch serves no new one until it builds again.
         if (created && started && _ownsOutput)
-            _logger.LogInformation("Stripped {Source} to {Target}; a new file is served after the next build (Ctrl+R in dotnet watch)",
-                name, Path.GetRelativePath(_contentRoot, target));
+            _logger.LogInformation("{Verb} {Source} to {Target}; a new file is served after the next build (Ctrl+R in dotnet watch)",
+                verb, name, Path.GetRelativePath(_contentRoot, target));
         else
-            _logger.LogInformation("Stripped {Source} to {Target}", name, Path.GetRelativePath(_contentRoot, target));
+            _logger.LogInformation("{Verb} {Source} to {Target}", verb, name, Path.GetRelativePath(_contentRoot, target));
     }
 
     private void Remove(string target)
@@ -268,3 +316,6 @@ internal sealed class TypeScriptWatcher : IDisposable
         public void Report(in Diagnostic diagnostic) => Items.Add(diagnostic);
     }
 }
+
+/// <summary>A source of another compiler: its compiler and every output the build gave it.</summary>
+internal sealed record CompiledSource(IPareCompiler Compiler, string[] Outputs);

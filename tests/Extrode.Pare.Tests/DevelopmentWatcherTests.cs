@@ -1,6 +1,7 @@
 using Extrode.Pare.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Extrode.Pare.Tests;
@@ -284,7 +285,7 @@ public sealed class DevelopmentWatcherTests : IDisposable
             sources = sources.Select(s => new { source = P(project + s.Source), output = P(project + s.Output) }),
         }));
 
-    private async Task RunDevelopment(Func<Task> whileRunning)
+    private async Task RunDevelopment(Func<Task> whileRunning, Action<IServiceCollection>? services = null)
     {
         var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions
         {
@@ -295,6 +296,7 @@ public sealed class DevelopmentWatcherTests : IDisposable
         builder.Logging.ClearProviders();
         builder.Logging.AddProvider(new ListLoggerProvider(_log));
         builder.WebHost.UseUrls("http://127.0.0.1:0");
+        services?.Invoke(builder.Services);
         builder.AddPareDevelopment(o => o.DevelopmentMapPath = P("bin/Extrode.Pare.development.json"));
         await using var app = builder.Build();
         await app.StartAsync(TestContext.Current.CancellationToken);
@@ -360,6 +362,155 @@ public sealed class DevelopmentWatcherTests : IDisposable
         await app.StartAsync(TestContext.Current.CancellationToken);
         Assert.Equal(strips, File.Exists(P("wwwroot/a.js")));
         await app.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    // Each output gets its extension and the source upper-cased; a source starting "bad" fails.
+    private sealed class UpperCompiler(string name = "upper") : IPareCompiler
+    {
+        private int _calls;
+        public int Calls => Volatile.Read(ref _calls);
+        public string Name => name;
+
+        public IReadOnlyDictionary<string, string>? Compile(string sourcePath, string source, IReadOnlyList<string> outputPaths, ILogger logger)
+        {
+            Interlocked.Increment(ref _calls);
+            if (source.StartsWith("bad", StringComparison.Ordinal))
+            {
+                logger.LogError("{Source}: bad source", sourcePath);
+                return null;
+            }
+            return outputPaths.ToDictionary(o => o, o => Path.GetExtension(o) + ":" + source.ToUpperInvariant());
+        }
+    }
+
+    private TypeScriptWatcher CompiledWatcher(IPareCompiler compiler, params (string Source, string[] Outputs)[] sources) =>
+        TypeScriptWatcher.ForBuildOutput(_dir.FullName, P("wwwroot"), P("obj/pare"), _log, null,
+            sources.ToDictionary(s => P(s.Source), s => new CompiledSource(compiler, [.. s.Outputs.Select(P)])));
+
+    [Fact]
+    public void Compiled_sources_compile_to_every_output_on_start_and_again_on_save()
+    {
+        Put("Components/App.up", "a");
+        using var watcher = CompiledWatcher(new UpperCompiler(), ("Components/App.up", ["obj/pare/App.up.js", "obj/pare/App.up.css"]));
+        watcher.Start();
+        Assert.Equal(".js:A", File.ReadAllText(P("obj/pare/App.up.js")));
+        Assert.Equal(".css:A", File.ReadAllText(P("obj/pare/App.up.css")));
+        Assert.Single(_log.Lines, l => l.Contains("Compiled " + Path.Combine("Components", "App.up")) && l.EndsWith("App.up.css", StringComparison.Ordinal));
+
+        Put("Components/App.up", "b");
+        WaitFor(() => ReadOrNull(P("obj/pare/App.up.js")) == ".js:B" && ReadOrNull(P("obj/pare/App.up.css")) == ".css:B");
+    }
+
+    [Fact]
+    public void Compiled_sources_that_are_up_to_date_are_not_compiled_and_unchanged_text_is_not_written()
+    {
+        Put("App.up", "a");
+        var compiler = new UpperCompiler();
+        using (var first = CompiledWatcher(compiler, ("App.up", ["obj/pare/App.up.js"])))
+            first.Start();
+        Assert.Equal(1, compiler.Calls);
+
+        using var watcher = CompiledWatcher(compiler, ("App.up", ["obj/pare/App.up.js"]));
+        watcher.Start();
+        Assert.Equal(1, compiler.Calls);
+        int lines = _log.Lines.Length;
+        watcher.Strip(P("App.up"), started: true);
+        Assert.Equal(2, compiler.Calls);
+        Assert.Equal(lines, _log.Lines.Length);
+    }
+
+    [Fact]
+    public void A_failed_compile_leaves_the_old_outputs()
+    {
+        Put("App.up", "a");
+        using var watcher = CompiledWatcher(new UpperCompiler(), ("App.up", ["obj/pare/App.up.js"]));
+        watcher.Start();
+
+        Put("App.up", "bad");
+        WaitFor(() => _log.Lines.Any(l => l.EndsWith("bad source", StringComparison.Ordinal)));
+        Assert.Equal(".js:A", File.ReadAllText(P("obj/pare/App.up.js")));
+    }
+
+    [Fact]
+    public void A_compiler_that_returns_no_text_for_an_output_is_an_error()
+    {
+        Put("App.up", "a");
+        var compiler = new OneOutputCompiler();
+        using var watcher = CompiledWatcher(compiler, ("App.up", ["obj/pare/App.up.js", "obj/pare/App.up.css"]));
+        watcher.Start();
+        Assert.Equal("a", File.ReadAllText(P("obj/pare/App.up.js")));
+        Assert.False(File.Exists(P("obj/pare/App.up.css")));
+        Assert.Single(_log.Lines, l => l.Contains("returned no text for") && l.EndsWith("App.up.css", StringComparison.Ordinal));
+    }
+
+    private sealed class OneOutputCompiler : IPareCompiler
+    {
+        public string Name => "one";
+        public IReadOnlyDictionary<string, string>? Compile(string sourcePath, string source, IReadOnlyList<string> outputPaths, ILogger logger) =>
+            new Dictionary<string, string> { [outputPaths[0]] = source };
+    }
+
+    [Fact]
+    public void Deleting_a_compiled_source_deletes_all_its_outputs()
+    {
+        Put("Components/A.up", "a");
+        Put("Components/B.up", "b");
+        using var watcher = CompiledWatcher(new UpperCompiler(),
+            ("Components/A.up", ["obj/pare/A.up.js", "obj/pare/A.up.css"]), ("Components/B.up", ["obj/pare/B.up.js"]));
+        watcher.Start();
+
+        File.Delete(P("Components/A.up"));
+        WaitFor(() => !File.Exists(P("obj/pare/A.up.js")) && !File.Exists(P("obj/pare/A.up.css")));
+        Assert.Equal(["B.up.js"], Outputs());
+    }
+
+    private void PutCompiledMap(string relative, params (string Source, string Output, string? Compiler)[] sources) =>
+        Put(relative, System.Text.Json.JsonSerializer.Serialize(new
+        {
+            sourceRoot = P("wwwroot") + Path.DirectorySeparatorChar,
+            outputRoot = P("obj/pare") + Path.DirectorySeparatorChar,
+            sources = sources.Select(s => s.Compiler is null
+                ? (object)new { source = P(s.Source), output = P(s.Output) }
+                : new { source = P(s.Source), output = P(s.Output), compiler = s.Compiler }),
+        }));
+
+    [Fact]
+    public async Task AddPareDevelopment_runs_the_registered_compiler_for_its_sources_in_the_map()
+    {
+        Put("wwwroot/a.ts", "let a: T;\n");
+        Put("Components/App.up", "a");
+        Put("Components/Other.nope", "n");
+        PutCompiledMap("bin/Extrode.Pare.development.json",
+            ("Components/App.up", "obj/pare/App.up.js", "upper"), ("Components/App.up", "obj/pare/App.up.css", "upper"),
+            ("Components/Other.nope", "obj/pare/Other.nope.js", "nope"));
+        var compiler = new UpperCompiler();
+
+        await RunDevelopment(async () =>
+        {
+            Assert.Equal("let a   ;\n", File.ReadAllText(P("obj/pare/a.js")));
+            Assert.Equal(".js:A", File.ReadAllText(P("obj/pare/App.up.js")));
+            Assert.Equal(".css:A", File.ReadAllText(P("obj/pare/App.up.css")));
+            Assert.False(File.Exists(P("obj/pare/Other.nope.js")));
+            Assert.Single(_log.Lines, l => l.Contains("no IPareCompiler named nope") && l.Contains(Path.Combine("Components", "Other.nope")));
+
+            Put("Components/App.up", "b");
+            WaitFor(() => ReadOrNull(P("obj/pare/App.up.js")) == ".js:B");
+            await Task.CompletedTask;
+        }, s => s.AddSingleton<IPareCompiler>(compiler));
+    }
+
+    [Fact]
+    public void AddPareDevelopment_called_twice_adds_one_service()
+    {
+        var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions
+        {
+            ContentRootPath = _dir.FullName,
+            EnvironmentName = "Development",
+        });
+        builder.AddPareDevelopment();
+        int once = builder.Services.Count;
+        builder.AddPareDevelopment();
+        Assert.Equal(once, builder.Services.Count);
     }
 
     private sealed class ListLogger : ILogger
