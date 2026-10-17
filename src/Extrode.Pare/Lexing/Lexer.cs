@@ -315,59 +315,63 @@ internal ref struct Lexer
 
     private void SkipTrivia()
     {
-        while (_s.Pos < _src.Length)
+        var src = _src;
+        int p = _s.Pos;
+        bool lineBreak = false;
+        while ((uint)p < (uint)src.Length)
         {
-            char c = _src[_s.Pos];
+            char c = src[p];
             switch (c)
             {
+                case ' ':
+                case '\t':
+                    p++;
+                    continue;
                 case '\n':
                 case '\r':
                 case '\u2028':
                 case '\u2029':
-                    _s.Flags |= TokenFlags.PrecededByLineBreak;
-                    _s.Pos++;
-                    continue;
-                case ' ':
-                case '\t':
-                    _s.Pos++;
+                    lineBreak = true;
+                    p++;
                     continue;
                 case '/':
-                    if (Peek(1) == '/')
+                    if (p + 1 < src.Length && src[p + 1] == '/')
                     {
-                        SkipToLineEnd(_s.Pos + 2);
+                        int i = src[(p + 2)..].IndexOfAny(LineTerminators);
+                        p = i < 0 ? src.Length : p + 2 + i;
                         continue;
                     }
-                    if (Peek(1) == '*')
+                    if (p + 1 < src.Length && src[p + 1] == '*')
                     {
+                        _s.Pos = p;
                         SkipBlockComment();
+                        p = _s.Pos;
                         continue;
                     }
-                    return;
+                    break;
                 case '#':
                     // Hashbang, only as the first two characters of the file.
-                    if (_s.Pos == 0 && Peek(1) == '!')
+                    if (p == 0 && src.Length > 1 && src[1] == '!')
                     {
-                        SkipToLineEnd(2);
+                        int i = src[2..].IndexOfAny(LineTerminators);
+                        p = i < 0 ? src.Length : 2 + i;
                         continue;
                     }
-                    return;
+                    break;
                 default:
-                    if (c > ' ' && c < '\u0080')
-                        return;
-                    if (CharClass.IsWhiteSpace(c))
+                    // \v, \f, NBSP, BOM and Unicode spaces.
+                    if ((c < ' ' || c >= '\u0080') && CharClass.IsWhiteSpace(c))
                     {
-                        _s.Pos++;
+                        p++;
                         continue;
                     }
-                    return;
+                    break;
             }
+            break;
         }
-    }
-
-    private void SkipToLineEnd(int from)
-    {
-        int i = _src[from..].IndexOfAny(LineTerminators);
-        _s.Pos = i < 0 ? _src.Length : from + i;
+        _s.Pos = p;
+        if (lineBreak)
+            _s.Flags |= TokenFlags.PrecededByLineBreak;
     }
 
     private void SkipBlockComment()
