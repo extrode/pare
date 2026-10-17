@@ -17,6 +17,21 @@ public static class TypeStripper
     public static bool Strip(ReadOnlySpan<char> source, IBufferWriter<char> output, IDiagnosticSink diagnostics) =>
         Strip(source, output, diagnostics, StripOptions.None);
 
+    /// <summary>
+    /// Returns the stripped form of <paramref name="source"/>, or null when the source has a syntax
+    /// error or non-erasable syntax; <paramref name="diagnostics"/> holds each problem in source
+    /// order. Allocates the result; the <see cref="IBufferWriter{T}"/> overload does not.
+    /// </summary>
+    public static string? Strip(string source, out IReadOnlyList<Diagnostic> diagnostics)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var output = new ArrayBufferWriter<char>(Math.Max(source.Length, 1));
+        var sink = new ListSink();
+        bool ok = Strip(source, output, sink);
+        diagnostics = sink.Items;
+        return ok ? output.WrittenSpan.ToString() : null;
+    }
+
     /// <inheritdoc cref="Strip(ReadOnlySpan{char}, IBufferWriter{char}, IDiagnosticSink)"/>
     /// <param name="options">Optional rewrites; see <see cref="StripOptions"/>.</param>
     public static bool Strip(ReadOnlySpan<char> source, IBufferWriter<char> output, IDiagnosticSink diagnostics,
@@ -56,5 +71,11 @@ public static class TypeStripper
         {
             parser.Dispose();
         }
+    }
+
+    private sealed class ListSink : IDiagnosticSink
+    {
+        public List<Diagnostic> Items { get; } = [];
+        public void Report(in Diagnostic diagnostic) => Items.Add(diagnostic);
     }
 }

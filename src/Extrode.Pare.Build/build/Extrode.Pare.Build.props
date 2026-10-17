@@ -5,6 +5,7 @@
     <EnablePareDefaultItems Condition="'$(EnablePareDefaultItems)' == ''">true</EnablePareDefaultItems>
     <PareTypeCheck Condition="'$(PareTypeCheck)' == ''">false</PareTypeCheck>
     <PareTscPath Condition="'$(PareTscPath)' == ''">tsc</PareTscPath>
+    <PareEmbed Condition="'$(PareEmbed)' == ''">false</PareEmbed>
   </PropertyGroup>
 
   <!-- Override with <TypeScriptSource Remove="..." /> or EnablePareDefaultItems=false. -->
