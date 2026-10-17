@@ -70,7 +70,7 @@ PARE_API void pare_free(pare_result *result);
 PARE_API const char *pare_message(int32_t code);
 PARE_API const char *pare_hint(int32_t code);
 
-PARE_API const char *pare_version(void);   /* e.g. "0.5.0" */
+PARE_API const char *pare_version(void);   /* e.g. "0.6.0" */
 PARE_API uint32_t pare_abi_version(void);  /* PARE_ABI_VERSION the library was built with */
 
 #ifdef __cplusplus
