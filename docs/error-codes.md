@@ -23,10 +23,11 @@ reported in one run.
 | [PARE105](#pare105) | error | angle-bracket type assertion is not supported |
 | [PARE106](#pare106) | error | parameter decorators need legacy experimentalDecorators |
 | [PARE107](#pare107) | error | a type-only import cannot have both a default and named bindings |
-| [PARE200](#pare200) | warning (MSBuild) | not served: the build now writes this file's TypeScript output under obj/ and serves that. Delete it. |
-| [PARE201](#pare201) | error (MSBuild) | two TypeScript sources map to one URL |
+| [PARE200](#pare200) | warning (MSBuild) | not served: the build now writes this file's output under obj/ and serves that. Delete it. |
+| [PARE201](#pare201) | error (MSBuild) | two sources map to one URL |
 | [PARE202](#pare202) | warning (MSBuild) | not served: outside wwwroot with no PareServeAt |
 | [PARE203](#pare203) | error (MSBuild) | PareServeAt is not a URL folder |
+| [PARE204](#pare204) | error (MSBuild) | PareCompileSource needs PareCompiler and PareOutputExtension |
 
 Errors print as `file:line:col: error PARE100: message (hint)` from the CLI and the hot-reload
 watcher, and as `file(line,col): error PARE100: message (hint)` from MSBuild.
@@ -210,35 +211,38 @@ import type { Options } from "./config.ts";
 
 ## PARE200
 
-`warning PARE200: not served: the build now writes this file's TypeScript output under obj/ and serves that. Delete it.`
+`warning PARE200: not served: the build now writes this file's output under obj/ and serves that. Delete it.`
 
 MSBuild package only, for web projects whose output goes under `obj/` (the default since 0.3). A
 `foo.js` sits next to `foo.ts` in `wwwroot`: left there by Pare 0.2, which wrote output next to
 the source, or written by hand. The build serves and publishes the stripped `foo.ts` from `obj/`
-and leaves `foo.js` out, so the two cannot conflict. The build still succeeds.
+and leaves `foo.js` out, so the two cannot conflict. The same holds for another compiler's output
+(`App.svelte.js` next to `App.svelte`). The build still succeeds.
 
 Delete the `foo.js` files the warning names, and any `.gitignore` rules added for them. If a
 hand-written `foo.js` is the one you want served, rename it or the `.ts`.
 
 ## PARE201
 
-`error PARE201: two TypeScript sources map to one URL, js/app.js: wwwroot/js/app.ts, Scripts/app.ts. Serve one under a different PareServeAt folder, or remove one from TypeScriptSource.`
+`error PARE201: two sources map to one URL, js/app.js: wwwroot/js/app.ts, Scripts/app.ts. Serve one under a different PareServeAt folder, or remove one from its item.`
 
 MSBuild package only, for web projects whose output goes under `obj/`. Each source's output is
 served at a URL: its path below `wwwroot` by default, or below the folder its `PareServeAt` names.
-Two sources ended up with the same one, which would also make them write the same file. Paths
+Two sources ended up with the same one, which would also make them write the same file. The
+sources of another compiler (`PareCompileSource`) count too, so a `.svelte` and a `.ts` cannot
+share a URL. Paths
 that differ only in case count as the same, as they do on macOS and Windows file systems. The
 build stops before stripping anything.
 
 Give one of the named sources a different `PareServeAt`, or exclude one of them from
-`TypeScriptSource` (`<TypeScriptSource Remove="Scripts/app.ts" />`).
+`TypeScriptSource` (`<TypeScriptSource Remove="Scripts/app.ts" />`) or `PareCompileSource`.
 
 ## PARE202
 
-`warning PARE202: not served: outside wwwroot with no PareServeAt, so the .js goes next to the source and is not a static web asset. Add PareServeAt="js" to the TypeScriptSource item to serve it under js/, or add PARE202 to NoWarn to keep it as is.`
+`warning PARE202: not served: outside wwwroot with no PareServeAt, so the .js goes next to the source and is not a static web asset. Add PareServeAt="js" to its item to serve it under js/, or add PARE202 to NoWarn to keep it as is.`
 
-MSBuild package only, for web projects whose output goes under `obj/`. A `TypeScriptSource` item
-outside `wwwroot`, such as `Scripts/app.ts`, has no `PareServeAt`. Its output is written next to
+MSBuild package only, for web projects whose output goes under `obj/`. A `TypeScriptSource` (or
+`PareCompileSource`) item outside `wwwroot`, such as `Scripts/app.ts`, has no `PareServeAt`. Its output is written next to
 it, as `Scripts/app.js`, which the web app does not serve or publish. The build still succeeds.
 Not reported for `PareOutDir`, outside web projects, or for a `.razor.ts` or `.cshtml.ts`, whose
 output beside the component the SDK serves itself.
@@ -263,3 +267,16 @@ build stops before stripping anything.
 
 Use a folder: `PareServeAt="js"`, or `PareServeAt="/"` to serve at the root of the project's
 static web assets.
+
+## PARE204
+
+`error PARE204: PareCompileSource needs PareCompiler (the compiler's name: letters, digits, . _ -) and PareOutputExtension (the output's extension, a dot and a name such as .svelte.js); got PareCompiler="husk" PareOutputExtension="svelte.js".`
+
+MSBuild package only. A package that compiles another language to JavaScript (see "Other
+compilers" in the README) declared a `PareCompileSource` item without a `PareCompiler` made of letters, digits, `.`, `_`
+and `-`, or without a `PareOutputExtension` that starts with a dot and holds no folder or quote. The build stops before compiling
+anything. This is a fault in that package's `.props` or in the project file that added the item:
+
+```xml
+<PareCompileSource Include="Components/**/*.svelte" PareCompiler="husk" PareOutputExtension=".svelte.js" />
+```

@@ -256,6 +256,60 @@ To embed or copy the files your own way, leave `PareEmbed` off and use `@(PareOu
 `$(IntermediateOutputPath)` is still empty where a project file sets its properties, so
 `PareOutDir` cannot use it; `$(BaseIntermediateOutputPath)` (`obj/`) is set by then.
 
+### Other compilers
+
+Another package that compiles a language to JavaScript (Husk, for `.svelte`) can hand its sources
+to Pare and get the same treatment as a `.ts`: output under `obj/`, a static web asset at the same
+URL rules (`wwwroot` path or `PareServeAt`), compressed and published, embedded under `PareEmbed`,
+deleted with its source, re-run on save by `AddPareDevelopment`. It declares the sources and its
+own target, usually in its package's `.props` and `.targets`:
+
+```xml
+<ItemGroup>
+  <PareCompileSource Include="Components/**/*.svelte" PareCompiler="husk"
+                     PareOutputExtension=".svelte.js" PareServeAt="/" />
+</ItemGroup>
+<PropertyGroup>
+  <PareCompileDependsOn>$(PareCompileDependsOn);HuskCompile</PareCompileDependsOn>
+</PropertyGroup>
+<Target Name="HuskCompile" Inputs="@(PareCompileSource)" Outputs="@(PareCompileSource->'%(PareOutputPath)')">
+  <!-- write each source's output to %(PareOutputPath) -->
+</Target>
+```
+
+| Metadata | |
+|---|---|
+| `PareCompiler` | required: the compiler's name, the same as its `IPareCompiler.Name` |
+| `PareOutputExtension` | required: the output's name is the source's name without its extension, plus this (`App.svelte` + `.svelte.js` = `App.svelte.js`) |
+| `PareServeAt` | as for `TypeScriptSource` |
+
+- Targets in `PareCompileDependsOn` run inside `PareStripTypeScript`, after the strip and before
+  the outputs are registered. There each `@(PareCompileSource)` has `PareOutputPath` (where to
+  write; relative paths are below the project) and `PareRelativePath` (its URL or resource name).
+  Skipping up-to-date sources is the target's job (`Inputs`/`Outputs`).
+- Two outputs from one source (a component's `.js` and `.css`) are two items with the same
+  `Include` and different extensions. Every file the target writes under `obj/` must be one of
+  these outputs: the build deletes any other file there as a deleted source's output (a
+  `.js.map` it was not told about, say).
+- The sources leave `Content`, so a `.svelte` under `wwwroot` is not published. They are `Watch`
+  items. `@(PareOutput)` lists their outputs with `%(PareCompiler)`.
+- `error PARE204` for a missing `PareCompiler` (letters, digits, `.`, `_`, `-`) or `PareOutputExtension`. PARE201, PARE202 and
+  PARE203 apply as for TypeScript, across both kinds of source.
+
+On save in Development, `AddPareDevelopment` hands each such source to the `IPareCompiler` with
+its name, registered in DI:
+
+```csharp
+builder.Services.AddSingleton<IPareCompiler, SvelteCompiler>();
+builder.AddPareDevelopment();   // a second call, from another package's setup, adds no watcher; its options apply too
+```
+
+`CompileAsync(sourcePath, source, outputPaths, logger, cancellationToken)` returns the text of each
+output, keyed by path, or null after logging its errors (the old outputs stay). Pare calls each
+compiler one source at a time, writes what changed and deletes the outputs of a deleted source;
+sources out of date at start are compiled before the app serves. A source whose compiler is not
+registered gets a warning at start and is not compiled.
+
 ### Type checking in CI without npm
 
 `PareTypeCheck=true` runs TypeScript 7's native `tsc --noEmit -p tsconfig.json` before the strip;

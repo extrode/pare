@@ -268,7 +268,7 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
         Assert.NotEqual(0, exit);
         Assert.DoesNotContain("MSB4018", output);
         string error = Assert.Single(output.Split('\n').Distinct(), line => line.Contains("error PARE201", StringComparison.Ordinal));
-        Assert.Contains($"app.csproj : error PARE201: two TypeScript sources map to one URL, {url}: ", error);
+        Assert.Contains($"app.csproj : error PARE201: two sources map to one URL, {url}: ", error);
         Assert.Contains("Serve one under a different PareServeAt folder", error);
         Assert.Contains(first.Replace('/', Path.DirectorySeparatorChar), error.Replace('/', Path.DirectorySeparatorChar));
         Assert.Contains(second.Replace('/', Path.DirectorySeparatorChar), error.Replace('/', Path.DirectorySeparatorChar));
@@ -973,9 +973,10 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
     [Fact]
     public void Sources_are_watch_items()
     {
-        Project(items: """<TypeScriptSource Include="src/a.ts" />""");
+        Project(items: """<TypeScriptSource Include="src/a.ts" />""" + FakeSources("src/*.fake"));
         Put("wwwroot/app.ts", "let a: T;");
         Put("src/a.ts", "let a: T;");
+        Put("src/b.fake", "b;");
 
         var (exit, output) = Run("msbuild", "-nologo", "-getItem:Watch");
 
@@ -984,6 +985,193 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
         string items = output.Replace(@"\\", "/");
         Assert.Contains("wwwroot/app.ts", items);
         Assert.Contains("src/a.ts", items);
+        Assert.Contains("src/b.fake", items);
+    }
+
+    // Another compile-to-JavaScript step: copies each PareCompileSource to the path Pare gave it.
+    private const string FakeCompiler = """
+        <PropertyGroup>
+          <PareCompileDependsOn>$(PareCompileDependsOn);FakeCompile</PareCompileDependsOn>
+        </PropertyGroup>
+        <Target Name="FakeCompile" Inputs="@(PareCompileSource)" Outputs="@(PareCompileSource->'%(PareOutputPath)')">
+          <Copy SourceFiles="@(PareCompileSource)" DestinationFiles="@(PareCompileSource->'%(PareOutputPath)')" />
+        </Target>
+        """;
+
+    private static string FakeSources(string include, string extension = ".fake.js", string serveAt = "") =>
+        $"""<PareCompileSource Include="{include}" PareCompiler="fake" PareOutputExtension="{extension}" {(serveAt == "" ? "" : $"PareServeAt=\"{serveAt}\"")} />""";
+
+    [Fact]
+    public void Compiled_sources_are_served_and_published_and_their_sources_are_not()
+    {
+        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", targets: AssetProbe + FakeCompiler, projectTargets: OutputProbe,
+            items: FakeSources("Components/**/*.fake", serveAt: "/") + FakeSources("Components/**/*.fake", ".fake.css", "/") + FakeSources("wwwroot/**/*.fake"));
+        Put("Components/Pages/App.fake", "export const app = 1;\n");
+        Put("wwwroot/js/page.fake", "export const page = 1;\n");
+
+        for (int build = 0; build < 2; build++)
+        {
+            var (exit, output) = Build();
+            Assert.True(exit == 0, output);
+            var assets = Assets(output);
+            Assert.EndsWith(Tail(ObjOut + "Pages/App.fake.js"), Assert.Single(assets, a => a.StartsWith("Pages/App", StringComparison.Ordinal) && a.Contains(".js ", StringComparison.Ordinal)));
+            Assert.EndsWith(Tail(ObjOut + "Pages/App.fake.css"), Assert.Single(assets, a => a.StartsWith("Pages/App", StringComparison.Ordinal) && a.Contains(".css ", StringComparison.Ordinal)));
+            Assert.EndsWith(Tail(ObjOut + "js/page.fake.js"), Assert.Single(assets, a => a.StartsWith("js/page", StringComparison.Ordinal)));
+            Assert.DoesNotContain(assets, a => a.EndsWith(".fake", StringComparison.Ordinal) || a.Contains(".fake ", StringComparison.Ordinal));
+            Assert.Contains("Pages/App.fake.js | ", Outputs(output).Single(o => o.StartsWith("Pages/App.fake.js", StringComparison.Ordinal)));
+        }
+        Assert.Equal("export const app = 1;\n", File.ReadAllText(P(ObjOut + "Pages/App.fake.js")));
+        Assert.False(File.Exists(P("Components/Pages/App.fake.js")));
+
+        using (var map = System.Text.Json.JsonDocument.Parse(File.ReadAllText(P("bin/Debug/net10.0/Extrode.Pare.development.json"))))
+        {
+            // Not in sources, which Pare 0.5's AddPareDevelopment strips.
+            Assert.Empty(map.RootElement.GetProperty("sources").EnumerateArray());
+            var sources = map.RootElement.GetProperty("compiled").EnumerateArray()
+                .Select(e => (Source: e.GetProperty("source").GetString()!, Output: e.GetProperty("output").GetString()!,
+                    Compiler: e.TryGetProperty("compiler", out var c) ? c.GetString() : null)).ToList();
+            Assert.Equal(3, sources.Count);
+            Assert.All(sources, e => Assert.Equal("fake", e.Compiler));
+            Assert.Contains(sources, e => e.Source.EndsWith(Tail("Components/Pages/App.fake"), StringComparison.Ordinal) && e.Output.EndsWith(Tail(ObjOut + "Pages/App.fake.css"), StringComparison.Ordinal));
+        }
+
+        var (pubExit, pubOutput) = Run("publish", "-nologo", "-nodeReuse:false", "--disable-build-servers", "-clp:NoSummary", "-o", P("pub"));
+        Assert.True(pubExit == 0, pubOutput);
+        string web = P("pub/wwwroot");
+        Assert.Equal(["Pages/App.fake.css", "Pages/App.fake.css.br", "Pages/App.fake.css.gz", "Pages/App.fake.js", "Pages/App.fake.js.br", "Pages/App.fake.js.gz",
+            "js/page.fake.js", "js/page.fake.js.br", "js/page.fake.js.gz"],
+            Directory.EnumerateFiles(web, "*", SearchOption.AllDirectories).Select(f => Path.GetRelativePath(web, f).Replace('\\', '/')).Order(StringComparer.Ordinal));
+        Assert.Empty(Directory.EnumerateFiles(P("pub"), "*.fake", SearchOption.AllDirectories));
+    }
+
+    [Theory]
+    [InlineData("Microsoft.NET.Sdk", "", "src/js/a.fake", "", "src/js/a.fake.js", "src/js/a.fake.js")]
+    [InlineData("Microsoft.NET.Sdk", "<PareOutDir>gen</PareOutDir>", "src/js/a.fake", "", "src/js/a.fake.js", "gen/src/js/a.fake.js")]
+    [InlineData("Microsoft.NET.Sdk.Web", "", "wwwroot/js/a.fake", "", "js/a.fake.js", ObjOut + "js/a.fake.js")]
+    [InlineData("Microsoft.NET.Sdk.Web", "", "Scripts/a.fake", "/static/", "static/a.fake.js", ObjOut + "static/a.fake.js")]
+    [InlineData("Microsoft.NET.Sdk", "<PareEmbed>true</PareEmbed>", "src/js/a.fake", "", "src/js/a.fake.js", ObjOut + "src/js/a.fake.js")]
+    public void Compiled_outputs_go_where_a_stripped_source_would(string sdk, string properties, string source, string serveAt, string relativePath, string path)
+    {
+        Project($"<OutputType>Library</OutputType><EnablePareDefaultItems>false</EnablePareDefaultItems>{properties}", items: FakeSources(source, serveAt: serveAt),
+            sdk: sdk, projectTargets: OutputProbe, targets: FakeCompiler);
+        Put(source, "a;");
+
+        var (exit, output) = Build();
+
+        Assert.True(exit == 0, output);
+        var line = Assert.Single(Outputs(output));
+        Assert.StartsWith(relativePath + " | ", line);
+        Assert.Contains(Tail(source).Replace('\\', '/') + " | ", line);
+        Assert.EndsWith(Tail(path).Replace('\\', '/'), line);
+        Assert.Equal("a;", File.ReadAllText(P(path)));
+        if (properties.Contains("PareEmbed", StringComparison.Ordinal))
+            Assert.Equal("a;", Assert.Single(Resources("bin/Debug/net10.0/app.dll")).Value);
+    }
+
+    [Theory]
+    [InlineData("", ".js", "error PARE204")]
+    [InlineData("fake", "", "error PARE204")]
+    [InlineData("fake", "js", "error PARE204")]
+    [InlineData("fake", ".x/y.js", "error PARE204")]
+    [InlineData("fa&quot;ke", ".js", "error PARE204")]
+    [InlineData("fa ke", ".js", "error PARE204")]
+    [InlineData("fake", ".x&quot;.js", "error PARE204")]
+    public void A_compile_source_without_a_compiler_or_an_extension_fails_the_build(string compiler, string extension, string expected)
+    {
+        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", targets: FakeCompiler,
+            items: $"""<PareCompileSource Include="wwwroot/a.fake" PareCompiler="{compiler}" PareOutputExtension="{extension}" />""");
+        Put("wwwroot/a.fake", "a;");
+
+        var (exit, output) = Build();
+
+        Assert.NotEqual(0, exit);
+        string error = Assert.Single(output.Split('\n').Distinct(), l => l.Contains(expected, StringComparison.Ordinal));
+        Assert.Contains(Path.Combine("wwwroot", "a.fake") + " : " + expected + ": PareCompileSource needs PareCompiler", error);
+    }
+
+    [Fact]
+    public void A_compiled_and_a_stripped_source_at_one_url_fail_the_build()
+    {
+        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", targets: FakeCompiler, items: FakeSources("Scripts/*.fake", ".js", "js"));
+        Put("wwwroot/js/a.ts", "let a: T;");
+        Put("Scripts/a.fake", "a;");
+
+        var (exit, output) = Build();
+
+        Assert.NotEqual(0, exit);
+        string error = Assert.Single(output.Split('\n').Distinct(), line => line.Contains("error PARE201", StringComparison.Ordinal));
+        Assert.Contains("two sources map to one URL, js/a.js: ", error);
+        Assert.Contains(Path.Combine("Scripts", "a.fake"), error.Replace('/', Path.DirectorySeparatorChar));
+    }
+
+    [Fact]
+    public void An_unserved_compiled_source_outside_wwwroot_is_reported()
+    {
+        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", targets: FakeCompiler, items: FakeSources("Scripts/*.fake"));
+        Put("Scripts/a.fake", "a;");
+
+        var (exit, output) = Build();
+
+        Assert.True(exit == 0, output);
+        Assert.Contains(Path.Combine("Scripts", "a.fake") + " : warning PARE202: ", output);
+        Assert.Equal("a;", File.ReadAllText(P("Scripts/a.fake.js")));
+    }
+
+    [Fact]
+    public void Deleting_a_compiled_source_removes_its_outputs_and_keeps_the_others()
+    {
+        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", targets: AssetProbe + FakeCompiler,
+            items: FakeSources("wwwroot/**/*.fake") + FakeSources("wwwroot/**/*.fake", ".fake.css"));
+        Put("wwwroot/a.fake", "a;");
+        Put("wwwroot/b.fake", "b;");
+        Put("wwwroot/c.ts", "let c: T;");
+        Assert.Equal(0, Build().Exit);
+        Assert.True(File.Exists(P(ObjOut + "a.fake.css")));
+
+        File.Delete(P("wwwroot/a.fake"));
+        var (exit, output) = Build();
+        Assert.True(exit == 0, output);
+        string obj = P(ObjOut);
+        Assert.Equal(["b.fake.css", "b.fake.js", "c.js"], Directory.EnumerateFiles(obj).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        Assert.DoesNotContain(Assets(output), a => a.StartsWith("a.", StringComparison.Ordinal) || a.StartsWith("a#", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [MemberData(nameof(Browsers))]
+    public async Task A_compiled_module_importing_a_stripped_one_runs_in_a_browser(string engine)
+    {
+        Project("", sdk: "Microsoft.NET.Sdk.Web", targets: FakeCompiler, items: FakeSources("Components/*.fake", serveAt: "/"));
+        Put("Program.cs", """
+            using Microsoft.AspNetCore.Builder;
+            var app = WebApplication.CreateBuilder(args).Build();
+            app.MapStaticAssets();
+            app.Run();
+            """);
+        Put("wwwroot/index.html", "<!doctype html><title>t</title><script type=\"module\" src=\"/main.fake.js\"></script>\n");
+        Put("Components/main.fake", "import { twice } from \"./js/lib.js\";\ndocument.body.dataset.result = String(twice(21));\n");
+        Put("wwwroot/js/lib.ts", "export function twice(n: number): number { return n * 2; }\n");
+        var (exit, output) = Build();
+        Assert.True(exit == 0, output);
+
+        var (server, http) = await Serve(P("bin/Debug/net10.0/app.dll"), "Development");
+        try
+        {
+            Assert.Equal(0, Microsoft.Playwright.Program.Main(engine == "chromium" ? ["install", "chromium", "--only-shell"] : ["install", engine]));
+            using var playwright = await Microsoft.Playwright.Playwright.CreateAsync();
+            await using var browser = await playwright[engine].LaunchAsync();
+            var page = await browser.NewPageAsync();
+            var errors = new List<string>();
+            page.PageError += (_, e) => errors.Add(e);
+            page.Response += (_, r) => { if (r.Status >= 400) errors.Add($"{r.Status} {r.Url}"); };
+            await page.GotoAsync(new Uri(http.BaseAddress!, "/index.html").ToString());
+            await Microsoft.Playwright.Assertions.Expect(page.Locator("body")).ToHaveAttributeAsync("data-result", "42");
+            Assert.Empty(errors);
+        }
+        finally
+        {
+            Stop(server);
+            http.Dispose();
+        }
     }
 
     [Fact]

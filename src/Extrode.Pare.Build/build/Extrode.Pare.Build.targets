@@ -18,8 +18,16 @@
                             $(IntermediateOutputPath)pare/ (or PareOutDir) at its path below the
                             project, named $(PareEmbedPrefix) + that path; never Content or a
                             static web asset
+       Another compile-to-JavaScript step (another package) declares its sources as PareCompileSource
+       items with PareCompiler (its name) and PareOutputExtension (`.svelte.js`: the output is
+       %(Filename) + it), PareServeAt optional; a second output of one source is a second item. They
+       are placed, served, embedded, published, deleted and checked (PARE201-204) as TypeScript
+       sources are. Every file the compiler writes under obj/ is one of these outputs: Pare deletes
+       any other file there as stale. Its targets go in PareCompileDependsOn and run after the strip, where each
+       @(PareCompileSource) has PareOutputPath (write the output there) and PareRelativePath.
        After PareStripTypeScript, @(PareOutput) lists the outputs, with PareSource (the source's
-       full path) and PareRelativePath (the URL or embedded name; else the path below the project).
+       full path), PareRelativePath (the URL or embedded name; else the path below the project)
+       and, for a compiled source, PareCompiler.
          PareTaskAssembly   the task dll; tests point it at a build output -->
   <PropertyGroup>
     <PareTaskAssembly Condition="'$(PareTaskAssembly)' == ''">$(MSBuildThisFileDirectory)..\tasks\net10.0\Extrode.Pare.Build.dll</PareTaskAssembly>
@@ -43,11 +51,25 @@
     <ItemGroup>
       <_PareSource Include="@(TypeScriptSource)"
                    Condition="('%(Extension)' == '.ts' or '%(Extension)' == '.mts' or '%(Extension)' == '.cts') and !$([System.String]::Copy('%(Filename)').EndsWith('.d'))" />
+      <!-- A compiler is a name; an extension is a dot and a name, with no folder in it. Either goes
+           into the development map's JSON as is. Marked per item: an Exclude would also drop a valid
+           item with the same Include. -->
+      <_PareCompileCandidate Include="@(PareCompileSource)" />
+      <_PareCompileCandidate Condition="!$([System.Text.RegularExpressions.Regex]::IsMatch('%(_PareCompileCandidate.PareCompiler)', '^[A-Za-z0-9._-]+\z')) or !$([System.Text.RegularExpressions.Regex]::IsMatch('%(_PareCompileCandidate.PareOutputExtension)', '^\.[^/\\&quot;]+\z'))">
+        <_PareBad>true</_PareBad>
+      </_PareCompileCandidate>
+      <_PareBadCompile Include="@(_PareCompileCandidate)" Condition="'%(_PareCompileCandidate._PareBad)' == 'true'" />
+      <_PareSource Include="@(_PareCompileCandidate)" Condition="'%(_PareCompileCandidate._PareBad)' != 'true'">
+        <_PareCompiled>true</_PareCompiled>
+      </_PareSource>
       <_PareSource>
         <_PareDir>$([MSBuild]::MakeRelative('$([MSBuild]::NormalizeDirectory($(MSBuildProjectDirectory)))', '%(RootDir)%(Directory)').Replace('\', '/'))</_PareDir>
         <_PareJs>%(Filename)$([System.String]::Copy('%(Extension)').Replace('ts', 'js'))</_PareJs>
         <_PareSourceSpec>%(Identity)</_PareSourceSpec>
         <_PareServeAt>$([System.String]::Copy('%(_PareSource.PareServeAt)').Replace('\', '/'))</_PareServeAt>
+      </_PareSource>
+      <_PareSource Condition="'%(_PareSource._PareCompiled)' == 'true'">
+        <_PareJs>%(_PareSource.Filename)%(_PareSource.PareOutputExtension)</_PareJs>
       </_PareSource>
       <!-- A folder, never a file: no `.`/`..` segment, `:`, `//` or script extension. -->
       <_PareBadServeAt Include="@(_PareSource)"
@@ -89,13 +111,19 @@
            .razor.js or .cshtml.js there is the SDK's collocated JS, which it serves itself. -->
       <_PareUnserved Include="@(_PareSource)"
                      Condition="'$(_PareObjRoot)' != '' and '%(_PareSource.PareRelativePath)' == '' and !$([System.String]::Copy('%(_PareSource._PareJs)').EndsWith('.razor.js')) and !$([System.String]::Copy('%(_PareSource._PareJs)').EndsWith('.cshtml.js'))" />
+      <_PareStripSource Include="@(_PareSource)" Condition="'%(_PareSource._PareCompiled)' != 'true'" />
+      <!-- Handed back with PareOutputPath and PareRelativePath, for the targets in PareCompileDependsOn. -->
+      <PareCompileSource Remove="@(PareCompileSource)" />
+      <PareCompileSource Include="@(_PareSource)" Condition="'%(_PareSource._PareCompiled)' == 'true'" />
     </ItemGroup>
+    <Error Code="PARE204" File="%(_PareBadCompile.Identity)" Condition="'@(_PareBadCompile)' != ''"
+           Text="PareCompileSource needs PareCompiler (the compiler's name: letters, digits, . _ -) and PareOutputExtension (the output's extension, a dot and a name such as .svelte.js); got PareCompiler=&quot;%(_PareBadCompile.PareCompiler)&quot; PareOutputExtension=&quot;%(_PareBadCompile.PareOutputExtension)&quot;." />
     <Error Code="PARE203" File="%(_PareBadServeAt.Identity)" Condition="'@(_PareBadServeAt)' != ''"
            Text="PareServeAt=&quot;%(_PareBadServeAt.PareServeAt)&quot; is not a URL folder. Give a folder such as js, or / for the root, with no . or .. segment, colon, double slash or file name: the file name comes from the source." />
     <Error Code="PARE201" File="$(MSBuildProjectFullPath)" Condition="'@(_PareUrl->Count())' &gt; '1'"
-           Text="two TypeScript sources map to one URL, %(_PareUrl.Identity): @(_PareUrl->'%(_PareSourceSpec)', ', '). Serve one under a different PareServeAt folder, or remove one from TypeScriptSource." />
+           Text="two sources map to one URL, %(_PareUrl.Identity): @(_PareUrl->'%(_PareSourceSpec)', ', '). Serve one under a different PareServeAt folder, or remove one from its item." />
     <Warning Code="PARE202" File="%(_PareUnserved.Identity)" Condition="'@(_PareUnserved)' != ''"
-             Text="not served: outside wwwroot with no PareServeAt, so the .js goes next to the source and is not a static web asset. Add PareServeAt=&quot;js&quot; to the TypeScriptSource item to serve it under js/, or add PARE202 to NoWarn to keep it as is." />
+             Text="not served: outside wwwroot with no PareServeAt, so the .js goes next to the source and is not a static web asset. Add PareServeAt=&quot;js&quot; to its item to serve it under js/, or add PARE202 to NoWarn to keep it as is." />
   </Target>
 
   <Target Name="PareTypeCheck" DependsOnTargets="_PareComputeOutputs"
@@ -106,14 +134,14 @@
   <!-- No body, so a project's AfterTargets="PareStripTypeScript" sees @(PareOutput): a project's
        own targets are declared before a package's, and AfterTargets run in declaration order. -->
   <Target Name="PareStripTypeScript" BeforeTargets="BeforeBuild"
-          DependsOnTargets="_PareComputeOutputs;PareTypeCheck;_PareStrip;_PareRegisterOutputs" />
+          DependsOnTargets="_PareComputeOutputs;PareTypeCheck;_PareStrip;$(PareCompileDependsOn);_PareRegisterOutputs" />
 
   <!-- Incremental: an output is rewritten only when its source, the task or this file is newer. -->
   <Target Name="_PareStrip" DependsOnTargets="_PareComputeOutputs"
           Condition="'@(TypeScriptSource)' != ''"
-          Inputs="@(_PareSource);$(PareTaskAssembly);$(MSBuildThisFileFullPath)"
-          Outputs="@(_PareSource->'%(PareOutputPath)')">
-    <StripTypeScript Sources="@(_PareSource)" ProjectDirectory="$(MSBuildProjectDirectory)" />
+          Inputs="@(_PareStripSource);$(PareTaskAssembly);$(MSBuildThisFileFullPath)"
+          Outputs="@(_PareStripSource->'%(PareOutputPath)')">
+    <StripTypeScript Sources="@(_PareStripSource)" ProjectDirectory="$(MSBuildProjectDirectory)" />
   </Target>
 
   <!-- Runs even when the strip was skipped as up to date. Outputs join Content so static web
@@ -149,7 +177,7 @@
                      Condition="'$(PareEmbed)' != 'true' and '%(_PareSource.PareRelativePath)' != '' and Exists('%(_PareSource.RelativeDir)%(_PareSource._PareJs)')" />
       <Content Remove="@(_PareShadowed)" />
       <None Remove="@(_PareShadowed)" />
-      <Content Remove="@(TypeScriptSource);wwwroot/**/*.d.ts;wwwroot/**/*.d.mts;wwwroot/**/*.d.cts"
+      <Content Remove="@(TypeScriptSource);@(PareCompileSource);wwwroot/**/*.d.ts;wwwroot/**/*.d.mts;wwwroot/**/*.d.cts"
                Condition="'$(PareKeepSources)' != 'true'" />
       <!-- The Web SDK makes every root .json Content. -->
       <Content Condition="'%(FullPath)' == '$(_PareTsconfigPath)'">
@@ -158,7 +186,7 @@
       </Content>
     </ItemGroup>
     <Warning Code="PARE200" File="%(_PareShadowed.Identity)" Condition="'@(_PareShadowed)' != ''"
-             Text="not served: the build now writes this file's TypeScript output under obj/ and serves that. Delete it." />
+             Text="not served: the build now writes this file's output under obj/ and serves that. Delete it." />
   </Target>
 
   <!-- obj/ output only. Pare owns the directory, so a file no source produces is a deleted
@@ -221,12 +249,15 @@
   <Target Name="_PareComputeDevelopmentMap" DependsOnTargets="_PareComputeOutputs"
           Condition="'$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' and '$(_PareOutRoot)' == '' and '$(PareEmbed)' != 'true' and '$(_IsPublishing)' != 'true'">
     <ItemGroup>
-      <_PareMapSource Include="@(_PareSource->'%(FullPath)')" Condition="'%(_PareSource.PareRelativePath)' != ''" />
+      <_PareMapSource Include="@(_PareSource->'%(FullPath)')" Condition="'%(_PareSource.PareRelativePath)' != '' and '%(_PareSource._PareCompiled)' != 'true'" />
+      <_PareMapCompiled Include="@(_PareSource->'%(FullPath)')" Condition="'%(_PareSource.PareRelativePath)' != '' and '%(_PareSource._PareCompiled)' == 'true'" />
     </ItemGroup>
     <PropertyGroup>
       <_PareWebRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', 'wwwroot'))</_PareWebRoot>
       <_PareMapSources>@(_PareMapSource->'{ "source": "%(Identity)", "output": "%(PareOutputPath)" }', ', ')</_PareMapSources>
-      <_PareMapText>{ "sourceRoot": "$(_PareWebRoot.Replace('\', '\\'))", "outputRoot": "$(_PareObjRoot.Replace('\', '\\'))", "sources": [$(_PareMapSources.Replace('\', '\\'))] }</_PareMapText>
+      <!-- Its own list: Pare 0.5's AddPareDevelopment strips every entry in sources. -->
+      <_PareMapCompiledSources>@(_PareMapCompiled->'{ "source": "%(Identity)", "output": "%(PareOutputPath)", "compiler": "%(PareCompiler)" }', ', ')</_PareMapCompiledSources>
+      <_PareMapText>{ "sourceRoot": "$(_PareWebRoot.Replace('\', '\\'))", "outputRoot": "$(_PareObjRoot.Replace('\', '\\'))", "sources": [$(_PareMapSources.Replace('\', '\\'))], "compiled": [$(_PareMapCompiledSources.Replace('\', '\\'))] }</_PareMapText>
       <_PareSharedMapPath>$(IntermediateOutputPath)Extrode.Pare.development.json</_PareSharedMapPath>
     </PropertyGroup>
   </Target>
@@ -256,6 +287,6 @@
        no-hot-reload option): in hot reload mode it treats wwwroot files as static assets and
        does not build. -->
   <ItemGroup>
-    <Watch Include="@(TypeScriptSource)" />
+    <Watch Include="@(TypeScriptSource);@(PareCompileSource)" />
   </ItemGroup>
 </Project>

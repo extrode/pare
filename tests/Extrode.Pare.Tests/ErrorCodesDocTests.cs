@@ -73,6 +73,7 @@ public partial class ErrorCodesDocTests
     [InlineData("PARE201", "error")]
     [InlineData("PARE202", "warning")]
     [InlineData("PARE203", "error")]
+    [InlineData("PARE204", "error")]
     public void Build_diagnostic_section_quotes_the_targets_text(string code, string kind)
     {
         var task = BuildDiagnostic().Matches(Targets).Single(m => m.Groups[2].Value == code);
