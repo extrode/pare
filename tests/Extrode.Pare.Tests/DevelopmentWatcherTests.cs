@@ -507,20 +507,32 @@ public sealed class DevelopmentWatcherTests : IDisposable
         Assert.Single(_log.Lines, l => l.Contains("throws failed: compiler bug") && l.Contains(nameof(ThrowingCompiler)));
     }
 
-    // Takes 400 ms for a source starting "slow"; records how many compiles ran at once.
-    private sealed class SlowCompiler : IPareCompiler
+    private sealed class Concurrency
     {
         private int _active;
-        private int _maxActive;
-        public int MaxActive => Volatile.Read(ref _maxActive);
-        public string Name => "slow";
+        private int _max;
+        public int Max => Volatile.Read(ref _max);
+
+        public void Enter()
+        {
+            int active = Interlocked.Increment(ref _active);
+            int max;
+            while (active > (max = Volatile.Read(ref _max)) && Interlocked.CompareExchange(ref _max, active, max) != max) { }
+        }
+
+        public void Exit() => Interlocked.Decrement(ref _active);
+    }
+
+    // Takes 400 ms for a source starting "slow"; records how many compiles ran at once.
+    private sealed class SlowCompiler(Concurrency? shared = null, string name = "slow") : IPareCompiler
+    {
+        public Concurrency Running { get; } = shared ?? new();
+        public string Name => name;
 
         public async Task<IReadOnlyDictionary<string, string>?> CompileAsync(string sourcePath, string source, IReadOnlyList<string> outputPaths,
             ILogger logger, CancellationToken cancellationToken)
         {
-            int active = Interlocked.Increment(ref _active);
-            int max;
-            while (active > (max = Volatile.Read(ref _maxActive)) && Interlocked.CompareExchange(ref _maxActive, active, max) != max) { }
+            Running.Enter();
             try
             {
                 await Task.Delay(source.StartsWith("slow", StringComparison.Ordinal) ? 400 : 0, cancellationToken);
@@ -528,7 +540,7 @@ public sealed class DevelopmentWatcherTests : IDisposable
             }
             finally
             {
-                Interlocked.Decrement(ref _active);
+                Running.Exit();
             }
         }
     }
@@ -551,7 +563,27 @@ public sealed class DevelopmentWatcherTests : IDisposable
         WaitFor(() => ReadOrNull(P("obj/pare/App.up.js")) == "c" && ReadOrNull(P("Lib/obj/pare/Lib.up.js")) == "slow m");
         Thread.Sleep(600);
         Assert.Equal("c", File.ReadAllText(P("obj/pare/App.up.js")));
-        Assert.Equal(1, compiler.MaxActive);
+        Assert.Equal(1, compiler.Running.Max);
+    }
+
+    [Fact]
+    public void A_watcher_compiles_one_source_at_a_time_across_compilers()
+    {
+        Put("A.up", "a");
+        Put("B.up", "b");
+        var running = new Concurrency();
+        using var watcher = TypeScriptWatcher.ForBuildOutput(_dir.FullName, P("wwwroot"), P("obj/pare"), _log, null, new Dictionary<string, CompiledSource>
+        {
+            [P("A.up")] = new(new SlowCompiler(running, "one"), [P("obj/pare/A.up.js")]),
+            [P("B.up")] = new(new SlowCompiler(running, "two"), [P("obj/pare/B.up.js")]),
+        });
+        watcher.Start();
+
+        Put("A.up", "slow a");
+        Thread.Sleep(150);
+        Put("B.up", "slow b");
+        WaitFor(() => ReadOrNull(P("obj/pare/A.up.js")) == "slow a" && ReadOrNull(P("obj/pare/B.up.js")) == "slow b");
+        Assert.Equal(1, running.Max);
     }
 
     [Fact]
