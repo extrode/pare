@@ -293,6 +293,9 @@ convention). Update at the end of every session.
   (8 CLI archives: osx, linux, linux-musl via Docker on the Mac, win-x64 and win-arm64 on wp1 from
   a bundle; tool packages; the 3 library packages). `docs/cli-quickstart.md` at 0.4.0: every
   command re-run against the release downloads; sample output byte-identical to 0.3.0's.
+  wp1 at v0.4.0 (SDK 10.0.402): 463 tests, 0 failed, 6 skipped (3 corpus missing, Unix
+  permissions, 2 fake-`tsc` shell scripts); the embed, `get-tsc --dest`, Jint and VS MSBuild
+  tests ran there.
 
 ## Next
 
