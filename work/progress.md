@@ -310,6 +310,13 @@ convention). Update at the end of every session.
   so a token cache would gain little; NativeAOT ~18% slower than the JIT on the same driver.
   `(a = ` nesting stays quadratic (tsc and ts-blank-space too, both slower than Pare at 500 deep;
   only swc is linear, by cover grammar): still Dropped in todo.
+- **libpare (2026-10-17, `feat/native-lib`):** `src/Extrode.Pare.Native`, NativeAOT
+  `NativeLib=Shared`, C API in `include/pare.h` ([plan](../docs/plans/2026-10-17-004-native-lib.md),
+  reviewed by Fable before code). osx-arm64 `libpare.dylib` 1.0 MB. UTF-8 in and out, BOM dropped
+  like the CLI, diagnostics located in one forward pass. 16 unit tests (`NativeStripTests`), 6
+  integration tests (publish, P/Invoke, and `native/smoke.c` built with `cc`: main thread, a
+  512 KB pthread at 200,000-deep nesting, 4 threads x 1000 calls). Break-checked: byte offsets,
+  BOM, options, UTF-8 strictness, CRLF, `pare_free` zeroing, code range, size limit.
 
 ## Next
 

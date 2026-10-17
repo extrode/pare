@@ -118,7 +118,7 @@ Dockerfile. Gaps for general use:
 
 | Gap | What it takes |
 |---|---|
-| a library for other languages | a C shared library (`libpare`) from NativeAOT: Rust, Go (cgo), Python (ctypes), Ruby, PHP, and Node or Deno FFI can call it |
+| a library for other languages | done 2026-10-17: `libpare`, a C shared library from NativeAOT that Rust, Go (cgo), Python (ctypes), Ruby, PHP, and Node or Deno FFI can call (README "C library") |
 | browser or edge | WebAssembly; .NET's WASM target ships a multi-MB runtime, NativeAOT-LLVM is experimental |
 | `cargo add`, `pip install`, npm | thin wrappers over the shared library, maintained per ecosystem |
 | `.tsx` / JSX | lexer and recognizer work; the lexer was designed to allow it |
