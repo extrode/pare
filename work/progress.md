@@ -323,7 +323,10 @@ convention). Update at the end of every session.
   passed, 1 skipped. wp1 (SDK 10.0.402): 495, 487 passed, 8 skipped (the 6 known, the C test, the
   symlinked-directory test). Benchmark re-run that day discarded: load average 8.7 from other
   work (whisper-cli batch, kiln tests), BenchmarkDotNet StdDev ~9% of the mean; re-run on a quiet
-  machine before quoting new numbers.
+  machine before quoting new numbers. Re-run later that day, StdDev 1-2%: `checker.ts` 9.3 ms
+  (335 MB/s), corpus 60.2 ms (272 MB/s), nested 32.3 ms; compare Pare 279 MB/s, oxc 3.2x,
+  Node 7.0x slower; output counts unchanged. README Performance updated (it said Pare 0.1.0).
+  Published as a GitHub prerelease with all 29 assets; quickstart bumped to 0.5.0.
 
 ## Next
 
