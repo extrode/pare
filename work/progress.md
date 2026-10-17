@@ -288,8 +288,11 @@ convention). Update at the end of every session.
   `ModuleLoader` base swallows load exceptions, so the sample implements `IModuleLoader`.
   463 tests, 0 failed, 1 skipped (VS MSBuild) on macOS; not run on wp1. Packed `Extrode.Pare`,
   `.Build`, `.AspNetCore` 0.4.0 into `tmp/dist-lib`; checked from a vendored `packages/` feed in a
-  fresh console app (resources `web/home.js`, `web/lib/util.js`). Not done: tag, CLI per-RID packs,
-  GitHub release, `docs/cli-quickstart.md` still at 0.3.0 (its commands were run on that archive).
+  fresh console app (resources `web/home.js`, `web/lib/util.js`).
+- **0.4.0 released (2026-10-17):** tag `v0.4.0` on main 30ddbb0, GitHub release with 21 assets
+  (8 CLI archives: osx, linux, linux-musl via Docker on the Mac, win-x64 and win-arm64 on wp1 from
+  a bundle; tool packages; the 3 library packages). `docs/cli-quickstart.md` at 0.4.0: every
+  command re-run against the release downloads; sample output byte-identical to 0.3.0's.
 
 ## Next
 
