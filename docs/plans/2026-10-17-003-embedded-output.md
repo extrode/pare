@@ -1,6 +1,6 @@
-# Plan 001: embedded output and a restorable package for Rein
+# Plan 003: embedded output and a restorable package for Rein
 
-Status: in progress, 2026-10-17, on `feat/embed-output`. Source:
+Status: done, 2026-10-17, on `feat/embed-output`. Source:
 [docs/handoffs/2026-10-17-rein-web-ui-needs.md](../handoffs/2026-10-17-rein-web-ui-needs.md).
 Choices made by the user on 2026-10-17: both N1 shapes, 0.4.0 as vendored `.nupkg`, the string
 overload with a 0.x stability note, N5 and N4.

@@ -272,7 +272,7 @@ convention). Update at the end of every session.
   Merged dev 9736908: macOS 384 unit, 63 integration (1 skip), 3 conformance, 0 failed; wp1 384
   unit (1 skip), 63 integration (2 skip), 0 failed.
 
-- **Rein handoff, 0.4.0 (2026-10-17, plan `docs/plans/2026-10-17-001-embedded-output.md`):**
+- **Rein handoff, 0.4.0 (2026-10-17, plan `docs/plans/2026-10-17-003-embedded-output.md`):**
   handoff `docs/handoffs/2026-10-17-rein-web-ui-needs.md`, reply `-pare-0.4.0-for-rein.md`. User's
   calls: both N1 shapes, 0.4.0 as vendored `.nupkg`, string overload + 0.x stability, N4 and N5.
   `PareEmbed`/`PareEmbedPrefix` embed outputs (written under `obj/.../pare/`, named by path below
