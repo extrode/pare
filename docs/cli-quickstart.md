@@ -16,8 +16,8 @@ linux-musl-x64 and linux-musl-arm64, and `.zip` for win-x64 and win-arm64. Unpac
 folder on `PATH`:
 
 ```sh
-tar -xzf pare-0.5.0-osx-arm64.tar.gz
-pare-0.5.0-osx-arm64/pare --version     # 0.5.0
+tar -xzf pare-0.6.0-osx-arm64.tar.gz
+pare-0.6.0-osx-arm64/pare --version     # 0.6.0
 ```
 
 **.NET tool.** Needs the .NET SDK. It installs the same native binary for the platforms above, and
@@ -25,8 +25,8 @@ a build that runs on the .NET 10 runtime anywhere else. Until the package is on 
 the release's `Extrode.Pare.Cli.*.nupkg` files into one folder and point `--add-source` at it:
 
 ```sh
-dotnet tool install -g Extrode.Pare.Cli --version 0.5.0 --add-source ./packages
-pare --version                          # 0.5.0
+dotnet tool install -g Extrode.Pare.Cli --version 0.6.0 --add-source ./packages
+pare --version                          # 0.6.0
 ```
 
 ## Try the sample
