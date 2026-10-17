@@ -38,7 +38,7 @@ assets=(tmp/release-notes-0.6.0.md)
 for f in "$repo"/tmp/dist/*0.6.0* "$repo"/tmp/dist-lib/*0.6.0*; do
     [ -e "$f" ] && assets+=("${f#"$repo"/}")
 done
-branches=(chore/release-0.6.0 docs/release-0.6.0)
+branches=(chore/release-0.6.0 docs/release-0.6.0 chore/release-0.6.0-worktree chore/release-0.6.0-branches)
 
 remove() { # rel allowed
     local rel="$1" allowed="$2"
