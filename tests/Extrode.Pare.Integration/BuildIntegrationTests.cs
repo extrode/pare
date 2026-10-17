@@ -1044,6 +1044,21 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
         Assert.Empty(Directory.EnumerateFiles(P("pub"), "*.fake", SearchOption.AllDirectories));
     }
 
+    [Fact]
+    public void A_compiled_source_whose_output_keeps_its_name_is_not_reported_as_shadowed()
+    {
+        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", targets: AssetProbe + FakeCompiler,
+            items: FakeSources("wwwroot/**/*.html", ".html"));
+        Put("wwwroot/index.html", "<p>page</p>\n");
+
+        var (exit, output) = Build();
+
+        Assert.True(exit == 0, output);
+        Assert.DoesNotContain("PARE200", output);
+        Assert.Equal("<p>page</p>\n", File.ReadAllText(P(ObjOut + "index.html")));
+        Assert.True(Assets(output).Any(a => a.StartsWith("index", StringComparison.Ordinal) && a.EndsWith(Tail(ObjOut + "index.html"), StringComparison.Ordinal)), output);
+    }
+
     [Theory]
     [InlineData("Microsoft.NET.Sdk", "", "src/js/a.fake", "", "src/js/a.fake.js", "src/js/a.fake.js")]
     [InlineData("Microsoft.NET.Sdk", "<PareOutDir>gen</PareOutDir>", "src/js/a.fake", "", "src/js/a.fake.js", "gen/src/js/a.fake.js")]
