@@ -17,11 +17,6 @@ Small, clear, and could be picked up without a design decision.
 
 ## Later
 
-- Public MSBuild extension point for compile-to-JavaScript steps (decision 004): another package
-  hands Pare its outputs and gets `obj/` placement, static web assets, embedded output and the
-  Development re-run on save. First user: Husk (`../husk`, Svelte). Needs a design (plan mode)
-  before Husk's build integration, Husk's tasklist T4.
-
 - .NET bug, not reported: NativeAOT on linux-musl-arm64,
   `RuntimeHelpers.TryEnsureSufficientExecutionStack()` on the main thread returns false in 24 of
   60 runs (SDK 10.0.402, Alpine 3.24.2; JIT and glibc arm64 always true). Library callers there
