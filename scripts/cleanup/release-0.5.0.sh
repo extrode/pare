@@ -28,7 +28,7 @@ if [ ! -f "$repo/Pare.slnx" ]; then
 fi
 failed=0
 scratch=(tmp/rel-check tmp/pare-0.5.0.bundle tmp/test-0.5.0.log tmp/pack-0.5.0.log
-         tmp/bench-compare.log tmp/bench-bdn.log)
+         tmp/bench-compare.log tmp/bench-bdn.log tmp/qs-0.5.0)
 assets=(tmp/release-notes-0.5.0.md)
 for f in "$repo"/tmp/dist/*0.5.0* "$repo"/tmp/dist-lib/*0.5.0*; do
     [ -e "$f" ] && assets+=("${f#"$repo"/}")
