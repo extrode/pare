@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-17
+
 - `libpare`: the stripper as a C shared library with `pare.h`, for other languages over FFI.
   UTF-8 in and out, diagnostics with line, UTF-16 column and byte offsets, thread-safe.
   Archives `libpare-<v>-<rid>` for the CLI's 8 RIDs from `pack-cli.sh` and `pack-cli.ps1`.
