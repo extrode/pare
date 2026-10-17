@@ -317,6 +317,13 @@ convention). Update at the end of every session.
   integration tests (publish, P/Invoke, and `native/smoke.c` built with `cc`: main thread, a
   512 KB pthread at 200,000-deep nesting, 4 threads x 1000 calls). Break-checked: byte offsets,
   BOM, options, UTF-8 strictness, CRLF, `pare_free` zeroing, code range, size limit.
+- **0.5.0 cut (2026-10-17):** tag `v0.5.0` on main 0abc404 (local; push and GitHub release are
+  the user's). 29 assets in `tmp/dist` and `tmp/dist-lib` (8 CLI + 8 libpare archives, 10 tool
+  packages, 3 library packages), notes in `tmp/release-notes-0.5.0.md`. macOS: 495 tests, 494
+  passed, 1 skipped. wp1 (SDK 10.0.402): 495, 487 passed, 8 skipped (the 6 known, the C test, the
+  symlinked-directory test). Benchmark re-run that day discarded: load average 8.7 from other
+  work (whisper-cli batch, kiln tests), BenchmarkDotNet StdDev ~9% of the mean; re-run on a quiet
+  machine before quoting new numbers.
 
 ## Next
 
