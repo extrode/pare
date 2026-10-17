@@ -1,6 +1,7 @@
 # Current
 
-T7 `samples/WebApp` using the package — done when: `dotnet build` of the sample writes and serves the `.js`
+Exactly **one** task, the next one to start, pulled from `../tasklist.md` when the rotation
+advances. The full task list for this body of work is `../tasklist.md`; the unscheduled backlog is
+`../todo.md`; where the project is going is `../milestones.md`.
 
-Pulled from `work/tasklist.md` by `tools/task.js`. One task only — if this needs
-splitting, split it in the tasklist first.
+- (nothing in flight: M2 shipped 2026-10-14; this entry was never rolled)
