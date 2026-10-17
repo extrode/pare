@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-17
+
 - `PareEmbed=true` (with `PareEmbedPrefix`) embeds every output in the assembly, named after its
   path below the project, written under `obj/`; for projects that are not web projects. Outputs
   are not `Content` or static web assets there, and a deleted source drops its resource.
