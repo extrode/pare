@@ -346,6 +346,6 @@ internal static partial class Compare
             i++;
         int from = Math.Max(0, i - 50);
         string Clip(string s) => s[from..Math.Min(s.Length, i + 50)].Replace('\n', '~').Replace('\t', ' ');
-        return $"at {i}: pare «{Clip(a)}» other «{Clip(b)}»";
+        return $"at {i}: pare \u00AB{Clip(a)}\u00BB other \u00AB{Clip(b)}\u00BB";
     }
 }
