@@ -9,7 +9,7 @@
 # Linux, and linux-{arm64,x64} and linux-musl-{arm64,x64} in Docker when it runs. win-* need a
 # Windows machine: scripts/pack-cli.ps1.
 # Each RID is compiled twice (CLI and library), about a minute each.
-# Usage: scripts/pack-cli.sh [--version 0.5.0] [--no-docker]
+# Usage: scripts/pack-cli.sh [--version 0.6.0] [--no-docker]
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 out="$root/tmp/dist"

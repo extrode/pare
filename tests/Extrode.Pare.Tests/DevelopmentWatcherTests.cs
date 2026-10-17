@@ -1,6 +1,7 @@
 using Extrode.Pare.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Extrode.Pare.Tests;
@@ -284,7 +285,7 @@ public sealed class DevelopmentWatcherTests : IDisposable
             sources = sources.Select(s => new { source = P(project + s.Source), output = P(project + s.Output) }),
         }));
 
-    private async Task RunDevelopment(Func<Task> whileRunning)
+    private async Task RunDevelopment(Func<Task> whileRunning, Action<IServiceCollection>? services = null)
     {
         var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions
         {
@@ -295,6 +296,7 @@ public sealed class DevelopmentWatcherTests : IDisposable
         builder.Logging.ClearProviders();
         builder.Logging.AddProvider(new ListLoggerProvider(_log));
         builder.WebHost.UseUrls("http://127.0.0.1:0");
+        services?.Invoke(builder.Services);
         builder.AddPareDevelopment(o => o.DevelopmentMapPath = P("bin/Extrode.Pare.development.json"));
         await using var app = builder.Build();
         await app.StartAsync(TestContext.Current.CancellationToken);
@@ -362,6 +364,328 @@ public sealed class DevelopmentWatcherTests : IDisposable
         await app.StopAsync(TestContext.Current.CancellationToken);
     }
 
+    // Each output gets its extension and the source upper-cased; a source starting "bad" fails.
+    private sealed class UpperCompiler(string name = "upper") : IPareCompiler
+    {
+        private int _calls;
+        public int Calls => Volatile.Read(ref _calls);
+        public string Name => name;
+
+        public Task<IReadOnlyDictionary<string, string>?> CompileAsync(string sourcePath, string source, IReadOnlyList<string> outputPaths,
+            ILogger logger, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _calls);
+            if (source.StartsWith("bad", StringComparison.Ordinal))
+            {
+                logger.LogError("{Source}: bad source", sourcePath);
+                return Task.FromResult<IReadOnlyDictionary<string, string>?>(null);
+            }
+            return Task.FromResult<IReadOnlyDictionary<string, string>?>(
+                outputPaths.ToDictionary(o => o, o => Path.GetExtension(o) + ":" + source.ToUpperInvariant()));
+        }
+    }
+
+    private TypeScriptWatcher CompiledWatcher(IPareCompiler compiler, params (string Source, string[] Outputs)[] sources) =>
+        TypeScriptWatcher.ForBuildOutput(_dir.FullName, P("wwwroot"), P("obj/pare"), _log, null,
+            sources.ToDictionary(s => P(s.Source), s => new CompiledSource(compiler, [.. s.Outputs.Select(P)])));
+
+    [Fact]
+    public void Compiled_sources_compile_to_every_output_on_start_and_again_on_save()
+    {
+        Put("Components/App.up", "a");
+        using var watcher = CompiledWatcher(new UpperCompiler(), ("Components/App.up", ["obj/pare/App.up.js", "obj/pare/App.up.css"]));
+        watcher.Start();
+        Assert.Equal(".js:A", File.ReadAllText(P("obj/pare/App.up.js")));
+        Assert.Equal(".css:A", File.ReadAllText(P("obj/pare/App.up.css")));
+        Assert.Single(_log.Lines, l => l.Contains("Compiled " + Path.Combine("Components", "App.up")) && l.EndsWith("App.up.css", StringComparison.Ordinal));
+
+        Put("Components/App.up", "b");
+        WaitFor(() => ReadOrNull(P("obj/pare/App.up.js")) == ".js:B" && ReadOrNull(P("obj/pare/App.up.css")) == ".css:B");
+    }
+
+    [Fact]
+    public void Compiled_sources_that_are_up_to_date_are_not_compiled_and_unchanged_text_is_not_written()
+    {
+        Put("App.up", "a");
+        var compiler = new UpperCompiler();
+        using (var first = CompiledWatcher(compiler, ("App.up", ["obj/pare/App.up.js"])))
+            first.Start();
+        Assert.Equal(1, compiler.Calls);
+
+        using var watcher = CompiledWatcher(compiler, ("App.up", ["obj/pare/App.up.js"]));
+        watcher.Start();
+        Assert.Equal(1, compiler.Calls);
+        int lines = _log.Lines.Length;
+        watcher.Strip(P("App.up"), started: true);
+        Assert.Equal(2, compiler.Calls);
+        Assert.Equal(lines, _log.Lines.Length);
+    }
+
+    [Fact]
+    public void Unchanged_text_on_save_makes_the_output_newer_than_its_source()
+    {
+        Put("App.up", "a");
+        var compiler = new UpperCompiler();
+        using (var first = CompiledWatcher(compiler, ("App.up", ["obj/pare/App.up.js"])))
+        {
+            first.Start();
+            File.SetLastWriteTimeUtc(P("obj/pare/App.up.js"), DateTime.UtcNow.AddMinutes(-1));
+            first.Strip(P("App.up"), started: true);
+        }
+        Assert.Equal(2, compiler.Calls);
+
+        using var watcher = CompiledWatcher(compiler, ("App.up", ["obj/pare/App.up.js"]));
+        watcher.Start();
+        Assert.Equal(2, compiler.Calls);
+    }
+
+    [Fact]
+    public void A_failed_compile_leaves_the_old_outputs()
+    {
+        Put("App.up", "a");
+        using var watcher = CompiledWatcher(new UpperCompiler(), ("App.up", ["obj/pare/App.up.js"]));
+        watcher.Start();
+
+        Put("App.up", "bad");
+        WaitFor(() => _log.Lines.Any(l => l.EndsWith("bad source", StringComparison.Ordinal)));
+        Assert.Equal(".js:A", File.ReadAllText(P("obj/pare/App.up.js")));
+    }
+
+    [Fact]
+    public void A_compiler_that_returns_no_text_for_an_output_is_an_error()
+    {
+        Put("App.up", "a");
+        var compiler = new OneOutputCompiler();
+        using var watcher = CompiledWatcher(compiler, ("App.up", ["obj/pare/App.up.js", "obj/pare/App.up.css"]));
+        watcher.Start();
+        Assert.Equal("a", File.ReadAllText(P("obj/pare/App.up.js")));
+        Assert.False(File.Exists(P("obj/pare/App.up.css")));
+        Assert.Single(_log.Lines, l => l.Contains("returned no text for") && l.EndsWith("App.up.css", StringComparison.Ordinal));
+    }
+
+    private sealed class OneOutputCompiler : IPareCompiler
+    {
+        public string Name => "one";
+        public Task<IReadOnlyDictionary<string, string>?> CompileAsync(string sourcePath, string source, IReadOnlyList<string> outputPaths,
+            ILogger logger, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyDictionary<string, string>?>(new Dictionary<string, string> { [outputPaths[0]] = source });
+    }
+
+    // Keys the output paths through a "." segment, as a compiler building its own paths might.
+    private sealed class DotPathCompiler : IPareCompiler
+    {
+        public string Name => "dot";
+        public Task<IReadOnlyDictionary<string, string>?> CompileAsync(string sourcePath, string source, IReadOnlyList<string> outputPaths,
+            ILogger logger, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyDictionary<string, string>?>(
+                outputPaths.ToDictionary(o => Path.Combine(Path.GetDirectoryName(o)!, ".", Path.GetFileName(o)), _ => source));
+    }
+
+    [Fact]
+    public void Compiled_text_is_matched_to_its_output_whatever_the_path_form()
+    {
+        Put("App.up", "a");
+        using var watcher = CompiledWatcher(new DotPathCompiler(), ("App.up", ["obj/pare/App.up.js"]));
+        watcher.Start();
+        Assert.Equal("a", File.ReadAllText(P("obj/pare/App.up.js")));
+    }
+
+    private sealed class ThrowingCompiler : IPareCompiler
+    {
+        public string Name => "throws";
+        public Task<IReadOnlyDictionary<string, string>?> CompileAsync(string sourcePath, string source, IReadOnlyList<string> outputPaths,
+            ILogger logger, CancellationToken cancellationToken) => throw new InvalidOperationException("compiler bug");
+    }
+
+    [Fact]
+    public void A_compiler_that_throws_is_logged_with_its_exception()
+    {
+        Put("App.up", "a");
+        using var watcher = CompiledWatcher(new ThrowingCompiler(), ("App.up", ["obj/pare/App.up.js"]));
+        watcher.Start();
+        Assert.False(File.Exists(P("obj/pare/App.up.js")));
+        Assert.Single(_log.Lines, l => l.Contains("throws failed: compiler bug") && l.Contains(nameof(ThrowingCompiler)));
+    }
+
+    private sealed class Concurrency
+    {
+        private int _active;
+        private int _max;
+        public int Max => Volatile.Read(ref _max);
+
+        public void Enter()
+        {
+            int active = Interlocked.Increment(ref _active);
+            int max;
+            while (active > (max = Volatile.Read(ref _max)) && Interlocked.CompareExchange(ref _max, active, max) != max) { }
+        }
+
+        public void Exit() => Interlocked.Decrement(ref _active);
+    }
+
+    // Takes 400 ms for a source starting "slow"; records how many compiles ran at once.
+    private sealed class SlowCompiler(Concurrency? shared = null, string name = "slow") : IPareCompiler
+    {
+        public Concurrency Running { get; } = shared ?? new();
+        public string Name => name;
+
+        public async Task<IReadOnlyDictionary<string, string>?> CompileAsync(string sourcePath, string source, IReadOnlyList<string> outputPaths,
+            ILogger logger, CancellationToken cancellationToken)
+        {
+            Running.Enter();
+            try
+            {
+                await Task.Delay(source.StartsWith("slow", StringComparison.Ordinal) ? 400 : 0, cancellationToken);
+                return outputPaths.ToDictionary(o => o, _ => source);
+            }
+            finally
+            {
+                Running.Exit();
+            }
+        }
+    }
+
+    [Fact]
+    public void A_later_save_is_compiled_after_an_earlier_slow_one_and_compilers_run_one_source_at_a_time()
+    {
+        Put("App.up", "a");
+        Put("Lib/Lib.up", "l");
+        var compiler = new SlowCompiler();
+        using var app = CompiledWatcher(compiler, ("App.up", ["obj/pare/App.up.js"]));
+        using var lib = CompiledWatcher(compiler, ("Lib/Lib.up", ["Lib/obj/pare/Lib.up.js"]));
+        app.Start();
+        lib.Start();
+
+        Put("App.up", "slow b");
+        Put("Lib/Lib.up", "slow m");
+        Thread.Sleep(150);
+        Put("App.up", "c");
+        WaitFor(() => ReadOrNull(P("obj/pare/App.up.js")) == "c" && ReadOrNull(P("Lib/obj/pare/Lib.up.js")) == "slow m");
+        Thread.Sleep(600);
+        Assert.Equal("c", File.ReadAllText(P("obj/pare/App.up.js")));
+        Assert.Equal(1, compiler.Running.Max);
+    }
+
+    [Fact]
+    public void A_watcher_compiles_one_source_at_a_time_across_compilers()
+    {
+        Put("A.up", "a");
+        Put("B.up", "b");
+        var running = new Concurrency();
+        using var watcher = TypeScriptWatcher.ForBuildOutput(_dir.FullName, P("wwwroot"), P("obj/pare"), _log, null, new Dictionary<string, CompiledSource>
+        {
+            [P("A.up")] = new(new SlowCompiler(running, "one"), [P("obj/pare/A.up.js")]),
+            [P("B.up")] = new(new SlowCompiler(running, "two"), [P("obj/pare/B.up.js")]),
+        });
+        watcher.Start();
+
+        Put("A.up", "slow a");
+        Thread.Sleep(150);
+        Put("B.up", "slow b");
+        WaitFor(() => ReadOrNull(P("obj/pare/A.up.js")) == "slow a" && ReadOrNull(P("obj/pare/B.up.js")) == "slow b");
+        Assert.Equal(1, running.Max);
+    }
+
+    [Fact]
+    public void Deleting_a_compiled_source_deletes_all_its_outputs()
+    {
+        Put("Components/A.up", "a");
+        Put("Components/B.up", "b");
+        using var watcher = CompiledWatcher(new UpperCompiler(),
+            ("Components/A.up", ["obj/pare/A.up.js", "obj/pare/A.up.css"]), ("Components/B.up", ["obj/pare/B.up.js"]));
+        watcher.Start();
+
+        File.Delete(P("Components/A.up"));
+        WaitFor(() => !File.Exists(P("obj/pare/A.up.js")) && !File.Exists(P("obj/pare/A.up.css")));
+        Assert.Equal(["B.up.js"], Outputs());
+    }
+
+    private void PutCompiledMap(string relative, params (string Source, string Output, string? Compiler)[] sources) =>
+        Put(relative, System.Text.Json.JsonSerializer.Serialize(new
+        {
+            sourceRoot = P("wwwroot") + Path.DirectorySeparatorChar,
+            outputRoot = P("obj/pare") + Path.DirectorySeparatorChar,
+            sources = sources.Where(s => s.Compiler is null).Select(s => new { source = P(s.Source), output = P(s.Output) }),
+            compiled = sources.Where(s => s.Compiler is not null).Select(s => new { source = P(s.Source), output = P(s.Output), compiler = s.Compiler }),
+        }));
+
+    [Fact]
+    public async Task AddPareDevelopment_runs_the_registered_compiler_for_its_sources_in_the_map()
+    {
+        Put("wwwroot/a.ts", "let a: T;\n");
+        Put("Components/App.up", "a");
+        Put("Components/Other.nope", "n");
+        PutCompiledMap("bin/Extrode.Pare.development.json",
+            ("Components/App.up", "obj/pare/App.up.js", "upper"), ("Components/App.up", "obj/pare/App.up.css", "upper"),
+            ("Components/Other.nope", "obj/pare/Other.nope.js", "nope"));
+        var compiler = new UpperCompiler();
+
+        await RunDevelopment(async () =>
+        {
+            Assert.Equal("let a   ;\n", File.ReadAllText(P("obj/pare/a.js")));
+            Assert.Equal(".js:A", File.ReadAllText(P("obj/pare/App.up.js")));
+            Assert.Equal(".css:A", File.ReadAllText(P("obj/pare/App.up.css")));
+            Assert.False(File.Exists(P("obj/pare/Other.nope.js")));
+            Assert.Single(_log.Lines, l => l.Contains("no IPareCompiler named nope") && l.Contains(Path.Combine("Components", "Other.nope")));
+
+            Put("Components/App.up", "b");
+            WaitFor(() => ReadOrNull(P("obj/pare/App.up.js")) == ".js:B");
+            await Task.CompletedTask;
+        }, s => s.AddSingleton<IPareCompiler>(compiler));
+    }
+
+    [Fact]
+    public async Task AddPareDevelopment_warns_of_two_compilers_with_one_name_and_of_a_source_with_two_compilers()
+    {
+        Put("App.up", "a");
+        PutCompiledMap("bin/Extrode.Pare.development.json", ("App.up", "obj/pare/App.up.js", "upper"), ("App.up", "obj/pare/App.up.css", "dot"));
+        var first = new UpperCompiler();
+
+        await RunDevelopment(() =>
+        {
+            Assert.Equal(".js:A", File.ReadAllText(P("obj/pare/App.up.js")));
+            Assert.False(File.Exists(P("obj/pare/App.up.css")));
+            Assert.Equal(1, first.Calls);
+            Assert.Single(_log.Lines, l => l.Contains("Two IPareCompiler named upper are registered"));
+            Assert.Single(_log.Lines, l => l.Contains("is declared for two compilers, upper and dot"));
+            return Task.CompletedTask;
+        }, s => s.AddSingleton<IPareCompiler>(first).AddSingleton<IPareCompiler>(new UpperCompiler()).AddSingleton<IPareCompiler, DotPathCompiler>());
+    }
+
+    [Fact]
+    public async Task AddPareDevelopment_called_twice_applies_the_second_calls_options()
+    {
+        Put("Scripts/fmt.ts", "let f: T;\n");
+        PutMap("bin/map.json", "", ("Scripts/fmt.ts", "obj/pare/js/fmt.js"));
+        var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions
+        {
+            ContentRootPath = _dir.FullName,
+            EnvironmentName = "Development",
+        });
+        builder.Logging.ClearProviders();
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.AddPareDevelopment();
+        builder.AddPareDevelopment(o => o.DevelopmentMapPath = P("bin/map.json"));
+        await using var app = builder.Build();
+        await app.StartAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("let f   ;\n", File.ReadAllText(P("obj/pare/js/fmt.js")));
+        await app.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public void AddPareDevelopment_called_twice_adds_one_service()
+    {
+        var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions
+        {
+            ContentRootPath = _dir.FullName,
+            EnvironmentName = "Development",
+        });
+        builder.AddPareDevelopment();
+        int once = builder.Services.Count;
+        builder.AddPareDevelopment();
+        Assert.Equal(once, builder.Services.Count);
+    }
+
     private sealed class ListLogger : ILogger
     {
         private readonly Lock _lock = new();
@@ -373,7 +697,7 @@ public sealed class DevelopmentWatcherTests : IDisposable
         public bool IsEnabled(LogLevel logLevel) => true;
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
-            lock (_lock) _lines.Add(formatter(state, exception));
+            lock (_lock) _lines.Add(exception is null ? formatter(state, exception) : formatter(state, exception) + "\n" + exception);
         }
     }
 

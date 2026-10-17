@@ -58,7 +58,7 @@ JavaScript out of the source folders, or use `--outdir`.
 ## MSBuild
 
 ```xml
-<PackageReference Include="Extrode.Pare.Build" Version="0.5.0" PrivateAssets="all" />
+<PackageReference Include="Extrode.Pare.Build" Version="0.6.0" PrivateAssets="all" />
 ```
 
 Before `Build`, every `wwwroot/**/*.ts` and `*.mts` (not `.d.ts`, not `node_modules`) is stripped.
@@ -88,7 +88,7 @@ Dev loop: in its default hot reload mode `dotnet watch` runs no build on a `.ts`
 `.js` would go stale. `Extrode.Pare.AspNetCore` re-strips in the running app instead:
 
 ```xml
-<PackageReference Include="Extrode.Pare.AspNetCore" Version="0.5.0" />
+<PackageReference Include="Extrode.Pare.AspNetCore" Version="0.6.0" />
 ```
 
 ```csharp
@@ -142,8 +142,8 @@ The packages are not on nuget.org yet. Each GitHub release carries the `.nupkg` 
 builds on several machines vendors them and restores offline on macOS, Windows and Linux:
 
 ```
-packages/Extrode.Pare.0.5.0.nupkg
-packages/Extrode.Pare.Build.0.5.0.nupkg
+packages/Extrode.Pare.0.6.0.nupkg
+packages/Extrode.Pare.Build.0.6.0.nupkg
 ```
 
 ```xml
@@ -160,7 +160,7 @@ packages/Extrode.Pare.Build.0.5.0.nupkg
 </configuration>
 ```
 
-Pin an exact release (`Version="0.5.0"`), not a `-dev` or `-*` version.
+Pin an exact release (`Version="0.6.0"`), not a `-dev` or `-*` version.
 
 ### TypeScript outside wwwroot
 
@@ -221,7 +221,7 @@ can embed the output instead:
   <EnablePareDefaultItems>false</EnablePareDefaultItems>
 </PropertyGroup>
 <ItemGroup>
-  <PackageReference Include="Extrode.Pare.Build" Version="0.5.0" PrivateAssets="all" />
+  <PackageReference Include="Extrode.Pare.Build" Version="0.6.0" PrivateAssets="all" />
   <TypeScriptSource Include="web/**/*.ts" />
 </ItemGroup>
 ```
@@ -256,6 +256,60 @@ To embed or copy the files your own way, leave `PareEmbed` off and use `@(PareOu
 `$(IntermediateOutputPath)` is still empty where a project file sets its properties, so
 `PareOutDir` cannot use it; `$(BaseIntermediateOutputPath)` (`obj/`) is set by then.
 
+### Other compilers
+
+Another package that compiles a language to JavaScript (Husk, for `.svelte`) can hand its sources
+to Pare and get the same treatment as a `.ts`: output under `obj/`, a static web asset at the same
+URL rules (`wwwroot` path or `PareServeAt`), compressed and published, embedded under `PareEmbed`,
+deleted with its source, re-run on save by `AddPareDevelopment`. It declares the sources and its
+own target, usually in its package's `.props` and `.targets`:
+
+```xml
+<ItemGroup>
+  <PareCompileSource Include="Components/**/*.svelte" PareCompiler="husk"
+                     PareOutputExtension=".svelte.js" PareServeAt="/" />
+</ItemGroup>
+<PropertyGroup>
+  <PareCompileDependsOn>$(PareCompileDependsOn);HuskCompile</PareCompileDependsOn>
+</PropertyGroup>
+<Target Name="HuskCompile" Inputs="@(PareCompileSource)" Outputs="@(PareCompileSource->'%(PareOutputPath)')">
+  <!-- write each source's output to %(PareOutputPath) -->
+</Target>
+```
+
+| Metadata | |
+|---|---|
+| `PareCompiler` | required: the compiler's name, the same as its `IPareCompiler.Name` |
+| `PareOutputExtension` | required: the output's name is the source's name without its extension, plus this (`App.svelte` + `.svelte.js` = `App.svelte.js`) |
+| `PareServeAt` | as for `TypeScriptSource` |
+
+- Targets in `PareCompileDependsOn` run inside `PareStripTypeScript`, after the strip and before
+  the outputs are registered. There each `@(PareCompileSource)` has `PareOutputPath` (where to
+  write; relative paths are below the project) and `PareRelativePath` (its URL or resource name).
+  Skipping up-to-date sources is the target's job (`Inputs`/`Outputs`).
+- Two outputs from one source (a component's `.js` and `.css`) are two items with the same
+  `Include` and different extensions. Every file the target writes under `obj/` must be one of
+  these outputs: the build deletes any other file there as a deleted source's output (a
+  `.js.map` it was not told about, say).
+- The sources leave `Content`, so a `.svelte` under `wwwroot` is not published. They are `Watch`
+  items. `@(PareOutput)` lists their outputs with `%(PareCompiler)`.
+- `error PARE204` for a missing `PareCompiler` (letters, digits, `.`, `_`, `-`) or `PareOutputExtension`. PARE201, PARE202 and
+  PARE203 apply as for TypeScript, across both kinds of source.
+
+On save in Development, `AddPareDevelopment` hands each such source to the `IPareCompiler` with
+its name, registered in DI:
+
+```csharp
+builder.Services.AddSingleton<IPareCompiler, SvelteCompiler>();
+builder.AddPareDevelopment();   // a second call, from another package's setup, adds no watcher; its options apply too
+```
+
+`CompileAsync(sourcePath, source, outputPaths, logger, cancellationToken)` returns the text of each
+output, keyed by path, or null after logging its errors (the old outputs stay). Pare calls each
+compiler one source at a time, writes what changed and deletes the outputs of a deleted source;
+sources out of date at start are compiled before the app serves. A source whose compiler is not
+registered gets a warning at start and is not compiled.
+
 ### Type checking in CI without npm
 
 `PareTypeCheck=true` runs TypeScript 7's native `tsc --noEmit -p tsconfig.json` before the strip;
@@ -285,7 +339,7 @@ empty and that it did not fill itself.
 an htmx call to a minimal API. It references the package from a local feed, as a consumer would:
 
 ```sh
-scripts/pack-local.sh               # pack into tmp/feed as 0.5.0-dev.<time>, re-restore the sample
+scripts/pack-local.sh               # pack into tmp/feed as 0.6.0-dev.<time>, re-restore the sample
 dotnet run --project samples/WebApp   # http://localhost:5180, Development
 dotnet watch            # from samples/WebApp: a .ts save re-strips and reloads the page
 dotnet publish samples/WebApp -c Release -r osx-arm64 -o tmp/sample-aot
@@ -423,9 +477,9 @@ BenchmarkDotNet 0.15.8, one `TypeStripper.Strip` call per source, output to a re
 
 | Input | Mean | MB/s | Allocated |
 |---|---:|---:|---:|
-| TypeScript 5.9.3 `checker.ts` (3.1 MB) | 9.4 ms | 333 | 0 B |
-| Real-world corpus, 2,392 files (19.5 MB) | 59.8 ms | 273 | 0 B |
-| `(a = ` nested 1,000 deep | 37.4 ms | 0.2 | 0 B |
+| TypeScript 5.9.3 `checker.ts` (3.1 MB) | 9.3 ms | 335 | 0 B |
+| Real-world corpus, 2,392 files (19.5 MB) | 60.2 ms | 272 | 0 B |
+| `(a = ` nested 1,000 deep | 32.3 ms | 0.2 | 0 B |
 
 Deep nesting is quadratic, as in TypeScript's own parser; real code never reaches it.
 
@@ -439,11 +493,11 @@ uses it), read from its cache after `deno cache --no-check`.
 
 | Tool | Same bytes | Same tree | Same but imports dropped or names renamed | Differ | Throughput | Pare is |
 |---|---:|---:|---:|---:|---:|---:|
-| Pare 0.1.0 | - | - | - | - | 184-229 MB/s | - |
-| Node 24.16 `stripTypeScriptTypes` | 1,898 | 490 | - | 0 | 35-38 MB/s | 5-7x faster |
-| oxc-transform 0.154.0 | 13 | 2,375 | 0 | 0 | 69-81 MB/s | 2-3x faster |
-| ts-blank-space 0.9.0 | 1,967 | 420 | - | 1 | 25-27 MB/s | 7-9x faster |
-| esbuild 0.28.2 | 11 | 1,961 | 296 | 120 | 9-10 MB/s | 19-26x faster |
+| Pare 0.5.0 | - | - | - | - | 279 MB/s | - |
+| Node 24.16 `stripTypeScriptTypes` | 1,898 | 490 | - | 0 | 40 MB/s | 7.0x faster |
+| oxc-transform 0.154.0 | 13 | 2,375 | 0 | 0 | 87 MB/s | 3.2x faster |
+| ts-blank-space 0.9.0 | 1,967 | 420 | - | 1 | 28 MB/s | 10.0x faster |
+| esbuild 0.28.2 | 11 | 1,961 | 296 | 120 | 12 MB/s | 23.4x faster |
 | Deno 2.9.7 (swc) | 11 | 2,326 | 51 | 0 | - | - |
 
 - Same tree but not same bytes: Node and ts-blank-space keep tabs and write UTF-8-width spaces for
@@ -457,11 +511,11 @@ uses it), read from its cache after `deno cache --no-check`.
   expressions; none is a Pare error.
 - Four files are left out: their output does not parse for any stripper, because they import or
   re-export a type without `type`, which needs type information to remove.
-- Whole process over all files: `pare` CLI (NativeAOT) 0.5-0.8 s, `deno cache --no-check` from a
-  cold cache 1.3-2.1 s.
+- Whole process over all files: `pare` CLI (NativeAOT) 0.95 s, `deno cache --no-check` from a
+  cold cache 1.1 s, one run each.
 
-Throughput ranges are over separate runs on a laptop; BenchmarkDotNet's numbers above are the
-steady ones. To reproduce:
+Throughput is the best of 5 passes in one run on a laptop and moves by 10-20% between runs;
+BenchmarkDotNet's numbers above are the steady ones. To reproduce:
 
 ```sh
 dotnet run scripts/get-bench-corpus.cs                       # ~25 MB into .corpus/realworld

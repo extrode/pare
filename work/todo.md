@@ -17,14 +17,6 @@ Small, clear, and could be picked up without a design decision.
 
 ## Later
 
-- Svelte components without Node (tier 1 in [docs/ecosystem-comparison.md](../docs/ecosystem-comparison.md)):
-  run the Svelte 5 compiler in an embedded engine at build time, `.svelte` -> `.js` under `obj/`,
-  the `svelte` runtime vendored behind an import map; no SvelteKit, no bundler. Spike first (a
-  day): does the compiler run, and how fast. Engine leaning: ClearScript (V8) for speed, over Jint
-  (pure C#). ClearScript costs a native V8 binary per RID and is a package to approve; check its
-  RID list (musl, win-arm64), the MSBuild task host under Visual Studio, and package size. After
-  the spike: decide go or drop.
-
 - .NET bug, not reported: NativeAOT on linux-musl-arm64,
   `RuntimeHelpers.TryEnsureSufficientExecutionStack()` on the main thread returns false in 24 of
   60 runs (SDK 10.0.402, Alpine 3.24.2; JIT and glibc arm64 always true). Library callers there
@@ -56,6 +48,14 @@ Real, but needs a decision, a dependency, or more information first. Say which.
   corpus test with `PARE_CORPUS_VERBOSE=1` to list them (`MISSED` lines).
 - Unicode tables: identifier classes come from .NET's `CharUnicodeInfo`, whose Unicode version
   may differ from TypeScript's and browsers'. Only matters for exotic identifiers.
+
+- A `"` in a source or output path makes the development map invalid JSON: paths are written
+  with only `\` escaped, and `ReadMap` does not catch `JsonException`, so the app fails to start in
+  Development. (2026-10-17)
+- `PareCompileSource` outside `wwwroot` is a `Watch` item: not checked whether `dotnet watch` in hot
+  reload mode treats saving one as an unsupported change and restarts the app. (2026-10-17)
+- PARE201 lists the same source twice when one `PareCompileSource` is declared twice (a package's
+  `.props` plus the project file). (2026-10-17)
 
 ## Dropped
 

@@ -317,6 +317,25 @@ convention). Update at the end of every session.
   integration tests (publish, P/Invoke, and `native/smoke.c` built with `cc`: main thread, a
   512 KB pthread at 200,000-deep nesting, 4 threads x 1000 calls). Break-checked: byte offsets,
   BOM, options, UTF-8 strictness, CRLF, `pare_free` zeroing, code range, size limit.
+- **0.5.0 cut (2026-10-17):** tag `v0.5.0` on main 0abc404 (local; push and GitHub release are
+  the user's). 29 assets in `tmp/dist` and `tmp/dist-lib` (8 CLI + 8 libpare archives, 10 tool
+  packages, 3 library packages), notes in `tmp/release-notes-0.5.0.md`. macOS: 495 tests, 494
+  passed, 1 skipped. wp1 (SDK 10.0.402): 495, 487 passed, 8 skipped (the 6 known, the C test, the
+  symlinked-directory test). Benchmark re-run that day discarded: load average 8.7 from other
+  work (whisper-cli batch, kiln tests), BenchmarkDotNet StdDev ~9% of the mean; re-run on a quiet
+  machine before quoting new numbers. Re-run later that day, StdDev 1-2%: `checker.ts` 9.3 ms
+  (335 MB/s), corpus 60.2 ms (272 MB/s), nested 32.3 ms; compare Pare 279 MB/s, oxc 3.2x,
+  Node 7.0x slower; output counts unchanged. README Performance updated (it said Pare 0.1.0).
+  Published as a GitHub prerelease with all 29 assets; quickstart bumped to 0.5.0.
+- **Svelte tier 1 spike (2026-10-17):** ClearScript 7.5.1.1 approved for the spike. Svelte
+  5.57.2's compiler in V8: byte-identical to Node on 4,587 `.svelte` files, 1.6x slower warm
+  (0.4 ms a component), loads in a `dotnet build` task and under VS `MSBuild.exe`'s .NET task
+  host on wp1, output runs in Chromium behind an import map. No linux-musl native package; 44 MB
+  per RID. Results in `docs/ecosystem-comparison.md`; scratch in `tmp/svelte-spike/`,
+  `scripts/cleanup/svelte-spike.sh`. Go: Svelte support is a separate product, Husk (`../husk`,
+  created the same day with the spike as `prototypes/001-engine-spike`, the ClearScript vs Jint
+  comparison and the Cloudflare/Deno survey); decision 004. Pare's part: a public MSBuild
+  extension point (`work/todo.md`).
 
 ## Next
 
