@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-17
+
 - Other compile-to-JavaScript steps run on Pare's plumbing (decision 005): a package declares
   `<PareCompileSource Include="**/*.svelte" PareCompiler="husk" PareOutputExtension=".svelte.js" />`
   and adds its target to `PareCompileDependsOn`; Pare gives each source `PareOutputPath` and
