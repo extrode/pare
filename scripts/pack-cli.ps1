@@ -51,7 +51,7 @@ foreach ($rid in $rids) {
     $native = Join-Path $root "src/Extrode.Pare.Native"
     $stage = Join-Path $root "tmp/native-stage/libpare-$Version-$rid"  # overwritten, left for scripts/cleanup
     New-Item -ItemType Directory -Force $stage | Out-Null
-    Copy-Item (Join-Path $native "bin/Release/net10.0/$rid/publish/pare.dll"), (Join-Path $native "obj/Release/net10.0/$rid/native/pare.lib"), (Join-Path $native 'include/pare.h'), (Join-Path $root 'LICENSE.md'), (Join-Path $root 'NOTICE.md') $stage
+    Copy-Item (Join-Path $native "bin/Release/net10.0/$rid/publish/pare.dll"), (Join-Path $native "bin/Release/net10.0/$rid/native/pare.lib"), (Join-Path $native 'include/pare.h'), (Join-Path $root 'LICENSE.md'), (Join-Path $root 'NOTICE.md') $stage
     Compress-Archive -Path $stage -DestinationPath (Join-Path $out "libpare-$Version-$rid.zip") -Force
     "libpare-$Version-$rid.zip"
 }
