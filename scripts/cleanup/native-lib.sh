@@ -62,7 +62,7 @@ else
         [ -z "$path" ] && continue
         if [ "$execute" -eq 1 ] && [ "$delete_scratch" -eq 1 ]; then
             printf 'delete: wp1 %s\n' "$path"
-            ssh wp1 "Remove-Item -Recurse -Force -LiteralPath '$path'" 2>/dev/null || failed=1
+            ssh -n wp1 "Remove-Item -Recurse -Force -LiteralPath '$path'" 2>/dev/null || failed=1
         else
             printf 'would delete: wp1 %s\n' "$path"
         fi
