@@ -44,8 +44,6 @@ Small, clear, and could be picked up without a design decision.
 - PARE203 stops at the first bad `PareServeAt` (MSBuild ends a batched `Error` at its first
   batch), so its 9 test cases need 9 builds (~14 s). Reporting every bad item in one build would
   let them share one. The serving tests share one build since 2026-10-15 (subset 68 s to 42 s).
-- `tests/Extrode.Pare.Bench/Compare.cs:349` has raw `«»` (AGENTS.md: C# stays ASCII);
-  `scripts/fix-escapes.sh` rewrites them to `\u00AB`/`\u00BB` on every run. Commit that once.
 - In Development the SDK serves every `wwwroot` file through a `**` pattern, so `.ts` sources
   return 200 (app and RCL); publish has none. Decide whether `AddPareDevelopment` should 404 them.
 
