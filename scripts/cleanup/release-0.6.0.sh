@@ -32,7 +32,7 @@ if [ "$(git -C "$repo" branch --show-current)" != "dev" ]; then
     exit 1
 fi
 failed=0
-worktree=tmp/release-0.6.0-wt
+worktree=.worktrees/release-0.6.0
 scratch=(tmp/pare.bundle tmp/qs-0.6.0 tmp/rel-assets.txt)
 assets=(tmp/release-notes-0.6.0.md)
 for f in "$repo"/tmp/dist/*0.6.0* "$repo"/tmp/dist-lib/*0.6.0*; do
