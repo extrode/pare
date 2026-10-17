@@ -40,6 +40,10 @@ internal static class CharClass
         _ => CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.SpaceSeparator,
     };
 
+    /// <summary>An ASCII character that may continue an identifier: letter, digit, <c>$</c>, <c>_</c>.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool IsAsciiIdentifierPart(char c) => c < 0x80 && (Ascii[c] & IdPart) != 0;
+
     public static bool IsIdentifierStart(int cp)
     {
         if (cp < 0x80)

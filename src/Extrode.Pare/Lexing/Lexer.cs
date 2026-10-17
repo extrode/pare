@@ -540,8 +540,9 @@ internal ref struct Lexer
     {
         if (p >= _src.Length)
             return false;
-        if (_src[p] == '\\')
-            return true;
+        char c = _src[p];
+        if (c < 0x80)
+            return c == '\\' || CharClass.IsIdentifierStart(c);
         return CharClass.IsIdentifierStart(CodePointAt(p, out _));
     }
 
@@ -551,6 +552,20 @@ internal ref struct Lexer
         int start = _s.Pos;
         int p = start;
         bool first = true;
+        // ASCII fast path. The caller checked that the first character starts an identifier.
+        if (_src[p] is < '\u0080' and not '\\')
+        {
+            p++;
+            while (p < _src.Length && CharClass.IsAsciiIdentifierPart(_src[p]))
+                p++;
+            if (p >= _src.Length || _src[p] is < '\u0080' and not '\\')
+            {
+                _s.Pos = p;
+                _s.Keyword = Keywords.Lookup(_src[start..p]);
+                return;
+            }
+            first = false;
+        }
         while (p < _src.Length)
         {
             int cp;
