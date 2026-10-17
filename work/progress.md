@@ -272,6 +272,25 @@ convention). Update at the end of every session.
   Merged dev 9736908: macOS 384 unit, 63 integration (1 skip), 3 conformance, 0 failed; wp1 384
   unit (1 skip), 63 integration (2 skip), 0 failed.
 
+- **Rein handoff, 0.4.0 (2026-10-17, plan `docs/plans/2026-10-17-001-embedded-output.md`):**
+  handoff `docs/handoffs/2026-10-17-rein-web-ui-needs.md`, reply `-pare-0.4.0-for-rein.md`. User's
+  calls: both N1 shapes, 0.4.0 as vendored `.nupkg`, string overload + 0.x stability, N4 and N5.
+  `PareEmbed`/`PareEmbedPrefix` embed outputs (written under `obj/.../pare/`, named by path below
+  the project, `WithCulture=false` so `x.de.js` stays in the main assembly). Public `@(PareOutput)`
+  (`PareSource`, `PareRelativePath`); `PareStripTypeScript` is now a bodiless target depending on
+  `PareTypeCheck;_PareStrip;_PareRegisterOutputs`, because a project's own `AfterTargets` target is
+  declared before the package's and would run first (break-check: 5 tests fail without it).
+  A Pare-side stale delete for embed was redundant (SDK incremental clean), dropped. Found:
+  `$(IntermediateOutputPath)` is empty in a project body (`PareOutDir` from it gives `pare/`);
+  README recommends `$(BaseIntermediateOutputPath)`. `TypeStripper.Strip(string, out ...)`.
+  `get-tsc.cs --dest` (refuses a non-empty dir it did not fill); a copied script inside a project
+  dir gets compiled by it (documented). Jint 4.16.4 (approved) sample `JintModuleTests`: Jint's
+  `ModuleLoader` base swallows load exceptions, so the sample implements `IModuleLoader`.
+  463 tests, 0 failed, 1 skipped (VS MSBuild) on macOS; not run on wp1. Packed `Extrode.Pare`,
+  `.Build`, `.AspNetCore` 0.4.0 into `tmp/dist-lib`; checked from a vendored `packages/` feed in a
+  fresh console app (resources `web/home.js`, `web/lib/util.js`). Not done: tag, CLI per-RID packs,
+  GitHub release, `docs/cli-quickstart.md` still at 0.3.0 (its commands were run on that archive).
+
 ## Next
 
 Order from the 2026-10-15 fable consult:
