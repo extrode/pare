@@ -296,6 +296,20 @@ convention). Update at the end of every session.
   wp1 at v0.4.0 (SDK 10.0.402): 463 tests, 0 failed, 6 skipped (3 corpus missing, Unix
   permissions, 2 fake-`tsc` shell scripts); the embed, `get-tsc --dest`, Jint and VS MSBuild
   tests ran there.
+- **Perf pass (2026-10-17, `perf/hot-path`):** BenchmarkDotNet in-process (out-of-process
+  fails while `.claude/worktrees` hold copies of the bench project, see todo): `checker.ts` 13.2
+  -> 9.4 ms, real-world corpus 74.1 -> 59.8 ms, 0 B allocated. Regression guard: a snapshot
+  (ok, output hash, diagnostics) of all 15,462 `.corpus` files, plain, with the import rewrite and
+  cut at 1/3 and 2/3 (61,848 results), identical after every change. Kept: ASCII identifier
+  fast path (-19%), trivia on a local position (-4% corpus, -10% checker), stack check every
+  16th recursion (-6% under NativeAOT only; first `Guard` test), CLI `OptimizationPreference=Speed`
+  (-7% AOT), CLI walk reads each directory once (0.60 -> 0.35 s over the corpus; svelte has
+  3,816 test directories). Tried and reverted, no gain: vectorized identifier scan
+  (`IndexOfAnyExcept`, slower: identifiers are short), keyword length/first-letter prefilter,
+  local span in the identifier loop. Measured: 1.21 lexer scans per token (Peek and speculation),
+  so a token cache would gain little; NativeAOT ~18% slower than the JIT on the same driver.
+  `(a = ` nesting stays quadratic (tsc and ts-blank-space too, both slower than Pare at 500 deep;
+  only swc is linear, by cover grammar): still Dropped in todo.
 
 ## Next
 

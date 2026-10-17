@@ -41,6 +41,7 @@ internal ref partial struct Parser
     private ulong[]? _notArrow;
     // Rewrite relative `./x.ts` module specifiers to `./x.js`.
     private readonly bool _rewriteImports;
+    private int _guardTick;
 
     public Parser(ReadOnlySpan<char> source, bool rewriteImports = false)
     {
@@ -220,10 +221,13 @@ internal ref partial struct Parser
         }
     }
 
-    /// <summary>Fails on input nested deep enough to exhaust the stack.</summary>
+    /// <summary>
+    /// Fails on input nested deep enough to exhaust the stack. Checks every 16th call: the check
+    /// reads a thread static, and 16 nesting levels use far less than the 64 KB or more it leaves free.
+    /// </summary>
     private void Guard()
     {
-        if (!RuntimeHelpers.TryEnsureSufficientExecutionStack())
+        if ((++_guardTick & 15) == 0 && !RuntimeHelpers.TryEnsureSufficientExecutionStack())
             Fail();
     }
 

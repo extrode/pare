@@ -72,6 +72,7 @@ public class LexerTests
     [Theory]
     [InlineData("\\u0074ype")]
     [InlineData("typ\\u{65}")]
+    [InlineData("ty\\u0070e")]
     public void Escaped_identifier_is_never_a_keyword(string source)
     {
         var t = Single(source);
@@ -85,6 +86,8 @@ public class LexerTests
     [InlineData("\U0001D400x")]
     [InlineData("a\u200Db")]
     [InlineData("\u2118")]
+    [InlineData("abc\u00E9")]
+    [InlineData("x\U0001D400")]
     public void Unicode_identifiers(string source)
     {
         var t = Single(source);

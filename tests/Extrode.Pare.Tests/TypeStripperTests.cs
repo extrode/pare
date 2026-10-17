@@ -35,6 +35,22 @@ public class TypeStripperTests
         Assert.Equal(0, diagnostics[0].Start);
     }
 
+    [Theory]
+    [InlineData("x = ", "(", "a", ")")]
+    [InlineData("x = ", "[", "a", "]")]
+    [InlineData("", "{", "", "}")]
+    [InlineData("", "function f() {", "", "}")]
+    [InlineData("let x: ", "A<", "B", ">")]
+    [InlineData("let x: ", "{ a: ", "B", " }")]
+    public void Nesting_too_deep_for_the_stack_is_a_syntax_error(string head, string open, string inner, string close)
+    {
+        const int depth = 200_000;
+        string source = head + string.Concat(Enumerable.Repeat(open, depth)) + inner + string.Concat(Enumerable.Repeat(close, depth)) + ";";
+
+        Assert.Null(TypeStripper.Strip(source, out var diagnostics));
+        Assert.Equal([DiagnosticCode.SyntaxError], diagnostics.Select(d => d.Code));
+    }
+
     [Fact]
     public void Null_output_or_sink_throws()
     {

@@ -11,7 +11,9 @@ wish list; the value is in recording the ones nobody has got to yet.
 
 Small, clear, and could be picked up without a design decision.
 
-- (nothing yet)
+- BenchmarkDotNet's out-of-process run fails ("Found more than one matching project file") while
+  `.claude/worktrees/agent-*` hold copies of `Extrode.Pare.Bench.csproj` (15 on 2026-10-17); run
+  with `--inProcess`, or remove the stale agent worktrees (user's call: they are not scratch).
 
 ## Later
 
