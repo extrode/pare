@@ -8,13 +8,17 @@ namespace Extrode.Pare.AspNetCore;
 /// Strips the <c>.ts</c> and <c>.mts</c> sources under a directory (not <c>.d.ts</c>, not
 /// <c>node_modules</c>), the same set and output paths as the MSBuild package's defaults, and keeps
 /// stripping them as they change. With the build's output root, it also deletes the output of a
-/// deleted source: that directory holds only Pare's output.
+/// deleted source: that directory holds only Pare's output. The build's map may also name sources
+/// and their outputs one by one (<c>PareServeAt</c>, anywhere in the project); those are watched
+/// in their own directories and written where the map says.
 /// </summary>
 internal sealed class TypeScriptWatcher : IDisposable
 {
     // Editors save in several steps (truncate, write, rename); one strip after they settle.
     internal static readonly TimeSpan Settle = TimeSpan.FromMilliseconds(50);
     private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
+    private static readonly StringComparer PathComparer =
+        OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 
     private readonly string _contentRoot;
     private readonly string _sourceRoot;
@@ -22,66 +26,99 @@ internal sealed class TypeScriptWatcher : IDisposable
     // Output paths keep the source's path from here: the content root for OutDir, the web root for the build's output root.
     private readonly string _outBase;
     private readonly bool _ownsOutput;
+    private readonly Dictionary<string, string> _mapped;
     private readonly ILogger _logger;
     private readonly HashSet<string> _pending = new(StringComparer.Ordinal);
     private readonly Lock _lock = new();
     private readonly Timer _timer;
-    private FileSystemWatcher? _watcher;
+    private readonly List<FileSystemWatcher> _watchers = [];
 
     public TypeScriptWatcher(string contentRoot, string sourceRoot, string? outDir, ILogger logger)
-        : this(contentRoot, sourceRoot, string.IsNullOrEmpty(outDir) ? null : Path.GetFullPath(outDir, Path.GetFullPath(contentRoot)), ownsOutput: false, logger)
+        : this(contentRoot, sourceRoot, string.IsNullOrEmpty(outDir) ? null : Path.GetFullPath(outDir, Path.GetFullPath(contentRoot)), ownsOutput: false, null, logger)
     {
     }
 
-    private TypeScriptWatcher(string contentRoot, string sourceRoot, string? outRoot, bool ownsOutput, ILogger logger)
+    private TypeScriptWatcher(string contentRoot, string sourceRoot, string? outRoot, bool ownsOutput, IReadOnlyDictionary<string, string>? mapped, ILogger logger)
     {
         _contentRoot = Path.GetFullPath(contentRoot);
         _sourceRoot = Path.GetFullPath(sourceRoot);
         _outRoot = outRoot;
         _outBase = ownsOutput ? _sourceRoot : _contentRoot;
         _ownsOutput = ownsOutput;
+        _mapped = new Dictionary<string, string>(PathComparer);
+        foreach (var (source, output) in mapped ?? new Dictionary<string, string>())
+            _mapped[Path.GetFullPath(source)] = Path.GetFullPath(output);
         _logger = logger;
         _timer = new Timer(_ => Flush());
     }
 
-    /// <summary>Writes where the build does in a web project: under <paramref name="outputRoot"/>, keeping each path below <paramref name="sourceRoot"/>.</summary>
-    public static TypeScriptWatcher ForBuildOutput(string contentRoot, string sourceRoot, string outputRoot, ILogger logger) =>
-        new(contentRoot, sourceRoot, Path.GetFullPath(outputRoot), ownsOutput: true, logger);
+    /// <summary>
+    /// Writes where the build does in a web project: each of <paramref name="sources"/> (full source
+    /// path to full output path) where it says, any other source under <paramref name="sourceRoot"/>
+    /// under <paramref name="outputRoot"/>, keeping its path below <paramref name="sourceRoot"/>.
+    /// </summary>
+    public static TypeScriptWatcher ForBuildOutput(string contentRoot, string sourceRoot, string outputRoot, ILogger logger,
+        IReadOnlyDictionary<string, string>? sources = null) =>
+        new(contentRoot, sourceRoot, Path.GetFullPath(outputRoot), ownsOutput: true, sources, logger);
 
     public void Start()
     {
-        foreach (string source in Directory.EnumerateFiles(_sourceRoot, "*", SearchOption.AllDirectories))
+        var initial = new HashSet<string>(_mapped.Keys, PathComparer);
+        bool hasRoot = Directory.Exists(_sourceRoot);
+        if (hasRoot)
+            initial.UnionWith(Directory.EnumerateFiles(_sourceRoot, "*", SearchOption.AllDirectories).Where(IsSource));
+        foreach (string source in initial)
         {
-            if (!IsSource(source))
-                continue;
             var target = new FileInfo(OutputPath(source));
-            if (!target.Exists || target.LastWriteTimeUtc < File.GetLastWriteTimeUtc(source))
+            if (!File.Exists(source) ? target.Exists : !target.Exists || target.LastWriteTimeUtc < File.GetLastWriteTimeUtc(source))
                 Strip(source, started: false);
         }
 
         // No name filter: a new directory's own event is the only sign of the files written into it
         // before Linux starts watching it.
-        _watcher = new FileSystemWatcher(_sourceRoot)
+        if (hasRoot)
+            Watch(_sourceRoot, recursive: true);
+        foreach (string directory in _mapped.Keys.Select(s => Path.GetDirectoryName(s)!).Distinct(PathComparer))
         {
-            IncludeSubdirectories = true,
+            if (Directory.Exists(directory) && !(hasRoot && IsUnder(_sourceRoot, directory)))
+                Watch(directory, recursive: false);
+        }
+    }
+
+    private void Watch(string directory, bool recursive)
+    {
+        var watcher = new FileSystemWatcher(directory)
+        {
+            IncludeSubdirectories = recursive,
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
         };
-        _watcher.Changed += (_, e) => Queue(e.FullPath);
-        _watcher.Created += (_, e) => QueueTree(e.FullPath);
-        _watcher.Renamed += (_, e) =>
+        watcher.Changed += (_, e) => Queue(e.FullPath);
+        watcher.Created += (_, e) => QueueTree(e.FullPath);
+        watcher.Renamed += (_, e) =>
         {
             Queue(e.OldFullPath);
             QueueTree(e.FullPath);
         };
-        _watcher.Deleted += (_, e) => Queue(e.FullPath);
-        _watcher.EnableRaisingEvents = true;
+        watcher.Deleted += (_, e) => Queue(e.FullPath);
+        watcher.EnableRaisingEvents = true;
+        _watchers.Add(watcher);
+    }
+
+    private static bool IsUnder(string root, string path)
+    {
+        string relative = Path.GetRelativePath(root, path);
+        return relative != ".." && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) && !Path.IsPathRooted(relative);
     }
 
     internal bool IsSource(string path)
     {
+        if (_mapped.ContainsKey(path))
+            return true;
         if (!path.EndsWith(".ts", StringComparison.Ordinal) && !path.EndsWith(".mts", StringComparison.Ordinal))
             return false;
         if (path.EndsWith(".d.ts", StringComparison.Ordinal) || path.EndsWith(".d.mts", StringComparison.Ordinal))
+            return false;
+        if (!IsUnder(_sourceRoot, path))
             return false;
         string relative = Path.GetRelativePath(_sourceRoot, path);
         return !relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Contains("node_modules");
@@ -89,6 +126,8 @@ internal sealed class TypeScriptWatcher : IDisposable
 
     internal string OutputPath(string source)
     {
+        if (_mapped.TryGetValue(source, out string? mapped))
+            return mapped;
         string js = Path.ChangeExtension(source, source.EndsWith(".mts", StringComparison.Ordinal) ? ".mjs" : ".js");
         return _outRoot is null ? js : Path.Combine(_outRoot, Path.GetRelativePath(_outBase, js));
     }
@@ -218,7 +257,8 @@ internal sealed class TypeScriptWatcher : IDisposable
 
     public void Dispose()
     {
-        _watcher?.Dispose();
+        foreach (var watcher in _watchers)
+            watcher.Dispose();
         _timer.Dispose();
     }
 

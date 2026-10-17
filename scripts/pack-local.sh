@@ -1,10 +1,10 @@
 #!/bin/sh
 # Packs Extrode.Pare, Extrode.Pare.Build and Extrode.Pare.AspNetCore into tmp/feed as
-# 0.3.0-dev.<unix time> and re-restores samples/WebApp, whose `0.3.0-*` references then pick
+# 0.4.0-dev.<unix time> and re-restores samples/WebApp, whose `0.4.0-*` references then pick
 # the new build. A unique version keeps NuGet from serving a cached package with the same number.
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
-version="0.3.0-dev.$(date +%s)"
+version="0.4.0-dev.$(date +%s)"
 for project in Extrode.Pare Extrode.Pare.Build Extrode.Pare.AspNetCore; do
   dotnet pack "$root/src/$project" -c Release -o "$root/tmp/feed" -p:Version="$version" -v q -nologo
 done

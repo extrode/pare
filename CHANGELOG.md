@@ -1,5 +1,40 @@
 # Changelog
 
+## [Unreleased]
+
+## [0.4.0] - 2026-10-17
+
+- `PareEmbed=true` (with `PareEmbedPrefix`) embeds every output in the assembly, named after its
+  path below the project, written under `obj/`; for projects that are not web projects. Outputs
+  are not `Content` or static web assets there, and a deleted source drops its resource.
+- `@(PareOutput)` is public: every output, with `PareSource` and `PareRelativePath`. A project's
+  `AfterTargets="PareStripTypeScript"` target sees it on every build. `PareStripTypeScript` now
+  has no body and depends on the strip (`_PareStrip`) and the registration; `PareTypeCheck` runs
+  as its dependency instead of through `BeforeTargets`.
+- `string? TypeStripper.Strip(string source, out IReadOnlyList<Diagnostic> diagnostics)`. The
+  library API is documented as stable for 0.x.
+- `scripts/get-tsc.cs --dest <dir>` works outside the Pare repository; README section on type
+  checking in CI without npm.
+- Sample: a Jint module loader that strips `.ts` on import (`JintModuleTests`).
+- README: restoring vendored `.nupkg` files offline, non-web projects.
+- `PareServeAt` serves TypeScript outside `wwwroot`:
+  `<TypeScriptSource Include="Scripts/**/*.ts" PareServeAt="js" />` serves `Scripts/lib/fmt.ts`
+  at `/js/lib/fmt.js`, and `.mts` as `.mjs`. `PareServeAt="/"` serves Blazor `**/*.razor.ts`
+  beside their components.
+- `AddPareDevelopment` re-strips `PareServeAt` sources on save, and the sources of Razor class
+  libraries the app references as projects. The development map now lists each source and its
+  output, and each project's map also reaches the build output of projects that reference it as
+  `Extrode.Pare.development.<project>.json`. Maps from 0.3 still work.
+- PARE202 warning: a source outside `wwwroot` with no `PareServeAt` is not served. Builds that
+  include such sources now show it; add `PARE202` to `NoWarn` to keep the output next to the source.
+- PARE203 error: a `PareServeAt` that is not a folder.
+- PARE201: two TypeScript sources at the same URL now fail with a Pare error naming both,
+  instead of crashing the static web assets SDK (MSB4018).
+- Razor class libraries: tested and documented (`/_content/<Lib>/...`).
+- CLI quickstart (`docs/cli-quickstart.md`) and the `samples/CliSite` static-site sample.
+- Fixed: `PareOutDir` with a `.razor.ts` or `.cshtml.ts` source failed the build with BLAZOR106
+  (a `.razor.js` with no component beside it). The output is written there and not served.
+
 ## [0.3.0] - 2026-10-15
 
 ### Upgrading from 0.2

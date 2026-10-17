@@ -1,8 +1,10 @@
 <Project>
   <!-- Output: in a project with static web assets (the Web SDK), each wwwroot source's output goes
        under $(IntermediateOutputPath)pare/ and is registered as a static web asset at the source's
-       path below wwwroot; outputs whose source is gone are deleted. Elsewhere, and for sources
-       outside wwwroot, output goes next to each source.
+       path below wwwroot; outputs whose source is gone are deleted. A source with PareServeAt
+       metadata (a URL folder, `/` for the root) is served there instead, wherever it sits:
+       folder + %(RecursiveDir) + its name with .ts, .mts, .cts made .js, .mjs, .cjs. Elsewhere,
+       and for other sources outside wwwroot (PARE202), output goes next to each source.
        Properties:
          PareOutDir         write output under this directory (relative paths kept) instead; turns
                             off the obj/ output
@@ -12,6 +14,12 @@
                             copied to the output or publish directory
          PareKeepSources    true keeps .ts and .d.ts files in Content, so they are served and
                             published next to the output
+         PareEmbed          true embeds every output in the assembly instead: written under
+                            $(IntermediateOutputPath)pare/ (or PareOutDir) at its path below the
+                            project, named $(PareEmbedPrefix) + that path; never Content or a
+                            static web asset
+       After PareStripTypeScript, @(PareOutput) lists the outputs, with PareSource (the source's
+       full path) and PareRelativePath (the URL or embedded name; else the path below the project).
          PareTaskAssembly   the task dll; tests point it at a build output -->
   <PropertyGroup>
     <PareTaskAssembly Condition="'$(PareTaskAssembly)' == ''">$(MSBuildThisFileDirectory)..\tasks\net10.0\Extrode.Pare.Build.dll</PareTaskAssembly>
@@ -30,7 +38,7 @@
   <Target Name="_PareComputeOutputs">
     <!-- In a target: IntermediateOutputPath is not set yet when a package's files are evaluated. -->
     <PropertyGroup>
-      <_PareObjRoot Condition="'$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' and '$(_PareOutRoot)' == ''">$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'pare'))</_PareObjRoot>
+      <_PareObjRoot Condition="('$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' or '$(PareEmbed)' == 'true') and '$(_PareOutRoot)' == ''">$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'pare'))</_PareObjRoot>
     </PropertyGroup>
     <ItemGroup>
       <_PareSource Include="@(TypeScriptSource)"
@@ -38,9 +46,31 @@
       <_PareSource>
         <_PareDir>$([MSBuild]::MakeRelative('$([MSBuild]::NormalizeDirectory($(MSBuildProjectDirectory)))', '%(RootDir)%(Directory)').Replace('\', '/'))</_PareDir>
         <_PareJs>%(Filename)$([System.String]::Copy('%(Extension)').Replace('ts', 'js'))</_PareJs>
+        <_PareSourceSpec>%(Identity)</_PareSourceSpec>
+        <_PareServeAt>$([System.String]::Copy('%(_PareSource.PareServeAt)').Replace('\', '/'))</_PareServeAt>
       </_PareSource>
-      <_PareSource Condition="'$(_PareObjRoot)' != '' and $([System.String]::Copy('%(_PareDir)').StartsWith('wwwroot/'))">
+      <!-- A folder, never a file: no `.`/`..` segment, `:`, `//` or script extension. -->
+      <_PareBadServeAt Include="@(_PareSource)"
+                       Condition="'%(_PareSource._PareServeAt)' != '' and $([System.Text.RegularExpressions.Regex]::IsMatch($([System.String]::Copy('%(_PareSource._PareServeAt)').ToLowerInvariant()), ':|//|(^|/)\.\.?(/|\z)|\.[mc]?[jt]s/*\z'))" />
+      <!-- PareRelativePath, when also set, wins. `/` is the root: mapped is decided before trimming. -->
+      <_PareSource Condition="'%(_PareSource._PareServeAt)' != '' and '%(_PareSource.PareRelativePath)' == ''">
+        <_PareFolder>$([System.String]::Copy('%(_PareSource._PareServeAt)').Trim('/'))</_PareFolder>
+      </_PareSource>
+      <_PareSource Condition="'%(_PareSource._PareFolder)' != ''">
+        <_PareFolder>%(_PareSource._PareFolder)/</_PareFolder>
+      </_PareSource>
+      <_PareSource Condition="'%(_PareSource._PareServeAt)' != '' and '%(_PareSource.PareRelativePath)' == ''">
+        <PareRelativePath>%(_PareSource._PareFolder)%(_PareSource.RecursiveDir)%(_PareSource._PareJs)</PareRelativePath>
+      </_PareSource>
+      <_PareSource Condition="'$(PareEmbed)' == 'true' and '%(_PareSource.PareRelativePath)' == ''">
+        <PareRelativePath>%(_PareDir)%(_PareJs)</PareRelativePath>
+      </_PareSource>
+      <_PareSource Condition="'$(_PareObjRoot)' != '' and '%(_PareSource.PareRelativePath)' == '' and $([System.String]::Copy('%(_PareDir)').StartsWith('wwwroot/'))">
         <PareRelativePath>$([System.String]::Copy('%(_PareDir)').Substring(8))%(_PareJs)</PareRelativePath>
+      </_PareSource>
+      <!-- A URL path: %(RecursiveDir) in a mapping is `lib\` on Windows. -->
+      <_PareSource Condition="'%(_PareSource.PareRelativePath)' != ''">
+        <PareRelativePath>$([System.String]::Copy('%(_PareSource.PareRelativePath)').Replace('\', '/'))</PareRelativePath>
       </_PareSource>
       <_PareSource Condition="'%(_PareSource.PareRelativePath)' != ''">
         <PareOutputPath>$(_PareObjRoot)%(_PareSource.PareRelativePath)</PareOutputPath>
@@ -52,16 +82,34 @@
       <_PareSource Condition="'$(_PareOutRoot)' != ''">
         <PareOutputPath>$(_PareOutRoot)%(RelativeDir)%(_PareJs)</PareOutputPath>
       </_PareSource>
+      <!-- Two sources at one URL: the SDK would crash on the duplicate asset (MSB4018). Batches
+           group case-insensitively, as one obj/ file on macOS and Windows would. -->
+      <_PareUrl Include="@(_PareSource->'%(PareRelativePath)')" Condition="'%(_PareSource.PareRelativePath)' != ''" />
+      <!-- Outside wwwroot with no URL: written next to the source, which serves nothing. A
+           .razor.js or .cshtml.js there is the SDK's collocated JS, which it serves itself. -->
+      <_PareUnserved Include="@(_PareSource)"
+                     Condition="'$(_PareObjRoot)' != '' and '%(_PareSource.PareRelativePath)' == '' and !$([System.String]::Copy('%(_PareSource._PareJs)').EndsWith('.razor.js')) and !$([System.String]::Copy('%(_PareSource._PareJs)').EndsWith('.cshtml.js'))" />
     </ItemGroup>
+    <Error Code="PARE203" File="%(_PareBadServeAt.Identity)" Condition="'@(_PareBadServeAt)' != ''"
+           Text="PareServeAt=&quot;%(_PareBadServeAt.PareServeAt)&quot; is not a URL folder. Give a folder such as js, or / for the root, with no . or .. segment, colon, double slash or file name: the file name comes from the source." />
+    <Error Code="PARE201" File="$(MSBuildProjectFullPath)" Condition="'@(_PareUrl->Count())' &gt; '1'"
+           Text="two TypeScript sources map to one URL, %(_PareUrl.Identity): @(_PareUrl->'%(_PareSourceSpec)', ', '). Serve one under a different PareServeAt folder, or remove one from TypeScriptSource." />
+    <Warning Code="PARE202" File="%(_PareUnserved.Identity)" Condition="'@(_PareUnserved)' != ''"
+             Text="not served: outside wwwroot with no PareServeAt, so the .js goes next to the source and is not a static web asset. Add PareServeAt=&quot;js&quot; to the TypeScriptSource item to serve it under js/, or add PARE202 to NoWarn to keep it as is." />
   </Target>
 
-  <Target Name="PareTypeCheck" BeforeTargets="PareStripTypeScript"
+  <Target Name="PareTypeCheck" DependsOnTargets="_PareComputeOutputs"
           Condition="'$(PareTypeCheck)' == 'true' and '@(TypeScriptSource)' != ''">
     <Exec Command="&quot;$(PareTscPath)&quot; --noEmit -p &quot;$(PareTsconfig)&quot;" />
   </Target>
 
+  <!-- No body, so a project's AfterTargets="PareStripTypeScript" sees @(PareOutput): a project's
+       own targets are declared before a package's, and AfterTargets run in declaration order. -->
+  <Target Name="PareStripTypeScript" BeforeTargets="BeforeBuild"
+          DependsOnTargets="_PareComputeOutputs;PareTypeCheck;_PareStrip;_PareRegisterOutputs" />
+
   <!-- Incremental: an output is rewritten only when its source, the task or this file is newer. -->
-  <Target Name="PareStripTypeScript" BeforeTargets="BeforeBuild" DependsOnTargets="_PareComputeOutputs"
+  <Target Name="_PareStrip" DependsOnTargets="_PareComputeOutputs"
           Condition="'@(TypeScriptSource)' != ''"
           Inputs="@(_PareSource);$(PareTaskAssembly);$(MSBuildThisFileFullPath)"
           Outputs="@(_PareSource->'%(PareOutputPath)')">
@@ -72,18 +120,35 @@
        assets serve and publish them, including on the first build when evaluation-time globs
        could not see them yet. Sources leave Content here rather than at evaluation, where a
        package's targets may be imported before the Web SDK adds wwwroot/**. -->
-  <Target Name="_PareRegisterOutputs" AfterTargets="PareStripTypeScript" Condition="'@(_PareSource)' != ''">
+  <Target Name="_PareRegisterOutputs" Condition="'@(_PareSource)' != ''">
     <ItemGroup>
-      <_PareOutput Include="@(_PareSource->'%(PareOutputPath)')" />
-      <FileWrites Include="@(_PareOutput)" />
+      <PareOutput Include="@(_PareSource->'%(PareOutputPath)')">
+        <PareSource>%(_PareSource.FullPath)</PareSource>
+      </PareOutput>
+      <PareOutput Condition="'%(PareOutput.PareRelativePath)' == ''">
+        <PareRelativePath>%(PareOutput._PareDir)%(PareOutput._PareJs)</PareRelativePath>
+      </PareOutput>
+      <FileWrites Include="@(PareOutput)" />
+      <EmbeddedResource Include="@(PareOutput)" LogicalName="$(PareEmbedPrefix)%(PareOutput.PareRelativePath)"
+                        WithCulture="false" Condition="'$(PareEmbed)' == 'true'" />
       <_PareContentOutput Include="@(_PareSource->'%(PareOutputPath)')" Condition="'%(_PareSource.PareRelativePath)' == ''" />
       <Content Remove="@(_PareContentOutput)" />
       <Content Include="@(_PareContentOutput)" />
+      <!-- A .razor.js or .cshtml.js under PareOutDir has no component beside it: as Content or None
+           (the Web SDK's glob, from the second build) the SDK fails the build with BLAZOR106. -->
+      <_PareOutDirCollocated Include="@(_PareSource->'%(PareOutputPath)')"
+                             Condition="'$(_PareOutRoot)' != '' and ($([System.String]::Copy('%(_PareSource._PareJs)').EndsWith('.razor.js')) or $([System.String]::Copy('%(_PareSource._PareJs)').EndsWith('.cshtml.js')))" />
+      <!-- Also relative: the SDK's globs name files relative to the project, and Remove matches the spec. -->
+      <_PareOutDirCollocated Condition="'@(_PareOutDirCollocated)' != ''" Include="@(_PareOutDirCollocated->'$([MSBuild]::MakeRelative('$(MSBuildProjectDirectory)$([System.IO.Path]::DirectorySeparatorChar)', '%(FullPath)'))')" />
+      <Content Remove="@(_PareOutDirCollocated)" />
+      <None Remove="@(_PareOutDirCollocated)" />
       <!-- A .js beside a source whose output is in obj/: left by Pare 0.2 or hand-written. As
-           Content it would be a second asset at the same path, which the SDK rejects. -->
+           Content it would be a second asset at the same path, which the SDK rejects; a
+           .razor.js is also found as None (collocated JS). -->
       <_PareShadowed Include="@(_PareSource->'%(RelativeDir)%(_PareJs)')"
-                     Condition="'%(_PareSource.PareRelativePath)' != '' and Exists('%(_PareSource.RelativeDir)%(_PareSource._PareJs)')" />
+                     Condition="'$(PareEmbed)' != 'true' and '%(_PareSource.PareRelativePath)' != '' and Exists('%(_PareSource.RelativeDir)%(_PareSource._PareJs)')" />
       <Content Remove="@(_PareShadowed)" />
+      <None Remove="@(_PareShadowed)" />
       <Content Remove="@(TypeScriptSource);wwwroot/**/*.d.ts;wwwroot/**/*.d.mts;wwwroot/**/*.d.cts"
                Condition="'$(PareKeepSources)' != 'true'" />
       <!-- The Web SDK makes every root .json Content. -->
@@ -116,7 +181,7 @@
 
   <Target Name="_PareDefineStaticWebAssets" DependsOnTargets="ResolveStaticWebAssetsConfiguration;_PareComputeOutputs">
     <ItemGroup>
-      <_PareAssetCandidate Include="@(_PareSource->'%(PareOutputPath)')" Condition="'%(_PareSource.PareRelativePath)' != ''">
+      <_PareAssetCandidate Include="@(_PareSource->'%(PareOutputPath)')" Condition="'$(PareEmbed)' != 'true' and '%(_PareSource.PareRelativePath)' != ''">
         <!-- No OriginalItemSpec: compression reads the file it names, which must be the output. -->
         <RelativePath>%(_PareSource.PareRelativePath)</RelativePath>
       </_PareAssetCandidate>
@@ -149,13 +214,37 @@
     </ItemGroup>
   </Target>
 
-  <!-- Tells AddPareDevelopment where sources and outputs are. In the build output, never in a publish. -->
-  <Target Name="_PareWriteDevelopmentMap" AfterTargets="CopyFilesToOutputDirectory" DependsOnTargets="_PareComputeOutputs"
-          Condition="'$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' and '$(_PareOutRoot)' == '' and '$(_IsPublishing)' != 'true'">
+  <!-- Tells AddPareDevelopment where sources and outputs are: wwwroot's, and each mapped source's
+       (PareServeAt included). In the build output, never in a publish: as
+       Extrode.Pare.development.json, and as Extrode.Pare.development.<project>.json, which also
+       reaches the output of every project referencing this one (a Razor class library's sources). -->
+  <Target Name="_PareComputeDevelopmentMap" DependsOnTargets="_PareComputeOutputs"
+          Condition="'$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' and '$(_PareOutRoot)' == '' and '$(PareEmbed)' != 'true' and '$(_IsPublishing)' != 'true'">
+    <ItemGroup>
+      <_PareMapSource Include="@(_PareSource->'%(FullPath)')" Condition="'%(_PareSource.PareRelativePath)' != ''" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_PareWebRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', 'wwwroot'))</_PareWebRoot>
+      <_PareMapSources>@(_PareMapSource->'{ "source": "%(Identity)", "output": "%(PareOutputPath)" }', ', ')</_PareMapSources>
+      <_PareMapText>{ "sourceRoot": "$(_PareWebRoot.Replace('\', '\\'))", "outputRoot": "$(_PareObjRoot.Replace('\', '\\'))", "sources": [$(_PareMapSources.Replace('\', '\\'))] }</_PareMapText>
+      <_PareSharedMapPath>$(IntermediateOutputPath)Extrode.Pare.development.json</_PareSharedMapPath>
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="_PareShareDevelopmentMap" BeforeTargets="AssignTargetPaths" DependsOnTargets="_PareComputeDevelopmentMap"
+          Condition="'$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' and '$(_PareOutRoot)' == '' and '$(PareEmbed)' != 'true' and '$(_IsPublishing)' != 'true'">
+    <WriteLinesToFile File="$(_PareSharedMapPath)" Lines="$(_PareMapText)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <FileWrites Include="$(_PareSharedMapPath)" />
+      <None Include="$(_PareSharedMapPath)" Link="Extrode.Pare.development.$(MSBuildProjectName).json"
+            CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" Visible="false" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="_PareWriteDevelopmentMap" AfterTargets="CopyFilesToOutputDirectory" DependsOnTargets="_PareComputeDevelopmentMap"
+          Condition="'$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' and '$(_PareOutRoot)' == '' and '$(PareEmbed)' != 'true' and '$(_IsPublishing)' != 'true'">
     <PropertyGroup>
       <_PareMapPath>$(OutDir)Extrode.Pare.development.json</_PareMapPath>
-      <_PareWebRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', 'wwwroot'))</_PareWebRoot>
-      <_PareMapText>{ "sourceRoot": "$(_PareWebRoot.Replace('\', '\\'))", "outputRoot": "$(_PareObjRoot.Replace('\', '\\'))" }</_PareMapText>
     </PropertyGroup>
     <WriteLinesToFile File="$(_PareMapPath)" Lines="$(_PareMapText)" Overwrite="true" WriteOnlyWhenDifferent="true" />
     <ItemGroup>

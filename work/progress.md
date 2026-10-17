@@ -251,6 +251,46 @@ convention). Update at the end of every session.
   `tmp/dist-win`; `Extrode.Pare`, `.Build`, `.AspNetCore` 0.3.0 in `tmp/dist-lib`. Release notes
   in `tmp/release-notes-0.3.0.md`. Tag `v0.3.0` local; the user pushes, then the GitHub release.
 
+- **After 0.3.0 (2026-10-15):** CLI quickstart `docs/cli-quickstart.md` with sample
+  `samples/CliSite` (static site, browser test in Chromium/Firefox/WebKit, Node and Deno run;
+  every doc command run against the 0.3.0 archive). Decision memos
+  `docs/decisions/2026-10-15-002-ts-outside-wwwroot.md` and `-003-razor-class-libraries.md`
+  (both measured). Razor class libraries already worked in 0.3.0; now tested and in README.
+  `PareRelativePath` fixes: PARE201 for two sources mapped to one URL (was SDK crash MSB4018),
+  backslashes normalized (Windows-only bug, verified on wp1). 416 tests, 0 failed, 1 skipped.
+  `PareServeAt` (public, folder-only URL mapping; name from the Fable consult), PARE202 warning for
+  unserved sources outside wwwroot, PARE203 for a value that is not a folder. 442 tests, 0 failed,
+  1 skipped on macOS; new tests green on wp1; break-checked (4 behaviors, 7 failures).
+
+- **Dev map and fixes (2026-10-15):** `AddPareDevelopment` re-strips `PareServeAt` and Razor
+  class library sources on save: the development map lists every mapped source and output, and
+  each project's map is copied to referencing projects' output as
+  `Extrode.Pare.development.<Project>.json` (0.3.0 maps still read). Checked under real
+  `dotnet watch`. A new `.ts` outside `wwwroot` waits for the next build (todo). Fixed BLAZOR106
+  with `PareOutDir` and `.razor.ts`/`.cshtml.ts` (out-dir copies removed from Content and None).
+  `PareServeAt` serving tests share one built project (13 builds and 2 publishes down to 2 and 1).
+  Merged dev 9736908: macOS 384 unit, 63 integration (1 skip), 3 conformance, 0 failed; wp1 384
+  unit (1 skip), 63 integration (2 skip), 0 failed.
+
+- **Rein handoff, 0.4.0 (2026-10-17, plan `docs/plans/2026-10-17-003-embedded-output.md`):**
+  handoff `docs/handoffs/2026-10-17-rein-web-ui-needs.md`, reply `-pare-0.4.0-for-rein.md`. User's
+  calls: both N1 shapes, 0.4.0 as vendored `.nupkg`, string overload + 0.x stability, N4 and N5.
+  `PareEmbed`/`PareEmbedPrefix` embed outputs (written under `obj/.../pare/`, named by path below
+  the project, `WithCulture=false` so `x.de.js` stays in the main assembly). Public `@(PareOutput)`
+  (`PareSource`, `PareRelativePath`); `PareStripTypeScript` is now a bodiless target depending on
+  `PareTypeCheck;_PareStrip;_PareRegisterOutputs`, because a project's own `AfterTargets` target is
+  declared before the package's and would run first (break-check: 5 tests fail without it).
+  A Pare-side stale delete for embed was redundant (SDK incremental clean), dropped. Found:
+  `$(IntermediateOutputPath)` is empty in a project body (`PareOutDir` from it gives `pare/`);
+  README recommends `$(BaseIntermediateOutputPath)`. `TypeStripper.Strip(string, out ...)`.
+  `get-tsc.cs --dest` (refuses a non-empty dir it did not fill); a copied script inside a project
+  dir gets compiled by it (documented). Jint 4.16.4 (approved) sample `JintModuleTests`: Jint's
+  `ModuleLoader` base swallows load exceptions, so the sample implements `IModuleLoader`.
+  463 tests, 0 failed, 1 skipped (VS MSBuild) on macOS; not run on wp1. Packed `Extrode.Pare`,
+  `.Build`, `.AspNetCore` 0.4.0 into `tmp/dist-lib`; checked from a vendored `packages/` feed in a
+  fresh console app (resources `web/home.js`, `web/lib/util.js`). Not done: tag, CLI per-RID packs,
+  GitHub release, `docs/cli-quickstart.md` still at 0.3.0 (its commands were run on that archive).
+
 ## Next
 
 Order from the 2026-10-15 fable consult:

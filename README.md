@@ -27,6 +27,8 @@ dotnet pack src/Extrode.Pare.Build -c Release -o tmp/pack                # MSBui
 dotnet tool install -g Extrode.Pare.Cli
 ```
 
+Quickstart with a static-site sample, watch recipes and exit codes: [docs/cli-quickstart.md](docs/cli-quickstart.md).
+
 The tool package installs the NativeAOT binary for osx-arm64, osx-x64, linux-arm64, linux-x64,
 linux-musl-arm64, linux-musl-x64, win-x64 and win-arm64, and a framework-dependent build (needs
 the .NET 10 runtime) on any other platform. The same binaries come as `pare-<version>-<rid>.tar.gz`
@@ -56,7 +58,7 @@ JavaScript out of the source folders, or use `--outdir`.
 ## MSBuild
 
 ```xml
-<PackageReference Include="Extrode.Pare.Build" Version="0.3.0" PrivateAssets="all" />
+<PackageReference Include="Extrode.Pare.Build" Version="0.4.0" PrivateAssets="all" />
 ```
 
 Before `Build`, every `wwwroot/**/*.ts` and `*.mts` (not `.d.ts`, not `node_modules`) is stripped.
@@ -69,7 +71,8 @@ In a web project (the Web SDK's static web assets), `wwwroot/js/app.ts` becomes
 `obj/<configuration>/<tfm>/pare/js/app.js`, registered as the static web asset `js/app.js`: served
 from the first build on, compressed and published like a file in `wwwroot`, and never in the source
 tree, so nothing needs gitignoring. The build deletes the output of a deleted source. Elsewhere, and
-for sources outside `wwwroot`, the `.js` goes next to its source.
+for sources outside `wwwroot` without `PareServeAt` ([below](#typescript-outside-wwwroot)), the
+`.js` goes next to its source.
 
 - A `foo.js` next to `foo.ts` in `wwwroot` (left by Pare 0.2, or hand-written) is not served:
   `warning PARE200` names it, and the build serves the stripped `foo.ts`. Delete it.
@@ -85,7 +88,7 @@ Dev loop: in its default hot reload mode `dotnet watch` runs no build on a `.ts`
 `.js` would go stale. `Extrode.Pare.AspNetCore` re-strips in the running app instead:
 
 ```xml
-<PackageReference Include="Extrode.Pare.AspNetCore" Version="0.3.0" />
+<PackageReference Include="Extrode.Pare.AspNetCore" Version="0.4.0" />
 ```
 
 ```csharp
@@ -95,6 +98,8 @@ builder.AddPareDevelopment();   // before builder.Build(); does nothing outside 
 In Development it strips stale sources when the app starts, then each `.ts`/`.mts` as it is
 saved, to where the build writes (it reads `Extrode.Pare.development.json`, which the build puts
 next to the app and never publishes); `dotnet watch` sees the new `.js` and reloads the page.
+That covers sources served with `PareServeAt` and those of a Razor class library the app
+references as a project.
 Rejections are logged in the `file:line:col: error PARE...` form and the old `.js` stays. Deleting
 a source deletes its output under `obj/`. Pass `o => o.OutDir = "..."` when the project sets
 `PareOutDir`. It also applies `dotnet watch`'s browser refresh to
@@ -116,11 +121,163 @@ a source deletes its output under `obj/`. Pass `o => o.OutDir = "..."` when the 
 | Property | Default | |
 |---|---|---|
 | `EnablePareDefaultItems` | `true` | `false` drops the default glob; add `<TypeScriptSource Include="..." />` yourself |
-| `PareOutDir` | empty | write under this directory, keeping relative paths, instead of `obj/` or next to each source; not served |
+| `PareOutDir` | empty | write under this directory, keeping relative paths, instead of `obj/` or next to each source; not served, `.razor.js` and `.cshtml.js` included |
 | `PareTypeCheck` | `false` | `true` runs `tsc --noEmit -p $(PareTsconfig)` first (TypeScript 7's native `tsc`) |
 | `PareTscPath` | `tsc` | e.g. `$(MSBuildThisFileDirectory).tools/typescript/tsc` |
 | `PareTsconfig` | `tsconfig.json` in the project | never copied to the build or publish output |
 | `PareKeepSources` | `false` | `true` serves and publishes the `.ts` sources next to the output |
+| `PareEmbed` | `false` | `true` embeds every output in the assembly instead ([below](#non-web-projects)) |
+| `PareEmbedPrefix` | empty | prepended to each embedded resource's name, e.g. `web/` |
+
+After `PareStripTypeScript`, the item `@(PareOutput)` lists every output. `%(PareSource)` is the
+source's full path. `%(PareRelativePath)` uses `/`: the URL path for a static web asset
+(`js/app.js`), the resource name without the prefix under `PareEmbed`, and otherwise the output's
+path below the project (or below `PareOutDir`). A target with
+`AfterTargets="PareStripTypeScript"` sees it on every build, including builds that skip the strip
+as up to date.
+
+### Restoring without nuget.org
+
+The packages are not on nuget.org yet. Each GitHub release carries the `.nupkg` files; a repo that
+builds on several machines vendors them and restores offline on macOS, Windows and Linux:
+
+```
+packages/Extrode.Pare.0.4.0.nupkg
+packages/Extrode.Pare.Build.0.4.0.nupkg
+```
+
+```xml
+<!-- nuget.config next to the solution; the path is relative to this file -->
+<configuration>
+  <packageSources>
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+    <add key="vendored" value="packages" />
+  </packageSources>
+  <packageSourceMapping>
+    <packageSource key="nuget.org"><package pattern="*" /></packageSource>
+    <packageSource key="vendored"><package pattern="Extrode.Pare*" /></packageSource>
+  </packageSourceMapping>
+</configuration>
+```
+
+Pin an exact release (`Version="0.4.0"`), not a `-dev` or `-*` version.
+
+### TypeScript outside wwwroot
+
+Give the item a `PareServeAt`: the URL folder to serve it under. The file's name and extension
+come from the source, and the folders matched by `**` are kept:
+
+```xml
+<TypeScriptSource Include="Scripts/**/*.ts;Scripts/**/*.mts" PareServeAt="js" />
+```
+
+| Source | Served at |
+|---|---|
+| `Scripts/app.ts` | `/js/app.js` |
+| `Scripts/lib/fmt.ts` | `/js/lib/fmt.js` |
+| `Scripts/worker.mts` | `/js/worker.mjs` |
+
+Output goes under `obj/` like a `wwwroot` source's: served from the first build, compressed and
+published. A Blazor component's script, served beside the component as the SDK serves a
+hand-written `Counter.razor.js`:
+
+```xml
+<TypeScriptSource Include="**/*.razor.ts" Exclude="bin/**;obj/**;node_modules/**" PareServeAt="/" />
+```
+
+`Components/Pages/Counter.razor.ts` is served at `/Components/Pages/Counter.razor.js`.
+
+- `/` is the root. Leading and trailing slashes are ignored, and `\` counts as `/`.
+- The URL is the folder, then the part of the path matched by `**` in the `Include` that created
+  the item, then the file name. Without `**` (`Scripts/*.ts`) there is no subfolder.
+- In a Razor class library the folder is below `/_content/<Library>/`, like `wwwroot`.
+- A `wwwroot` source with `PareServeAt` is served there instead of at its `wwwroot` path.
+- Not a folder (`..`, `:`, `//`, or a file name such as `js/app.js`): `error PARE203`. Two sources
+  at one URL: `error PARE201`.
+- A source outside `wwwroot` without `PareServeAt` is not served: `warning PARE202`. Add
+  `PARE202` to `NoWarn` if its `.js` is meant to stay next to it. Not reported for a `.razor.ts`
+  or `.cshtml.ts`, whose `.js` beside the component the SDK serves.
+- `AddPareDevelopment` re-strips these on save. A new file outside `wwwroot` is stripped and
+  served after the next build (Ctrl+R in `dotnet watch`).
+
+### Razor class libraries
+
+Reference `Extrode.Pare.Build` from the library; apps that use it need nothing. The library's
+`wwwroot/js/widget.ts` is served to those apps as `/_content/<Library>/js/widget.js`, published
+with compressed copies, and packed by `dotnet pack` as the stripped `.js` only, with no dependency on
+Pare. When the app references the library as a project, `AddPareDevelopment` in the app
+re-strips the library's sources on save too: each library's build output carries an
+`Extrode.Pare.development.<Library>.json` that reaches the app's.
+
+### Non-web projects
+
+A project that is not a web project (a console app, a NativeAOT binary that serves its own UI)
+can embed the output instead:
+
+```xml
+<PropertyGroup>
+  <PareEmbed>true</PareEmbed>
+  <PareEmbedPrefix>ui/</PareEmbedPrefix>
+  <EnablePareDefaultItems>false</EnablePareDefaultItems>
+</PropertyGroup>
+<ItemGroup>
+  <PackageReference Include="Extrode.Pare.Build" Version="0.4.0" PrivateAssets="all" />
+  <TypeScriptSource Include="web/**/*.ts" />
+</ItemGroup>
+```
+
+`web/lib/util.ts` is written to `obj/<configuration>/<tfm>/pare/web/lib/util.js`, never into the
+source tree, and embedded as `ui/web/lib/util.js`:
+
+```csharp
+using var stream = typeof(Program).Assembly.GetManifestResourceStream("ui/web/lib/util.js");
+```
+
+- The resource name is the prefix plus the path below the project. `PareServeAt` changes the path:
+  `<TypeScriptSource Include="web/**/*.ts" PareServeAt="/" />` gives `ui/lib/util.js`.
+- Outputs are not `Content`, not static web assets, and not copied to the build or publish output.
+- A name such as `strings.de.ts` stays in the main assembly (no satellite assembly for `de`).
+- Incremental: a `.ts` edit rewrites its `.js` and recompiles; a deleted `.ts` drops its resource and
+  its `.js` on the next build.
+
+To embed or copy the files your own way, leave `PareEmbed` off and use `@(PareOutput)`:
+
+```xml
+<PropertyGroup>
+  <PareOutDir>$(BaseIntermediateOutputPath)pare/</PareOutDir>
+</PropertyGroup>
+<Target Name="EmbedPare" AfterTargets="PareStripTypeScript">
+  <ItemGroup>
+    <EmbeddedResource Include="@(PareOutput)" LogicalName="ui/%(PareOutput.PareRelativePath)" />
+  </ItemGroup>
+</Target>
+```
+
+`$(IntermediateOutputPath)` is still empty where a project file sets its properties, so
+`PareOutDir` cannot use it; `$(BaseIntermediateOutputPath)` (`obj/`) is set by then.
+
+### Type checking in CI without npm
+
+`PareTypeCheck=true` runs TypeScript 7's native `tsc --noEmit -p tsconfig.json` before the strip;
+a type error fails the build. `scripts/get-tsc.cs` fetches `tsc` from the npm registry (checking its
+sha512) without npm or Node. Copy it into your repo, outside any project directory (a project
+compiles every `.cs` below it), and run it on each machine and in CI before the build:
+
+```sh
+dotnet run scripts/get-tsc.cs --dest .tools/typescript   # add .tools/ to .gitignore
+```
+
+```xml
+<PareTypeCheck>true</PareTypeCheck>
+<PareTscPath>$(MSBuildThisFileDirectory).tools/typescript/tsc</PareTscPath>
+<PareTscPath Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(PareTscPath).exe</PareTscPath>
+```
+
+The binary is per OS and CPU (`@typescript/typescript-<os>-<cpu>`: `darwin-arm64`, `win32-x64`,
+`linux-x64`, and the other arm64/x64 pairs), so fetch it on each machine rather than committing it.
+On Windows it is `tsc.exe`. Re-running with the same
+version does nothing; `--version <x.y.z>` picks another. The script refuses a `--dest` that is not
+empty and that it did not fill itself.
 
 ## Sample
 
@@ -128,7 +285,7 @@ a source deletes its output under `obj/`. Pass `o => o.OutDir = "..."` when the 
 an htmx call to a minimal API. It references the package from a local feed, as a consumer would:
 
 ```sh
-scripts/pack-local.sh               # pack into tmp/feed as 0.3.0-dev.<time>, re-restore the sample
+scripts/pack-local.sh               # pack into tmp/feed as 0.4.0-dev.<time>, re-restore the sample
 dotnet run --project samples/WebApp   # http://localhost:5180, Development
 dotnet watch            # from samples/WebApp: a .ts save re-strips and reloads the page
 dotnet publish samples/WebApp -c Release -r osx-arm64 -o tmp/sample-aot
@@ -162,7 +319,22 @@ bool ok = TypeStripper.Strip(source, output, diagnostics, StripOptions.RewriteRe
 ```
 
 `source` is `ReadOnlySpan<char>`, `output` an `IBufferWriter<char>`, `diagnostics` an
-`IDiagnosticSink`. Deep nesting fails with a diagnostic, not a stack overflow; on linux-musl-arm64
+`IDiagnosticSink`. Where allocation does not matter (tests, tools):
+
+```csharp
+string? js = TypeStripper.Strip(source, out IReadOnlyList<Diagnostic> diagnostics);   // null if rejected
+foreach (var d in diagnostics)
+    Console.Error.WriteLine(DiagnosticFormatter.Format("app.ts", source, d));
+```
+
+These overloads, `Diagnostic`, `DiagnosticCode`, `IDiagnosticSink`, `DiagnosticFormatter` and
+`StripOptions` are stable for 0.x: later 0.x releases add, never change or remove. `DiagnosticCode`
+values are fixed. `Extrode.Pare` is the library alone, no MSBuild.
+
+Testing TypeScript modules in a .NET JavaScript engine, with no build output and no Node:
+[tests/Extrode.Pare.Integration/JintModuleTests.cs](tests/Extrode.Pare.Integration/JintModuleTests.cs)
+is a 25-line Jint module loader that strips each `.ts` as it is imported (`./x.js` loads `x.ts`) and
+reports rejections as `file:line:col: error PARE...`. Deep nesting fails with a diagnostic, not a stack overflow; on linux-musl-arm64
 NativeAOT call `Strip` from a thread you created, since .NET misreads the main thread's stack size
 there and the check fails at once. Why UTF-16: [docs/decisions/2026-10-14-001-utf16-input.md](docs/decisions/2026-10-14-001-utf16-input.md).
 
