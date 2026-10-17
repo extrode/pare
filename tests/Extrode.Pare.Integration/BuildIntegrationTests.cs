@@ -909,6 +909,36 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
         Assert.StartsWith("--noEmit -p /", File.ReadAllText(P("path/args.txt")));
     }
 
+    // Needs network: downloads TypeScript 7's tsc for this OS and CPU from the npm registry.
+    [Fact]
+    public void A_copied_get_tsc_fetches_tsc_for_the_type_check_in_another_repository()
+    {
+        Directory.CreateDirectory(P("scripts"));
+        File.Copy(Path.Combine(RepoRoot, "scripts", "get-tsc.cs"), P("scripts/get-tsc.cs"));
+        Put("keep/notes.txt", "mine");
+        var (exit, output) = Run("run", "scripts/get-tsc.cs", "--dest", "keep");
+        Assert.True(exit == 2, output);
+        Assert.Equal("mine", File.ReadAllText(P("keep/notes.txt")));
+
+        (exit, output) = Run("run", "scripts/get-tsc.cs", "--dest", ".tools/typescript/");
+        Assert.True(exit == 0, output);
+
+        string tsc = OperatingSystem.IsWindows() ? "tsc.exe" : "tsc";
+        // A project compiles every .cs below it, the script too.
+        Project($"<OutputType>Library</OutputType><PareTypeCheck>true</PareTypeCheck><PareTscPath>$(MSBuildProjectDirectory)/.tools/typescript/{tsc}</PareTscPath>",
+            items: """<Compile Remove="scripts/**" />""");
+        Put("tsconfig.json", """{ "compilerOptions": { "strict": true, "erasableSyntaxOnly": true, "noEmit": true, "module": "preserve", "target": "esnext" }, "include": ["wwwroot/**/*.ts"] }""");
+        Put("wwwroot/a.ts", "export let a: number = 1;\n");
+        (exit, output) = Build();
+        Assert.True(exit == 0, output);
+        Assert.Equal("export let a         = 1;\n", File.ReadAllText(P("wwwroot/a.js")));
+
+        Put("wwwroot/a.ts", "export let a: number = 'x';\n");
+        (exit, output) = Build();
+        Assert.Equal(1, exit);
+        Assert.Contains("TS2322", output);
+    }
+
     [Fact]
     public void Custom_items_skip_declaration_files()
     {

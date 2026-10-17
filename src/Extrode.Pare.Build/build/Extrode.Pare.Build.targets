@@ -165,7 +165,7 @@
        source's output. The SDK's incremental clean removes only what an earlier build wrote; this
        also removes what AddPareDevelopment wrote. Runs with no sources left too. -->
   <Target Name="_PareDeleteStaleOutputs" AfterTargets="PareStripTypeScript" BeforeTargets="BeforeBuild" DependsOnTargets="_PareComputeOutputs"
-          Condition="('$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' or '$(PareEmbed)' == 'true') and '$(_PareOutRoot)' == ''">
+          Condition="'$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' and '$(_PareOutRoot)' == ''">
     <ItemGroup Condition="'$(_PareObjRoot)' != ''">
       <_PareObjOutput Include="@(_PareSource->'%(PareOutputPath)')" Condition="'%(_PareSource.PareRelativePath)' != ''" />
       <_PareStale Include="$(_PareObjRoot)**" Exclude="@(_PareObjOutput)" />

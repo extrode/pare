@@ -4,10 +4,11 @@
 // needs beside it. This downloads that tarball from the npm registry, checks its sha512 against
 // the registry's integrity field, and extracts lib/.
 //
-//   dotnet run scripts/get-tsc.cs [--version <x.y.z>]
+//   dotnet run scripts/get-tsc.cs [--version <x.y.z>] [--dest <dir>]
 //
-// Then: .tools/typescript/tsc --noEmit -p tsconfig.json, or PareTsgoPath=.tools/typescript/tsc.
-// Re-running with the same version is a no-op.
+// Then: .tools/typescript/tsc --noEmit -p tsconfig.json, or PareTscPath=.tools/typescript/tsc.
+// --dest puts it elsewhere, so a copy of this file works in any repository. Re-running with the
+// same version is a no-op. The binary is per OS and CPU: fetch it on each machine.
 
 using System.Formats.Tar;
 using System.IO.Compression;
@@ -17,25 +18,35 @@ using System.Text.Json;
 
 // Latest stable as of 2026-10-15. Bump deliberately; the differential test compares against it.
 string version = "7.0.2";
+string? destArg = null;
 
 for (int i = 0; i < args.Length; i++)
 {
     if (args[i] == "--version" && i + 1 < args.Length)
         version = args[++i];
+    else if (args[i] == "--dest" && i + 1 < args.Length)
+        destArg = args[++i];
     else
     {
-        Console.Error.WriteLine("usage: dotnet run scripts/get-tsc.cs [--version <x.y.z>]");
+        Console.Error.WriteLine("usage: dotnet run scripts/get-tsc.cs [--version <x.y.z>] [--dest <dir>]");
         return 2;
     }
 }
 
-string? root = Directory.GetCurrentDirectory();
-while (root is not null && !File.Exists(Path.Combine(root, "Pare.slnx")))
-    root = Path.GetDirectoryName(root);
-if (root is null)
+string dest;
+if (destArg is not null)
+    dest = Path.TrimEndingDirectorySeparator(Path.GetFullPath(destArg));
+else
 {
-    Console.Error.WriteLine("run from inside the Pare repository");
-    return 2;
+    string? root = Directory.GetCurrentDirectory();
+    while (root is not null && !File.Exists(Path.Combine(root, "Pare.slnx")))
+        root = Path.GetDirectoryName(root);
+    if (root is null)
+    {
+        Console.Error.WriteLine("run from inside the Pare repository, or pass --dest <dir>");
+        return 2;
+    }
+    dest = Path.Combine(root, ".tools", "typescript");
 }
 
 string os = OperatingSystem.IsWindows() ? "win32" : OperatingSystem.IsMacOS() ? "darwin" : OperatingSystem.IsLinux() ? "linux" : "";
@@ -51,13 +62,18 @@ if (os == "" || cpu == "")
     return 2;
 }
 
-string dest = Path.Combine(root, ".tools", "typescript");
 string exe = Path.Combine(dest, OperatingSystem.IsWindows() ? "tsc.exe" : "tsc");
 string stamp = Path.Combine(dest, "version.txt");
 if (File.Exists(exe) && File.Exists(stamp) && File.ReadAllText(stamp).Trim() == version)
 {
     Console.WriteLine($"tsc {version} already at {exe}");
     return 0;
+}
+// The directory is replaced below: never one this script did not write.
+if (Directory.Exists(dest) && !File.Exists(stamp) && Directory.EnumerateFileSystemEntries(dest).Any())
+{
+    Console.Error.WriteLine($"{dest} is not empty and holds no earlier download; give an empty or new directory");
+    return 2;
 }
 
 string package = $"@typescript/typescript-{os}-{cpu}";

@@ -16,7 +16,8 @@ overload with a 0.x stability note, N5 and N4.
 2. **`PareEmbed=true` (N1).** Every source goes to `$(IntermediateOutputPath)pare/` (or
    `PareOutDir`), at its path relative to the project (`PareServeAt`/`PareRelativePath` remap
    it), becomes `EmbeddedResource` with `LogicalName="$(PareEmbedPrefix)%(PareRelativePath)"`,
-   never `Content` or a static web asset, and stale outputs in `obj/pare/` are deleted. A
+   never `Content` or a static web asset. The SDK's incremental clean deletes a deleted
+   source's output (a Pare-side delete was redundant: break-check survived). A
    deleted source drops its resource: `_CoreCompileResourceInputs` is in the SDK's
    `CoreCompileInputs.cache`, so the set change recompiles (checked by test).
 3. **String overload (N3).** `string? TypeStripper.Strip(string source, out IReadOnlyList<Diagnostic> diagnostics)`.
