@@ -172,9 +172,10 @@
       <None Remove="@(_PareOutDirCollocated)" />
       <!-- A .js beside a source whose output is in obj/: left by Pare 0.2 or hand-written. As
            Content it would be a second asset at the same path, which the SDK rejects; a
-           .razor.js is also found as None (collocated JS). -->
+           .razor.js is also found as None (collocated JS). Not the source itself: a compiled
+           source may keep its name (x.svelte.js to x.svelte.js, a page to a page). -->
       <_PareShadowed Include="@(_PareSource->'%(RelativeDir)%(_PareJs)')"
-                     Condition="'$(PareEmbed)' != 'true' and '%(_PareSource.PareRelativePath)' != '' and Exists('%(_PareSource.RelativeDir)%(_PareSource._PareJs)')" />
+                     Condition="'$(PareEmbed)' != 'true' and '%(_PareSource.PareRelativePath)' != '' and '%(_PareSource._PareJs)' != '%(_PareSource.Filename)%(_PareSource.Extension)' and Exists('%(_PareSource.RelativeDir)%(_PareSource._PareJs)')" />
       <Content Remove="@(_PareShadowed)" />
       <None Remove="@(_PareShadowed)" />
       <Content Remove="@(TypeScriptSource);@(PareCompileSource);wwwroot/**/*.d.ts;wwwroot/**/*.d.mts;wwwroot/**/*.d.cts"

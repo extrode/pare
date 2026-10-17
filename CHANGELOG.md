@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- No PARE200 for a compiled source whose output keeps its name (`clock.svelte.js` to
+  `clock.svelte.js`, `index.html` to `index.html`): 0.6.0 reported the source itself as a stale
+  output and told the user to delete it.
+
 ## [0.6.0] - 2026-10-17
 
 - Other compile-to-JavaScript steps run on Pare's plumbing (decision 005): a package declares
