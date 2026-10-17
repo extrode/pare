@@ -4,6 +4,7 @@
     <Project Path="src/Extrode.Pare.AspNetCore/Extrode.Pare.AspNetCore.csproj" />
     <Project Path="src/Extrode.Pare.Build/Extrode.Pare.Build.csproj" />
     <Project Path="src/Extrode.Pare.Cli/Extrode.Pare.Cli.csproj" />
+    <Project Path="src/Extrode.Pare.Native/Extrode.Pare.Native.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Extrode.Pare.Bench/Extrode.Pare.Bench.csproj" />

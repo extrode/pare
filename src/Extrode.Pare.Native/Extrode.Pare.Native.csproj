@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- libpare: the stripper as a C shared library (include/pare.h). `dotnet publish -r <rid>`
+       gives libpare.dylib, libpare.so or pare.dll; scripts/pack-cli.sh and pack-cli.ps1 archive
+       them with the header. -->
+  <PropertyGroup>
+    <RootNamespace>Extrode.Pare.Native</RootNamespace>
+    <PublishAot>true</PublishAot>
+    <NativeLib>Shared</NativeLib>
+    <IsAotCompatible>true</IsAotCompatible>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <OptimizationPreference>Speed</OptimizationPreference>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <!-- NativeAOT names the binary after TargetName with no lib prefix, so -lpare needs it here. -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
+    <TargetName Condition="$(RuntimeIdentifier.StartsWith('win'))">pare</TargetName>
+    <TargetName Condition="!$(RuntimeIdentifier.StartsWith('win'))">libpare</TargetName>
+  </PropertyGroup>
+  <ItemGroup Condition="$(RuntimeIdentifier.StartsWith('linux'))">
+    <LinkerArg Include="-Wl,-soname,libpare.so" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Extrode.Pare\Extrode.Pare.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Extrode.Pare.Tests" />
+  </ItemGroup>
+</Project>

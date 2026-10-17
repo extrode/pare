@@ -16,5 +16,6 @@
     <ProjectReference Include="..\..\src\Extrode.Pare.Cli\Extrode.Pare.Cli.csproj" />
     <ProjectReference Include="..\..\src\Extrode.Pare.Build\Extrode.Pare.Build.csproj" />
     <ProjectReference Include="..\..\src\Extrode.Pare.AspNetCore\Extrode.Pare.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\Extrode.Pare.Native\Extrode.Pare.Native.csproj" />
   </ItemGroup>
 </Project>
