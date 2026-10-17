@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.IO.Enumeration;
 using System.Text;
 
 namespace Extrode.Pare.Cli;
@@ -109,15 +110,27 @@ internal static class FileStripper
     /// <summary>Source files under <paramref name="dir"/>, recursively, skipping node_modules.</summary>
     private static IEnumerable<string> Walk(string dir)
     {
-        foreach (var file in Directory.EnumerateFiles(dir))
+        // One directory read per directory: Directory.EnumerateFiles plus EnumerateDirectories
+        // read each twice. Same options as both (Compatible: nothing skipped), and IsDirectory
+        // follows symlinks as EnumerateDirectories does.
+        var entries = new FileSystemEnumerable<(string Path, bool IsDirectory)>(dir,
+            (ref FileSystemEntry e) => (e.ToFullPath(), e.IsDirectory),
+            new EnumerationOptions { AttributesToSkip = 0, IgnoreInaccessible = false });
+        var subdirs = new List<string>();
+        foreach (var (path, isDirectory) in entries)
         {
-            if (IsSource(file) && !IsDeclaration(file))
-                yield return file;
+            if (!isDirectory)
+            {
+                if (IsSource(path) && !IsDeclaration(path))
+                    yield return path;
+            }
+            else if (Path.GetFileName(path) != "node_modules")
+            {
+                subdirs.Add(path);
+            }
         }
-        foreach (var sub in Directory.EnumerateDirectories(dir))
+        foreach (var sub in subdirs)
         {
-            if (Path.GetFileName(sub) == "node_modules")
-                continue;
             foreach (var file in Walk(sub))
                 yield return file;
         }
