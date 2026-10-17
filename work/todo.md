@@ -23,7 +23,8 @@ Small, clear, and could be picked up without a design decision.
   day): does the compiler run, and how fast. Engine leaning: ClearScript (V8) for speed, over Jint
   (pure C#). ClearScript costs a native V8 binary per RID and is a package to approve; check its
   RID list (musl, win-arm64), the MSBuild task host under Visual Studio, and package size. After
-  the spike: decide go or drop.
+  the spike: decide go or drop. Spike done 2026-10-17, results in the ecosystem doc ("Tier 1
+  spike"): same output as Node, 1.6x slower, runs under both MSBuilds, no musl; go or drop open.
 
 - .NET bug, not reported: NativeAOT on linux-musl-arm64,
   `RuntimeHelpers.TryEnsureSufficientExecutionStack()` on the main thread returns false in 24 of
