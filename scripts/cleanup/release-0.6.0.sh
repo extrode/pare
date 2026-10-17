@@ -33,12 +33,13 @@ if [ "$(git -C "$repo" branch --show-current)" != "dev" ]; then
 fi
 failed=0
 worktree=.worktrees/release-0.6.0
-scratch=(tmp/pare.bundle tmp/qs-0.6.0 tmp/rel-assets.txt)
+scratch=(tmp/pare.bundle tmp/qs-0.6.0 tmp/rel-assets.txt tmp/pack-0.6.0-linux.log)
 assets=(tmp/release-notes-0.6.0.md)
 for f in "$repo"/tmp/dist/*0.6.0* "$repo"/tmp/dist-lib/*0.6.0*; do
     [ -e "$f" ] && assets+=("${f#"$repo"/}")
 done
-branches=(chore/release-0.6.0 docs/release-0.6.0 chore/release-0.6.0-worktree chore/release-0.6.0-branches)
+branches=(chore/release-0.6.0 docs/release-0.6.0 chore/release-0.6.0-worktree chore/release-0.6.0-branches
+    chore/release-0.6.0-linux-log)
 
 remove() { # rel allowed
     local rel="$1" allowed="$2"
