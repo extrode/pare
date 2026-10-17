@@ -338,6 +338,47 @@ reports rejections as `file:line:col: error PARE...`. Deep nesting fails with a 
 NativeAOT call `Strip` from a thread you created, since .NET misreads the main thread's stack size
 there and the check fails at once. Why UTF-16: [docs/decisions/2026-10-14-001-utf16-input.md](docs/decisions/2026-10-14-001-utf16-input.md).
 
+## C library
+
+`libpare` is the same stripper as a C shared library, for Rust, Go (cgo), Python (ctypes), Ruby,
+PHP, Node or Deno FFI: no .NET runtime needed. `libpare-<version>-<rid>.tar.gz` (`.zip` on
+Windows) holds `libpare.dylib`, `libpare.so` or `pare.dll` + `pare.lib`, and
+[`pare.h`](src/Extrode.Pare.Native/include/pare.h); `scripts/pack-cli.sh` and `pack-cli.ps1`
+build them for the CLI's RIDs, or `dotnet publish src/Extrode.Pare.Native -r <rid>`.
+
+```c
+#include <stdio.h>
+#include <string.h>
+#include "pare.h"
+
+int main(void) {
+    const char *ts = "let a: number = 1;\n";
+    pare_result r;
+    if (pare_strip(ts, strlen(ts), 0, &r) == PARE_OK)
+        fputs(r.output, stdout);                       /* "let a         = 1;\n" */
+    else
+        for (size_t i = 0; i < r.diagnostic_count; i++)
+            fprintf(stderr, "app.ts:%d:%d: error PARE%03d: %s\n", r.diagnostics[i].line,
+                    r.diagnostics[i].column, r.diagnostics[i].code, pare_message(r.diagnostics[i].code));
+    pare_free(&r);
+}
+```
+
+```sh
+cc app.c -I<dir> -L<dir> -lpare -Wl,-rpath,<dir>    # macOS, Linux
+cl app.c /I<dir> <dir>\pare.lib                      # Windows; pare.dll next to app.exe
+```
+
+- UTF-8 in and out. A leading BOM is dropped, as the CLI does; invalid UTF-8 returns
+  `PARE_INVALID`. Lines and UTF-16 columns are kept, so the output's `line:column` is the
+  source's; byte offsets shift when a blanked type holds non-ASCII text.
+- Diagnostics carry the code, line, UTF-16 column (what browsers report), and byte offset and
+  length into the source.
+- Thread-safe. The library allocates, `pare_free` frees and zeroes. It cannot be unloaded.
+- `pare_abi_version()` against `PARE_ABI_VERSION` catches a header and library from different
+  builds.
+- On linux-musl-arm64, call it from a thread you created (see [Library](#library)).
+
 ## Non-whitespace changes
 
 The output differs from the input only by spaces, except for:

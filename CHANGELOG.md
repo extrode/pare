@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- `libpare`: the stripper as a C shared library with `pare.h`, for other languages over FFI.
+  UTF-8 in and out, diagnostics with line, UTF-16 column and byte offsets, thread-safe.
+  Archives `libpare-<v>-<rid>` for the CLI's 8 RIDs from `pack-cli.sh` and `pack-cli.ps1`.
+
 - Faster: `checker.ts` 13.3 -> 9.4 ms (235 -> 333 MB/s), the real-world corpus 75 -> 60 ms
   (218 -> 273 MB/s). Output and diagnostics are unchanged on all 15,462 corpus files. ASCII fast
   path for identifiers, trivia skipped on a local position, the stack checked every 16th
