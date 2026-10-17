@@ -2,10 +2,12 @@
 # Studio has the ARM64 C++ tools, into tmp/dist:
 #   Extrode.Pare.Cli.<rid>.<v>.nupkg    NativeAOT binary for one RID
 #   pare-<v>-<rid>.zip                  the same binary as a standalone archive
+#   libpare-<v>-<rid>.zip               the C library: pare.dll, pare.lib, pare.h
+#                                       (checked by tests/Extrode.Pare.Integration NativeLibraryTests)
 # Then runs the host RID's binary 20 times and `dotnet tool install`s it from a pointer package.
 # -SkipPack only runs that check, on archives already in tmp/dist: for a machine without Visual
 # Studio, such as a Windows on ARM test machine given win-arm64 packed elsewhere.
-# Usage: pwsh scripts/pack-cli.ps1 [-Version 0.4.0] [-SkipPack]
+# Usage: pwsh scripts/pack-cli.ps1 [-Version 0.5.0] [-SkipPack]
 param([string]$Version, [switch]$SkipPack)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -42,6 +44,16 @@ foreach ($rid in $rids) {
     Compress-Archive -Path $stage -DestinationPath $zip
     Remove-Item -Recurse -Force (Join-Path $root 'tmp/dist-stage')
     "pare-$Version-$rid.zip"
+
+    # libpare: publish copies only pare.dll; the import library stays beside the link output.
+    dotnet publish (Join-Path $root 'src/Extrode.Pare.Native') -c Release -r $rid "-p:Version=$Version" -v q -nologo
+    if ($LASTEXITCODE -ne 0) { throw "dotnet publish libpare $rid failed" }
+    $native = Join-Path $root "src/Extrode.Pare.Native"
+    $stage = Join-Path $root "tmp/native-stage/libpare-$Version-$rid"  # overwritten, left for scripts/cleanup
+    New-Item -ItemType Directory -Force $stage | Out-Null
+    Copy-Item (Join-Path $native "bin/Release/net10.0/$rid/publish/pare.dll"), (Join-Path $native "bin/Release/net10.0/$rid/native/pare.lib"), (Join-Path $native 'include/pare.h'), (Join-Path $root 'LICENSE.md'), (Join-Path $root 'NOTICE.md') $stage
+    Compress-Archive -Path $stage -DestinationPath (Join-Path $out "libpare-$Version-$rid.zip") -Force
+    "libpare-$Version-$rid.zip"
 }
 
 # The host RID: the archive's binary 20 times, then `dotnet tool install`, which must pick it.

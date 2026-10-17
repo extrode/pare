@@ -288,8 +288,35 @@ convention). Update at the end of every session.
   `ModuleLoader` base swallows load exceptions, so the sample implements `IModuleLoader`.
   463 tests, 0 failed, 1 skipped (VS MSBuild) on macOS; not run on wp1. Packed `Extrode.Pare`,
   `.Build`, `.AspNetCore` 0.4.0 into `tmp/dist-lib`; checked from a vendored `packages/` feed in a
-  fresh console app (resources `web/home.js`, `web/lib/util.js`). Not done: tag, CLI per-RID packs,
-  GitHub release, `docs/cli-quickstart.md` still at 0.3.0 (its commands were run on that archive).
+  fresh console app (resources `web/home.js`, `web/lib/util.js`).
+- **0.4.0 released (2026-10-17):** tag `v0.4.0` on main 30ddbb0, GitHub release with 21 assets
+  (8 CLI archives: osx, linux, linux-musl via Docker on the Mac, win-x64 and win-arm64 on wp1 from
+  a bundle; tool packages; the 3 library packages). `docs/cli-quickstart.md` at 0.4.0: every
+  command re-run against the release downloads; sample output byte-identical to 0.3.0's.
+  wp1 at v0.4.0 (SDK 10.0.402): 463 tests, 0 failed, 6 skipped (3 corpus missing, Unix
+  permissions, 2 fake-`tsc` shell scripts); the embed, `get-tsc --dest`, Jint and VS MSBuild
+  tests ran there.
+- **Perf pass (2026-10-17, `perf/hot-path`):** BenchmarkDotNet in-process (out-of-process
+  fails while `.claude/worktrees` hold copies of the bench project, see todo): `checker.ts` 13.2
+  -> 9.4 ms, real-world corpus 74.1 -> 59.8 ms, 0 B allocated. Regression guard: a snapshot
+  (ok, output hash, diagnostics) of all 15,462 `.corpus` files, plain, with the import rewrite and
+  cut at 1/3 and 2/3 (61,848 results), identical after every change. Kept: ASCII identifier
+  fast path (-19%), trivia on a local position (-4% corpus, -10% checker), stack check every
+  16th recursion (-6% under NativeAOT only; first `Guard` test), CLI `OptimizationPreference=Speed`
+  (-7% AOT), CLI walk reads each directory once (0.60 -> 0.35 s over the corpus; svelte has
+  3,816 test directories). Tried and reverted, no gain: vectorized identifier scan
+  (`IndexOfAnyExcept`, slower: identifiers are short), keyword length/first-letter prefilter,
+  local span in the identifier loop. Measured: 1.21 lexer scans per token (Peek and speculation),
+  so a token cache would gain little; NativeAOT ~18% slower than the JIT on the same driver.
+  `(a = ` nesting stays quadratic (tsc and ts-blank-space too, both slower than Pare at 500 deep;
+  only swc is linear, by cover grammar): still Dropped in todo.
+- **libpare (2026-10-17, `feat/native-lib`):** `src/Extrode.Pare.Native`, NativeAOT
+  `NativeLib=Shared`, C API in `include/pare.h` ([plan](../docs/plans/2026-10-17-004-native-lib.md),
+  reviewed by Fable before code). osx-arm64 `libpare.dylib` 1.0 MB. UTF-8 in and out, BOM dropped
+  like the CLI, diagnostics located in one forward pass. 16 unit tests (`NativeStripTests`), 6
+  integration tests (publish, P/Invoke, and `native/smoke.c` built with `cc`: main thread, a
+  512 KB pthread at 200,000-deep nesting, 4 threads x 1000 calls). Break-checked: byte offsets,
+  BOM, options, UTF-8 strictness, CRLF, `pare_free` zeroing, code range, size limit.
 
 ## Next
 

@@ -1,0 +1,10 @@
+# Previous
+
+The task that just finished: merged into `dev`, not necessarily released. One task, a few bullets.
+`/status roll` moves `current` here, `next` into `current`, and pulls a fresh task from
+`../tasklist.md` into `next`. When a release is tagged, the same work is summarised in
+`../../CHANGELOG.md`.
+
+- M1 lexer: `src/Extrode.Pare/Lexing/`. Context-free scan plus parser-driven rescans for regex,
+  template continuation and `>`; state is a struct for save/restore. 96 lexer unit tests (126 total); corpus
+  round-trip over 17,582 script files with 0 unexpected error tokens.

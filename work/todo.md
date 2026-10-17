@@ -11,9 +11,19 @@ wish list; the value is in recording the ones nobody has got to yet.
 
 Small, clear, and could be picked up without a design decision.
 
-- (nothing yet)
+- BenchmarkDotNet's out-of-process run fails ("Found more than one matching project file") while
+  `.claude/worktrees/agent-*` hold copies of `Extrode.Pare.Bench.csproj`; run with `--inProcess`,
+  or `scripts/cleanup/stale-agent-worktrees.sh -e` (removes the merged ones; all 14 gone 2026-10-17).
 
 ## Later
+
+- Svelte components without Node (tier 1 in [docs/ecosystem-comparison.md](../docs/ecosystem-comparison.md)):
+  run the Svelte 5 compiler in an embedded engine at build time, `.svelte` -> `.js` under `obj/`,
+  the `svelte` runtime vendored behind an import map; no SvelteKit, no bundler. Spike first (a
+  day): does the compiler run, and how fast. Engine leaning: ClearScript (V8) for speed, over Jint
+  (pure C#). ClearScript costs a native V8 binary per RID and is a package to approve; check its
+  RID list (musl, win-arm64), the MSBuild task host under Visual Studio, and package size. After
+  the spike: decide go or drop.
 
 - .NET bug, not reported: NativeAOT on linux-musl-arm64,
   `RuntimeHelpers.TryEnsureSufficientExecutionStack()` on the main thread returns false in 24 of
@@ -34,8 +44,6 @@ Small, clear, and could be picked up without a design decision.
 - PARE203 stops at the first bad `PareServeAt` (MSBuild ends a batched `Error` at its first
   batch), so its 9 test cases need 9 builds (~14 s). Reporting every bad item in one build would
   let them share one. The serving tests share one build since 2026-10-15 (subset 68 s to 42 s).
-- `tests/Extrode.Pare.Bench/Compare.cs:349` has raw `«»` (AGENTS.md: C# stays ASCII);
-  `scripts/fix-escapes.sh` rewrites them to `\u00AB`/`\u00BB` on every run. Commit that once.
 - In Development the SDK serves every `wwwroot` file through a `**` pattern, so `.ts` sources
   return 200 (app and RCL); publish has none. Decide whether `AddPareDevelopment` should 404 them.
 

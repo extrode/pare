@@ -12,6 +12,8 @@ Progress, next steps, corpus pass rate: [work/progress.md](work/progress.md), up
   MSBuild 18's .NET task host under Visual Studio's `MSBuild.exe`.
 - `src/Extrode.Pare.AspNetCore/` `AddPareDevelopment`: re-strips on save in Development for
   `dotnet watch`. Shared framework only. Core also packs as `Extrode.Pare`.
+- `src/Extrode.Pare.Native/` `libpare`: C shared library (NativeAOT `NativeLib=Shared`) and
+  `include/pare.h`. Archives only, not NuGet. `AllowUnsafeBlocks` here only.
 - `tests/Extrode.Pare.Tests/` xUnit v3 on Microsoft.Testing.Platform. Fast unit tests (<1 s).
 - `tests/Extrode.Pare.Integration/` slow (~2 min): real `dotnet build`/`publish` on temp projects;
   the sample tests drive Chromium, Firefox and WebKit via Microsoft.Playwright (approved

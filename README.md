@@ -58,7 +58,7 @@ JavaScript out of the source folders, or use `--outdir`.
 ## MSBuild
 
 ```xml
-<PackageReference Include="Extrode.Pare.Build" Version="0.4.0" PrivateAssets="all" />
+<PackageReference Include="Extrode.Pare.Build" Version="0.5.0" PrivateAssets="all" />
 ```
 
 Before `Build`, every `wwwroot/**/*.ts` and `*.mts` (not `.d.ts`, not `node_modules`) is stripped.
@@ -88,7 +88,7 @@ Dev loop: in its default hot reload mode `dotnet watch` runs no build on a `.ts`
 `.js` would go stale. `Extrode.Pare.AspNetCore` re-strips in the running app instead:
 
 ```xml
-<PackageReference Include="Extrode.Pare.AspNetCore" Version="0.4.0" />
+<PackageReference Include="Extrode.Pare.AspNetCore" Version="0.5.0" />
 ```
 
 ```csharp
@@ -142,8 +142,8 @@ The packages are not on nuget.org yet. Each GitHub release carries the `.nupkg` 
 builds on several machines vendors them and restores offline on macOS, Windows and Linux:
 
 ```
-packages/Extrode.Pare.0.4.0.nupkg
-packages/Extrode.Pare.Build.0.4.0.nupkg
+packages/Extrode.Pare.0.5.0.nupkg
+packages/Extrode.Pare.Build.0.5.0.nupkg
 ```
 
 ```xml
@@ -160,7 +160,7 @@ packages/Extrode.Pare.Build.0.4.0.nupkg
 </configuration>
 ```
 
-Pin an exact release (`Version="0.4.0"`), not a `-dev` or `-*` version.
+Pin an exact release (`Version="0.5.0"`), not a `-dev` or `-*` version.
 
 ### TypeScript outside wwwroot
 
@@ -221,7 +221,7 @@ can embed the output instead:
   <EnablePareDefaultItems>false</EnablePareDefaultItems>
 </PropertyGroup>
 <ItemGroup>
-  <PackageReference Include="Extrode.Pare.Build" Version="0.4.0" PrivateAssets="all" />
+  <PackageReference Include="Extrode.Pare.Build" Version="0.5.0" PrivateAssets="all" />
   <TypeScriptSource Include="web/**/*.ts" />
 </ItemGroup>
 ```
@@ -285,7 +285,7 @@ empty and that it did not fill itself.
 an htmx call to a minimal API. It references the package from a local feed, as a consumer would:
 
 ```sh
-scripts/pack-local.sh               # pack into tmp/feed as 0.4.0-dev.<time>, re-restore the sample
+scripts/pack-local.sh               # pack into tmp/feed as 0.5.0-dev.<time>, re-restore the sample
 dotnet run --project samples/WebApp   # http://localhost:5180, Development
 dotnet watch            # from samples/WebApp: a .ts save re-strips and reloads the page
 dotnet publish samples/WebApp -c Release -r osx-arm64 -o tmp/sample-aot
@@ -338,6 +338,47 @@ reports rejections as `file:line:col: error PARE...`. Deep nesting fails with a 
 NativeAOT call `Strip` from a thread you created, since .NET misreads the main thread's stack size
 there and the check fails at once. Why UTF-16: [docs/decisions/2026-10-14-001-utf16-input.md](docs/decisions/2026-10-14-001-utf16-input.md).
 
+## C library
+
+`libpare` is the same stripper as a C shared library, for Rust, Go (cgo), Python (ctypes), Ruby,
+PHP, Node or Deno FFI: no .NET runtime needed. `libpare-<version>-<rid>.tar.gz` (`.zip` on
+Windows) holds `libpare.dylib`, `libpare.so` or `pare.dll` + `pare.lib`, and
+[`pare.h`](src/Extrode.Pare.Native/include/pare.h); `scripts/pack-cli.sh` and `pack-cli.ps1`
+build them for the CLI's RIDs, or `dotnet publish src/Extrode.Pare.Native -r <rid>`.
+
+```c
+#include <stdio.h>
+#include <string.h>
+#include "pare.h"
+
+int main(void) {
+    const char *ts = "let a: number = 1;\n";
+    pare_result r;
+    if (pare_strip(ts, strlen(ts), 0, &r) == PARE_OK)
+        fputs(r.output, stdout);                       /* "let a         = 1;\n" */
+    else
+        for (size_t i = 0; i < r.diagnostic_count; i++)
+            fprintf(stderr, "app.ts:%d:%d: error PARE%03d: %s\n", r.diagnostics[i].line,
+                    r.diagnostics[i].column, r.diagnostics[i].code, pare_message(r.diagnostics[i].code));
+    pare_free(&r);
+}
+```
+
+```sh
+cc app.c -I<dir> -L<dir> -lpare -Wl,-rpath,<dir>    # macOS, Linux
+cl app.c /I<dir> <dir>\pare.lib                      # Windows; pare.dll next to app.exe
+```
+
+- UTF-8 in and out. A leading BOM is dropped, as the CLI does; invalid UTF-8 returns
+  `PARE_INVALID`. Lines and UTF-16 columns are kept, so the output's `line:column` is the
+  source's; byte offsets shift when a blanked type holds non-ASCII text.
+- Diagnostics carry the code, line, UTF-16 column (what browsers report), and byte offset and
+  length into the source.
+- Thread-safe. The library allocates, `pare_free` frees and zeroes. It cannot be unloaded.
+- `pare_abi_version()` against `PARE_ABI_VERSION` catches a header and library from different
+  builds.
+- On linux-musl-arm64, call it from a thread you created (see [Library](#library)).
+
 ## Non-whitespace changes
 
 The output differs from the input only by spaces, except for:
@@ -382,9 +423,9 @@ BenchmarkDotNet 0.15.8, one `TypeStripper.Strip` call per source, output to a re
 
 | Input | Mean | MB/s | Allocated |
 |---|---:|---:|---:|
-| TypeScript 5.9.3 `checker.ts` (3.1 MB) | 13.3 ms | 235 | 0 B |
-| Real-world corpus, 2,392 files (19.5 MB) | 75.0 ms | 218 | 0 B |
-| `(a = ` nested 1,000 deep | 38.1 ms | 0.2 | 0 B |
+| TypeScript 5.9.3 `checker.ts` (3.1 MB) | 9.4 ms | 333 | 0 B |
+| Real-world corpus, 2,392 files (19.5 MB) | 59.8 ms | 273 | 0 B |
+| `(a = ` nested 1,000 deep | 37.4 ms | 0.2 | 0 B |
 
 Deep nesting is quadratic, as in TypeScript's own parser; real code never reaches it.
 

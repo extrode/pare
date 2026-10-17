@@ -43,4 +43,4 @@ M2 + M3 recognizer shipped 2026-10-14 (see `CHANGELOG.md`).
 - [x] T4 Globs (`src/**/*.ts`) without a package — done when: CLI test over a temp tree passes
 - [x] T5 `Extrode.Pare.Build` task + props/targets, incremental, static web assets — done when: `dotnet build` integration tests pass
 - [x] T6 NuGet pack layout (`build/`, `tasks/net10.0/`) — done when: a fresh Web app restores it from a local feed and publishes the `.js`
-- [ ] T7 `samples/WebApp` using the package — done when: `dotnet build` of the sample writes and serves the `.js`
+- [x] T7 `samples/WebApp` using the package — done when: `dotnet build` of the sample writes and serves the `.js`

@@ -5,6 +5,8 @@
     <RootNamespace>Extrode.Pare.Cli</RootNamespace>
     <PublishAot>true</PublishAot>
     <IsAotCompatible>true</IsAotCompatible>
+    <!-- ~7% faster stripping for ~2% more binary (measured 2026-10-17, osx-arm64). -->
+    <OptimizationPreference>Speed</OptimizationPreference>
   </PropertyGroup>
   <!-- .NET tool. `dotnet pack` makes the pointer package; `dotnet pack -r <rid>` makes the
        NativeAOT package for one RID and must run on that OS; `dotnet pack -r any` makes the

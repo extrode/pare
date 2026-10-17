@@ -123,6 +123,23 @@ public sealed class FileModeTests : IDisposable
     }
 
     [Fact]
+    public void Directory_input_enters_dot_directories_and_symlinked_directories()
+    {
+        if (OperatingSystem.IsWindows())
+            Assert.Skip("symlinks need Developer Mode");
+        Put("src/.hidden/h.ts", "h;");
+        Put("linked/l.ts", "l;");
+        Directory.CreateSymbolicLink(P("src/link"), P("linked"));
+
+        var (exit, _) = Run(P("src"), "--outdir=" + P("out"));
+
+        Assert.Equal(0, exit);
+        Assert.Equal([".hidden/h.js", "link/l.js"],
+            Directory.GetFiles(P("out"), "*", SearchOption.AllDirectories)
+                .Select(f => Path.GetRelativePath(P("out"), f).Replace('\\', '/')).Order());
+    }
+
+    [Fact]
     public void Glob_input_selects_matching_sources()
     {
         Put("src/a.ts", "a;");
