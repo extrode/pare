@@ -49,6 +49,14 @@ Real, but needs a decision, a dependency, or more information first. Say which.
 - Unicode tables: identifier classes come from .NET's `CharUnicodeInfo`, whose Unicode version
   may differ from TypeScript's and browsers'. Only matters for exotic identifiers.
 
+- A `"` in a source or output path makes the development map invalid JSON: paths are written
+  with only `\` escaped, and `ReadMap` does not catch `JsonException`, so the app fails to start in
+  Development. (2026-10-17)
+- `PareCompileSource` outside `wwwroot` is a `Watch` item: not checked whether `dotnet watch` in hot
+  reload mode treats saving one as an unsupported change and restarts the app. (2026-10-17)
+- PARE201 lists the same source twice when one `PareCompileSource` is declared twice (a package's
+  `.props` plus the project file). (2026-10-17)
+
 ## Dropped
 
 Not doing, with the reason. Kept so the same idea does not get re-raised every quarter.
