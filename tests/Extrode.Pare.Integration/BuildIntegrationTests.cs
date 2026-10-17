@@ -814,6 +814,11 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
         Assert.False(Directory.Exists(P("bin/Debug/net10.0/web")));
         Assert.DoesNotContain(Assets(output), a => a.Contains(".js", StringComparison.Ordinal));
 
+        Put("web/strings.de.ts", "export let s: string = 'Tag';\n");
+        (exit, output) = Build();
+        Assert.True(exit == 0, output);
+        Assert.Equal("export let s         = 'Tag';\n", Resources("bin/Debug/net10.0/app.dll")["app/web/strings.de.js"]);
+
         File.Delete(P("web/lib/util.ts"));
         (exit, output) = Build();
         Assert.True(exit == 0, output);

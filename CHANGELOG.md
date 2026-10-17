@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+- `PareEmbed=true` (with `PareEmbedPrefix`) embeds every output in the assembly, named after its
+  path below the project, written under `obj/`; for projects that are not web projects. Outputs
+  are not `Content` or static web assets there, and a deleted source drops its resource.
+- `@(PareOutput)` is public: every output, with `PareSource` and `PareRelativePath`. A project's
+  `AfterTargets="PareStripTypeScript"` target sees it on every build. `PareStripTypeScript` now
+  has no body and depends on the strip (`_PareStrip`) and the registration; `PareTypeCheck` runs
+  as its dependency instead of through `BeforeTargets`.
+- `string? TypeStripper.Strip(string source, out IReadOnlyList<Diagnostic> diagnostics)`. The
+  library API is documented as stable for 0.x.
+- `scripts/get-tsc.cs --dest <dir>` works outside the Pare repository; README section on type
+  checking in CI without npm.
+- Sample: a Jint module loader that strips `.ts` on import (`JintModuleTests`).
+- README: restoring vendored `.nupkg` files offline, non-web projects.
 - `PareServeAt` serves TypeScript outside `wwwroot`:
   `<TypeScriptSource Include="Scripts/**/*.ts" PareServeAt="js" />` serves `Scripts/lib/fmt.ts`
   at `/js/lib/fmt.js`, and `.mts` as `.mjs`. `PareServeAt="/"` serves Blazor `**/*.razor.ts`
