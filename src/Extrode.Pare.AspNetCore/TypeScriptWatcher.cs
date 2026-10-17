@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Extensions.Logging;
 
@@ -20,6 +21,8 @@ internal sealed class TypeScriptWatcher : IDisposable
     private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
     private static readonly StringComparer PathComparer =
         OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+    // One compile at a time per compiler: every project's watcher shares the app's compilers.
+    private static readonly ConditionalWeakTable<IPareCompiler, Lock> CompilerGates = [];
 
     private readonly string _contentRoot;
     private readonly string _sourceRoot;
@@ -32,6 +35,10 @@ internal sealed class TypeScriptWatcher : IDisposable
     private readonly ILogger _logger;
     private readonly HashSet<string> _pending = new(StringComparer.Ordinal);
     private readonly Lock _lock = new();
+    // Timer callbacks overlap: one flush at a time, so a later save is compiled after an earlier one.
+    private readonly Lock _flushLock = new();
+    // Not disposed: a compile still running when the app stops may hold its token.
+    private readonly CancellationTokenSource _stopping = new();
     private readonly Timer _timer;
     private readonly List<FileSystemWatcher> _watchers = [];
 
@@ -176,14 +183,21 @@ internal sealed class TypeScriptWatcher : IDisposable
 
     private void Flush()
     {
-        string[] batch;
-        lock (_lock)
+        lock (_flushLock)
         {
-            batch = [.. _pending];
-            _pending.Clear();
+            string[] batch;
+            lock (_lock)
+            {
+                batch = [.. _pending];
+                _pending.Clear();
+            }
+            foreach (string source in batch)
+            {
+                if (_stopping.IsCancellationRequested)
+                    return;
+                Strip(source, started: true);
+            }
         }
-        foreach (string source in batch)
-            Strip(source, started: true);
     }
 
     /// <summary>
@@ -241,21 +255,31 @@ internal sealed class TypeScriptWatcher : IDisposable
 
     private void Compile(string name, string sourcePath, string source, CompiledSource compiled, bool started)
     {
-        IReadOnlyDictionary<string, string>? outputs;
+        // Keyed as the outputs are, whatever path form or comparer the compiler used.
+        var texts = new Dictionary<string, string>(PathComparer);
         try
         {
-            outputs = compiled.Compiler.Compile(sourcePath, source, compiled.Outputs, _logger);
+            lock (CompilerGates.GetValue(compiled.Compiler, _ => new Lock()))
+            {
+                var outputs = compiled.Compiler.CompileAsync(sourcePath, source, compiled.Outputs, _logger, _stopping.Token).GetAwaiter().GetResult();
+                if (outputs is null)
+                    return;
+                foreach (var (path, text) in outputs)
+                    texts[Path.GetFullPath(path)] = text;
+            }
+        }
+        catch (OperationCanceledException) when (_stopping.IsCancellationRequested)
+        {
+            return;
         }
         catch (Exception e)
         {
-            _logger.LogError("{File}: {Compiler} failed: {Message}", name, compiled.Compiler.Name, e.Message);
+            _logger.LogError(e, "{File}: {Compiler} failed: {Message}", name, compiled.Compiler.Name, e.Message);
             return;
         }
-        if (outputs is null)
-            return;
         foreach (string target in compiled.Outputs)
         {
-            if (outputs.TryGetValue(target, out string? text))
+            if (texts.TryGetValue(target, out string? text))
                 Write(name, target, text, started, "Compiled");
             else
                 _logger.LogError("{File}: {Compiler} returned no text for {Target}", name, compiled.Compiler.Name, Path.GetRelativePath(_contentRoot, target));
@@ -270,7 +294,11 @@ internal sealed class TypeScriptWatcher : IDisposable
         try
         {
             if (!created && File.ReadAllBytes(target).AsSpan().SequenceEqual(bytes))
+            {
+                // Newer than its source again, so the next start and build skip it.
+                File.SetLastWriteTimeUtc(target, DateTime.UtcNow);
                 return;
+            }
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             File.WriteAllBytes(target, bytes);
         }
@@ -305,6 +333,7 @@ internal sealed class TypeScriptWatcher : IDisposable
 
     public void Dispose()
     {
+        _stopping.Cancel();
         foreach (var watcher in _watchers)
             watcher.Dispose();
         _timer.Dispose();

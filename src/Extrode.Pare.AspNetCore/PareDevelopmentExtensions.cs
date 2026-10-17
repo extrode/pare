@@ -28,17 +28,23 @@ public static class PareDevelopmentExtensions
     /// <c>dotnet watch</c> refreshes the browser through a hosting startup that
     /// <see cref="WebApplication.CreateSlimBuilder()"/> never runs; this applies it, so slim and
     /// NativeAOT apps get the refresh too. Applying it twice adds the script once. A second call
-    /// (another package's own setup, say) adds nothing; the first call's options stand.
+    /// (another package's own setup, say) adds no second watcher; its <paramref name="configure"/>
+    /// runs on the same options, after the first call's.
     /// </remarks>
     public static WebApplicationBuilder AddPareDevelopment(this WebApplicationBuilder builder, Action<PareDevelopmentOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        if (!builder.Environment.IsDevelopment() || builder.Services.Any(s => s.ServiceType == typeof(PareDevelopmentMarker)))
+        if (!builder.Environment.IsDevelopment())
             return builder;
+        if (builder.Services.FirstOrDefault(s => s.ServiceType == typeof(PareDevelopmentMarker))?.ImplementationInstance is PareDevelopmentMarker added)
+        {
+            configure?.Invoke(added.Options);
+            return builder;
+        }
 
         var options = new PareDevelopmentOptions();
         configure?.Invoke(options);
-        builder.Services.AddSingleton<PareDevelopmentMarker>();
+        builder.Services.AddSingleton(new PareDevelopmentMarker(options));
         builder.Services.AddHostedService(services => new PareDevelopmentService(
             services.GetRequiredService<IWebHostEnvironment>(), options, services.GetServices<IPareCompiler>(),
             services.GetRequiredService<ILoggerFactory>().CreateLogger("Extrode.Pare")));
@@ -56,7 +62,7 @@ public static class PareDevelopmentExtensions
             hostingStartup.Configure(builder.WebHost);
     }
 
-    private sealed class PareDevelopmentMarker;
+    private sealed record PareDevelopmentMarker(PareDevelopmentOptions Options);
 
     private sealed class PareDevelopmentService(IWebHostEnvironment env, PareDevelopmentOptions options, IEnumerable<IPareCompiler> compilers, ILogger logger) : IHostedService
     {
@@ -72,11 +78,15 @@ public static class PareDevelopmentExtensions
                 paths.AddRange(Directory.GetFiles(directory, "Extrode.Pare.development.*.json").Order(StringComparer.Ordinal));
             var byName = new Dictionary<string, IPareCompiler>(StringComparer.Ordinal);
             foreach (var compiler in compilers)
-                byName.TryAdd(compiler.Name, compiler);
+            {
+                if (!byName.TryAdd(compiler.Name, compiler) && !ReferenceEquals(byName[compiler.Name], compiler))
+                    logger.LogWarning("Two IPareCompiler named {Compiler} are registered ({First}, {Second}); the first compiles on save",
+                        compiler.Name, byName[compiler.Name].GetType().FullName, compiler.GetType().FullName);
+            }
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (string path in paths)
             {
-                if (ReadMap(path) is not var (sourceRoot, outputRoot, sources, compiledOutputs) || !seen.Add(Path.GetFullPath(outputRoot)))
+                if (ReadMap(path, logger) is not var (sourceRoot, outputRoot, sources, compiledOutputs) || !seen.Add(Path.GetFullPath(outputRoot)))
                     continue;
                 var compiled = new Dictionary<string, CompiledSource>();
                 foreach (var (source, (name, outputs)) in compiledOutputs)
@@ -97,10 +107,11 @@ public static class PareDevelopmentExtensions
             return Task.CompletedTask;
         }
 
-        // { "sourceRoot", "outputRoot", "sources": [{ "source", "output", "compiler"? }] }; Pare 0.3 wrote no
-        // sources, 0.5 no compiler. A compiled source has one entry per output.
+        // { "sourceRoot", "outputRoot", "sources": [{ "source", "output" }], "compiled": [{ "source", "output", "compiler" }] };
+        // Pare 0.3 wrote no sources, 0.5 no compiled. A compiled source has one entry per output. Compiled
+        // sources have their own list so that a 0.5 reader, which strips every entry in sources, skips them.
         private static (string SourceRoot, string OutputRoot, Dictionary<string, string> Sources,
-            Dictionary<string, (string Compiler, List<string> Outputs)> Compiled)? ReadMap(string path)
+            Dictionary<string, (string Compiler, List<string> Outputs)> Compiled)? ReadMap(string path, ILogger logger)
         {
             if (!File.Exists(path))
                 return null;
@@ -111,24 +122,33 @@ public static class PareDevelopmentExtensions
                 return null;
             var sources = new Dictionary<string, string>();
             var compiled = new Dictionary<string, (string Compiler, List<string> Outputs)>();
-            if (root.TryGetProperty("sources", out var list) && list.ValueKind == JsonValueKind.Array)
+            foreach (var (from, to, _) in Entries(root, "sources"))
+                sources[from] = to;
+            foreach (var (from, to, compiler) in Entries(root, "compiled"))
             {
-                foreach (var item in list.EnumerateArray())
-                {
-                    if (!(item.TryGetProperty("source", out var s) && s.GetString() is { } from &&
-                          item.TryGetProperty("output", out var o) && o.GetString() is { } to))
-                        continue;
-                    if (item.TryGetProperty("compiler", out var c) && c.GetString() is { Length: > 0 } compiler)
-                    {
-                        if (!compiled.TryGetValue(from, out var entry))
-                            compiled[from] = entry = (compiler, []);
-                        entry.Outputs.Add(to);
-                    }
-                    else
-                        sources[from] = to;
-                }
+                if (compiler is not { Length: > 0 })
+                    continue;
+                if (!compiled.TryGetValue(from, out var entry))
+                    compiled[from] = entry = (compiler, []);
+                if (entry.Compiler == compiler)
+                    entry.Outputs.Add(to);
+                else
+                    logger.LogWarning("{Source} is declared for two compilers, {First} and {Second}; the first compiles it on save",
+                        from, entry.Compiler, compiler);
             }
             return (sourceRoot, outputRoot, sources, compiled);
+        }
+
+        private static IEnumerable<(string Source, string Output, string? Compiler)> Entries(JsonElement root, string name)
+        {
+            if (!root.TryGetProperty(name, out var list) || list.ValueKind != JsonValueKind.Array)
+                yield break;
+            foreach (var item in list.EnumerateArray())
+            {
+                if (item.TryGetProperty("source", out var s) && s.GetString() is { } from &&
+                    item.TryGetProperty("output", out var o) && o.GetString() is { } to)
+                    yield return (from, to, item.TryGetProperty("compiler", out var c) ? c.GetString() : null);
+            }
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

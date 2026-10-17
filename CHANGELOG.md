@@ -6,10 +6,14 @@
   `<PareCompileSource Include="**/*.svelte" PareCompiler="husk" PareOutputExtension=".svelte.js" />`
   and adds its target to `PareCompileDependsOn`; Pare gives each source `PareOutputPath` and
   `PareRelativePath` by the `.ts` rules and serves, publishes, embeds and deletes the outputs.
-  New `error PARE204` for an item without `PareCompiler` or `PareOutputExtension`.
-- `IPareCompiler` in `Extrode.Pare.AspNetCore`: registered in DI, `AddPareDevelopment` runs it on
-  save for its sources. `AddPareDevelopment` called twice now adds one watcher.
-- PARE201 and PARE202 messages no longer say "TypeScript": they cover compiled sources too.
+  New `error PARE204` for an item without a `PareCompiler` name or a `PareOutputExtension`. The
+  development map lists them under `compiled`, which 0.5's `AddPareDevelopment` ignores.
+- `IPareCompiler` in `Extrode.Pare.AspNetCore`: registered in DI, `AddPareDevelopment` runs its
+  `CompileAsync` on save for its sources, one at a time per compiler. `AddPareDevelopment` called
+  twice now adds one watcher, and the second call's options apply too.
+- On save, output whose text is unchanged gets a new timestamp, so the next start does not
+  strip or compile its source again.
+- PARE200, PARE201 and PARE202 messages no longer say "TypeScript": they cover compiled sources too.
 
 ## [0.5.0] - 2026-10-17
 

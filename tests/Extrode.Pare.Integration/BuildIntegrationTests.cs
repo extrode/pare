@@ -1025,7 +1025,9 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
 
         using (var map = System.Text.Json.JsonDocument.Parse(File.ReadAllText(P("bin/Debug/net10.0/Extrode.Pare.development.json"))))
         {
-            var sources = map.RootElement.GetProperty("sources").EnumerateArray()
+            // Not in sources, which Pare 0.5's AddPareDevelopment strips.
+            Assert.Empty(map.RootElement.GetProperty("sources").EnumerateArray());
+            var sources = map.RootElement.GetProperty("compiled").EnumerateArray()
                 .Select(e => (Source: e.GetProperty("source").GetString()!, Output: e.GetProperty("output").GetString()!,
                     Compiler: e.TryGetProperty("compiler", out var c) ? c.GetString() : null)).ToList();
             Assert.Equal(3, sources.Count);
@@ -1071,6 +1073,9 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
     [InlineData("fake", "", "error PARE204")]
     [InlineData("fake", "js", "error PARE204")]
     [InlineData("fake", ".x/y.js", "error PARE204")]
+    [InlineData("fa&quot;ke", ".js", "error PARE204")]
+    [InlineData("fa ke", ".js", "error PARE204")]
+    [InlineData("fake", ".x&quot;.js", "error PARE204")]
     public void A_compile_source_without_a_compiler_or_an_extension_fails_the_build(string compiler, string extension, string expected)
     {
         Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", targets: FakeCompiler,

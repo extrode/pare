@@ -22,7 +22,8 @@
        items with PareCompiler (its name) and PareOutputExtension (`.svelte.js`: the output is
        %(Filename) + it), PareServeAt optional; a second output of one source is a second item. They
        are placed, served, embedded, published, deleted and checked (PARE201-204) as TypeScript
-       sources are. Its targets go in PareCompileDependsOn and run after the strip, where each
+       sources are. Every file the compiler writes under obj/ is one of these outputs: Pare deletes
+       any other file there as stale. Its targets go in PareCompileDependsOn and run after the strip, where each
        @(PareCompileSource) has PareOutputPath (write the output there) and PareRelativePath.
        After PareStripTypeScript, @(PareOutput) lists the outputs, with PareSource (the source's
        full path), PareRelativePath (the URL or embedded name; else the path below the project)
@@ -50,10 +51,15 @@
     <ItemGroup>
       <_PareSource Include="@(TypeScriptSource)"
                    Condition="('%(Extension)' == '.ts' or '%(Extension)' == '.mts' or '%(Extension)' == '.cts') and !$([System.String]::Copy('%(Filename)').EndsWith('.d'))" />
-      <!-- An extension is a dot and a name, with no folder in it. -->
-      <_PareBadCompile Include="@(PareCompileSource)"
-                       Condition="'%(PareCompileSource.PareCompiler)' == '' or !$([System.Text.RegularExpressions.Regex]::IsMatch('%(PareCompileSource.PareOutputExtension)', '^\.[^/\\]+\z'))" />
-      <_PareSource Include="@(PareCompileSource)" Exclude="@(_PareBadCompile)">
+      <!-- A compiler is a name; an extension is a dot and a name, with no folder in it. Either goes
+           into the development map's JSON as is. Marked per item: an Exclude would also drop a valid
+           item with the same Include. -->
+      <_PareCompileCandidate Include="@(PareCompileSource)" />
+      <_PareCompileCandidate Condition="!$([System.Text.RegularExpressions.Regex]::IsMatch('%(_PareCompileCandidate.PareCompiler)', '^[A-Za-z0-9._-]+\z')) or !$([System.Text.RegularExpressions.Regex]::IsMatch('%(_PareCompileCandidate.PareOutputExtension)', '^\.[^/\\&quot;]+\z'))">
+        <_PareBad>true</_PareBad>
+      </_PareCompileCandidate>
+      <_PareBadCompile Include="@(_PareCompileCandidate)" Condition="'%(_PareCompileCandidate._PareBad)' == 'true'" />
+      <_PareSource Include="@(_PareCompileCandidate)" Condition="'%(_PareCompileCandidate._PareBad)' != 'true'">
         <_PareCompiled>true</_PareCompiled>
       </_PareSource>
       <_PareSource>
@@ -111,7 +117,7 @@
       <PareCompileSource Include="@(_PareSource)" Condition="'%(_PareSource._PareCompiled)' == 'true'" />
     </ItemGroup>
     <Error Code="PARE204" File="%(_PareBadCompile.Identity)" Condition="'@(_PareBadCompile)' != ''"
-           Text="PareCompileSource needs PareCompiler (the compiler's name) and PareOutputExtension (the output's extension, a dot and a name such as .svelte.js); got PareCompiler=&quot;%(_PareBadCompile.PareCompiler)&quot; PareOutputExtension=&quot;%(_PareBadCompile.PareOutputExtension)&quot;." />
+           Text="PareCompileSource needs PareCompiler (the compiler's name: letters, digits, . _ -) and PareOutputExtension (the output's extension, a dot and a name such as .svelte.js); got PareCompiler=&quot;%(_PareBadCompile.PareCompiler)&quot; PareOutputExtension=&quot;%(_PareBadCompile.PareOutputExtension)&quot;." />
     <Error Code="PARE203" File="%(_PareBadServeAt.Identity)" Condition="'@(_PareBadServeAt)' != ''"
            Text="PareServeAt=&quot;%(_PareBadServeAt.PareServeAt)&quot; is not a URL folder. Give a folder such as js, or / for the root, with no . or .. segment, colon, double slash or file name: the file name comes from the source." />
     <Error Code="PARE201" File="$(MSBuildProjectFullPath)" Condition="'@(_PareUrl->Count())' &gt; '1'"
@@ -180,7 +186,7 @@
       </Content>
     </ItemGroup>
     <Warning Code="PARE200" File="%(_PareShadowed.Identity)" Condition="'@(_PareShadowed)' != ''"
-             Text="not served: the build now writes this file's TypeScript output under obj/ and serves that. Delete it." />
+             Text="not served: the build now writes this file's output under obj/ and serves that. Delete it." />
   </Target>
 
   <!-- obj/ output only. Pare owns the directory, so a file no source produces is a deleted
@@ -243,15 +249,15 @@
   <Target Name="_PareComputeDevelopmentMap" DependsOnTargets="_PareComputeOutputs"
           Condition="'$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' and '$(_PareOutRoot)' == '' and '$(PareEmbed)' != 'true' and '$(_IsPublishing)' != 'true'">
     <ItemGroup>
-      <_PareMapSource Include="@(_PareSource->'%(FullPath)')" Condition="'%(_PareSource.PareRelativePath)' != ''" />
-      <_PareMapSource Condition="'%(_PareMapSource._PareCompiled)' == 'true'">
-        <_PareMapCompiler>, "compiler": "%(_PareMapSource.PareCompiler)"</_PareMapCompiler>
-      </_PareMapSource>
+      <_PareMapSource Include="@(_PareSource->'%(FullPath)')" Condition="'%(_PareSource.PareRelativePath)' != '' and '%(_PareSource._PareCompiled)' != 'true'" />
+      <_PareMapCompiled Include="@(_PareSource->'%(FullPath)')" Condition="'%(_PareSource.PareRelativePath)' != '' and '%(_PareSource._PareCompiled)' == 'true'" />
     </ItemGroup>
     <PropertyGroup>
       <_PareWebRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', 'wwwroot'))</_PareWebRoot>
-      <_PareMapSources>@(_PareMapSource->'{ "source": "%(Identity)", "output": "%(PareOutputPath)"%(_PareMapCompiler) }', ', ')</_PareMapSources>
-      <_PareMapText>{ "sourceRoot": "$(_PareWebRoot.Replace('\', '\\'))", "outputRoot": "$(_PareObjRoot.Replace('\', '\\'))", "sources": [$(_PareMapSources.Replace('\', '\\'))] }</_PareMapText>
+      <_PareMapSources>@(_PareMapSource->'{ "source": "%(Identity)", "output": "%(PareOutputPath)" }', ', ')</_PareMapSources>
+      <!-- Its own list: Pare 0.5's AddPareDevelopment strips every entry in sources. -->
+      <_PareMapCompiledSources>@(_PareMapCompiled->'{ "source": "%(Identity)", "output": "%(PareOutputPath)", "compiler": "%(PareCompiler)" }', ', ')</_PareMapCompiledSources>
+      <_PareMapText>{ "sourceRoot": "$(_PareWebRoot.Replace('\', '\\'))", "outputRoot": "$(_PareObjRoot.Replace('\', '\\'))", "sources": [$(_PareMapSources.Replace('\', '\\'))], "compiled": [$(_PareMapCompiledSources.Replace('\', '\\'))] }</_PareMapText>
       <_PareSharedMapPath>$(IntermediateOutputPath)Extrode.Pare.development.json</_PareSharedMapPath>
     </PropertyGroup>
   </Target>

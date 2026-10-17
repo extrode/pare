@@ -288,10 +288,12 @@ own target, usually in its package's `.props` and `.targets`:
   write; relative paths are below the project) and `PareRelativePath` (its URL or resource name).
   Skipping up-to-date sources is the target's job (`Inputs`/`Outputs`).
 - Two outputs from one source (a component's `.js` and `.css`) are two items with the same
-  `Include` and different extensions.
+  `Include` and different extensions. Every file the target writes under `obj/` must be one of
+  these outputs: the build deletes any other file there as a deleted source's output (a
+  `.js.map` it was not told about, say).
 - The sources leave `Content`, so a `.svelte` under `wwwroot` is not published. They are `Watch`
   items. `@(PareOutput)` lists their outputs with `%(PareCompiler)`.
-- `error PARE204` for a missing `PareCompiler` or `PareOutputExtension`. PARE201, PARE202 and
+- `error PARE204` for a missing `PareCompiler` (letters, digits, `.`, `_`, `-`) or `PareOutputExtension`. PARE201, PARE202 and
   PARE203 apply as for TypeScript, across both kinds of source.
 
 On save in Development, `AddPareDevelopment` hands each such source to the `IPareCompiler` with
@@ -299,13 +301,14 @@ its name, registered in DI:
 
 ```csharp
 builder.Services.AddSingleton<IPareCompiler, SvelteCompiler>();
-builder.AddPareDevelopment();   // a second call, from another package's setup, does nothing
+builder.AddPareDevelopment();   // a second call, from another package's setup, adds no watcher; its options apply too
 ```
 
-`Compile(sourcePath, source, outputPaths, logger)` returns the text of each output, keyed by path,
-or null after logging its errors (the old outputs stay). Pare writes what changed and deletes the
-outputs of a deleted source. A source whose compiler is not registered gets a warning at start and
-is not compiled.
+`CompileAsync(sourcePath, source, outputPaths, logger, cancellationToken)` returns the text of each
+output, keyed by path, or null after logging its errors (the old outputs stay). Pare calls each
+compiler one source at a time, writes what changed and deletes the outputs of a deleted source;
+sources out of date at start are compiled before the app serves. A source whose compiler is not
+registered gets a warning at start and is not compiled.
 
 ### Type checking in CI without npm
 
