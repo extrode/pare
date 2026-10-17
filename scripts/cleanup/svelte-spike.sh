@@ -2,7 +2,7 @@
 # Cleanup after the Svelte tier 1 spike (branch docs/svelte-spike, merged into dev), written 2026-10-17.
 # Removes the spike's scratch: the npm install of svelte 5.57.2, the ClearScript console and
 # MSBuild task projects, the reference outputs and the archive sent to wp1; on wp1, the extracted
-# copy and the archive. Keep it until go or drop is decided: the spike re-runs from it.
+# copy and the archive. The spike's sources now live in ../husk/prototypes/001-engine-spike.
 #
 #   scripts/cleanup/svelte-spike.sh                             # dry run, changes nothing
 #   scripts/cleanup/svelte-spike.sh --execute --delete-scratch  # delete
