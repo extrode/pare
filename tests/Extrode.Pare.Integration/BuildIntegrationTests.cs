@@ -49,7 +49,8 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
         File.WriteAllText(P(relative), text);
     }
 
-    private void Project(string properties = "", string items = "", string sdk = "Microsoft.NET.Sdk", string targets = "") => Put("app.csproj", $"""
+    // projectTargets come before the package's targets, as a project's own do under NuGet.
+    private void Project(string properties = "", string items = "", string sdk = "Microsoft.NET.Sdk", string targets = "", string projectTargets = "") => Put("app.csproj", $"""
         <Project Sdk="{sdk}">
           <Import Project="{Path.Combine(BuildDir, "Extrode.Pare.Build.props")}" />
           <PropertyGroup>
@@ -58,6 +59,7 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
             {properties}
           </PropertyGroup>
           <ItemGroup>{items}</ItemGroup>
+          {projectTargets}
           <Import Project="{Path.Combine(BuildDir, "Extrode.Pare.Build.targets")}" />
           {targets}
         </Project>
@@ -735,6 +737,132 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
         Assert.Equal("let c   ;", File.ReadAllText(P("gen/Components/Counter.razor.js")));
         Assert.Equal("let i   ;", File.ReadAllText(P("gen/Pages/Index.cshtml.js")));
         Assert.False(File.Exists(P("Components/Counter.razor.js")));
+    }
+
+    private const string OutputProbe = """
+        <Target Name="OutputProbe" AfterTargets="PareStripTypeScript">
+          <Message Importance="high" Text="output: %(PareOutput.PareRelativePath) | %(PareOutput.PareSource) | %(PareOutput.FullPath)" Condition="'@(PareOutput)' != ''" />
+        </Target>
+        """;
+
+    private static List<string> Outputs(string output) =>
+        [.. output.Split('\n').Where(line => line.Contains("output: ", StringComparison.Ordinal))
+            .Select(line => line[(line.IndexOf("output: ", StringComparison.Ordinal) + 8)..].TrimEnd().Replace('\\', '/'))];
+
+    // Name and text of each resource in the built assembly, read from its metadata without loading it.
+    private Dictionary<string, string> Resources(string relative)
+    {
+        using var pe = new System.Reflection.PortableExecutable.PEReader(File.OpenRead(P(relative)));
+        var metadata = System.Reflection.Metadata.PEReaderExtensions.GetMetadataReader(pe);
+        var block = pe.GetSectionData(pe.PEHeaders.CorHeader!.ResourcesDirectory.RelativeVirtualAddress);
+        var resources = new Dictionary<string, string>();
+        foreach (var handle in metadata.ManifestResources)
+        {
+            var resource = metadata.GetManifestResource(handle);
+            var reader = block.GetReader((int)resource.Offset, block.Length - (int)resource.Offset);
+            int length = reader.ReadInt32();
+            resources[metadata.GetString(resource.Name)] = System.Text.Encoding.UTF8.GetString(reader.ReadBytes(length));
+        }
+        return resources;
+    }
+
+    [Theory]
+    [InlineData("Microsoft.NET.Sdk", "", "src/js/a.ts", "src/js/a.js", "src/js/a.js")]
+    [InlineData("Microsoft.NET.Sdk", "<PareOutDir>gen</PareOutDir>", "src/js/a.ts", "src/js/a.js", "gen/src/js/a.js")]
+    [InlineData("Microsoft.NET.Sdk.Web", "", "wwwroot/js/a.ts", "js/a.js", ObjOut + "js/a.js")]
+    [InlineData("Microsoft.NET.Sdk", "<PareEmbed>true</PareEmbed>", "src/js/a.ts", "src/js/a.js", ObjOut + "src/js/a.js")]
+    public void Pare_output_lists_each_output_with_its_source_and_relative_path(string sdk, string properties, string source, string relativePath, string path)
+    {
+        Project($"<OutputType>Library</OutputType><EnablePareDefaultItems>false</EnablePareDefaultItems>{properties}", items: $"""<TypeScriptSource Include="{source}" />""", sdk: sdk, projectTargets: OutputProbe);
+        Put(source, "let a: T;");
+
+        var (exit, output) = Build();
+
+        Assert.True(exit == 0, output);
+        var line = Assert.Single(Outputs(output));
+        Assert.StartsWith(relativePath + " | ", line);
+        Assert.Contains(Tail(source).Replace('\\', '/') + " | ", line);
+        Assert.EndsWith(Tail(path).Replace('\\', '/'), line);
+        Assert.True(File.Exists(P(path)));
+
+        // Up to date: the strip is skipped, the item is still there.
+        (exit, output) = Build();
+        Assert.True(exit == 0, output);
+        Assert.Single(Outputs(output));
+    }
+
+    [Fact]
+    public void Embed_puts_each_output_in_the_assembly_under_its_project_path_and_nowhere_else()
+    {
+        Project("<OutputType>Library</OutputType><PareEmbed>true</PareEmbed><PareEmbedPrefix>app/</PareEmbedPrefix><EnablePareDefaultItems>false</EnablePareDefaultItems>",
+            items: """<TypeScriptSource Include="web/**/*.ts" />""", sdk: "Microsoft.NET.Sdk.Web", targets: AssetProbe);
+        Put("web/home.ts", "import { f } from './lib/util.ts';\nlet n: number = f();\n");
+        Put("web/lib/util.ts", "export function f(): number { return 1; }\n");
+        // A culture-like name: AssignCulture would move it to a satellite assembly.
+        Put("web/strings.de.ts", "export let s: string = 'Hallo';\n");
+        Put("wwwroot/x.txt", "x");
+
+        var (exit, output) = Build();
+
+        Assert.True(exit == 0, output);
+        var resources = Resources("bin/Debug/net10.0/app.dll");
+        Assert.Equal(["app/web/home.js", "app/web/lib/util.js", "app/web/strings.de.js"], resources.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal("import { f } from './lib/util.js';\nlet n         = f();\n", resources["app/web/home.js"]);
+        Assert.True(File.Exists(P(ObjOut + "web/home.js")));
+        Assert.False(File.Exists(P("web/home.js")));
+        Assert.False(Directory.Exists(P("bin/Debug/net10.0/de")));
+        Assert.False(Directory.Exists(P("bin/Debug/net10.0/web")));
+        Assert.DoesNotContain(Assets(output), a => a.Contains(".js", StringComparison.Ordinal));
+
+        File.Delete(P("web/lib/util.ts"));
+        (exit, output) = Build();
+        Assert.True(exit == 0, output);
+        Assert.Equal(["app/web/home.js", "app/web/strings.de.js"], Resources("bin/Debug/net10.0/app.dll").Keys.Order(StringComparer.Ordinal));
+        Assert.False(File.Exists(P(ObjOut + "web/lib/util.js")));
+    }
+
+    [Fact]
+    public void Embed_keeps_the_resources_when_only_csharp_changes()
+    {
+        Project("<OutputType>Library</OutputType><PareEmbed>true</PareEmbed><EnablePareDefaultItems>false</EnablePareDefaultItems>",
+            items: """<TypeScriptSource Include="web/a.ts" PareServeAt="/" />""");
+        Put("web/a.ts", "let a: T;");
+        Put("C.cs", "class C { }");
+        Assert.Equal(0, Build().Exit);
+        var stamp = File.GetLastWriteTimeUtc(P("bin/Debug/net10.0/app.dll"));
+
+        Put("C.cs", "class C { int x; }");
+        var (exit, output) = Build();
+
+        Assert.True(exit == 0, output);
+        Assert.NotEqual(stamp, File.GetLastWriteTimeUtc(P("bin/Debug/net10.0/app.dll")));
+        Assert.Equal("let a   ;", Assert.Single(Resources("bin/Debug/net10.0/app.dll"), r => r.Key == "a.js").Value);
+    }
+
+    // The handoff's consumer target: declared in the project, so before the package's targets.
+    [Fact]
+    public void A_project_target_after_the_strip_can_embed_pare_output()
+    {
+        Project("<OutputType>Library</OutputType><PareOutDir>obj/gen/</PareOutDir><EnablePareDefaultItems>false</EnablePareDefaultItems>",
+            items: """<TypeScriptSource Include="web/**/*.ts" />""", projectTargets: """
+            <Target Name="EmbedPare" AfterTargets="PareStripTypeScript" BeforeTargets="PrepareForBuild;AssignTargetPaths">
+              <ItemGroup>
+                <EmbeddedResource Include="@(PareOutput)" LogicalName="ui/%(PareOutput.PareRelativePath)" />
+              </ItemGroup>
+            </Target>
+            """);
+        Put("web/a.ts", "let a: T;");
+        Put("C.cs", "class C { }");
+        Assert.Equal(0, Build().Exit);
+        Assert.True(File.Exists(P("obj/gen/web/a.js")));
+        Assert.False(File.Exists(P("web/a.js")));
+
+        Put("C.cs", "class C { int x; }");
+        var (exit, output) = Build();
+
+        Assert.True(exit == 0, output);
+        Assert.Equal("let a   ;", Assert.Single(Resources("bin/Debug/net10.0/app.dll")).Value);
+        Assert.Equal("ui/web/a.js", Assert.Single(Resources("bin/Debug/net10.0/app.dll")).Key);
     }
 
     private void FakeTsc(string relative)
