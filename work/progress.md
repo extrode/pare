@@ -327,6 +327,12 @@ convention). Update at the end of every session.
   (335 MB/s), corpus 60.2 ms (272 MB/s), nested 32.3 ms; compare Pare 279 MB/s, oxc 3.2x,
   Node 7.0x slower; output counts unchanged. README Performance updated (it said Pare 0.1.0).
   Published as a GitHub prerelease with all 29 assets; quickstart bumped to 0.5.0.
+- **Svelte tier 1 spike (2026-10-17):** ClearScript 7.5.1.1 approved for the spike. Svelte
+  5.57.2's compiler in V8: byte-identical to Node on 4,587 `.svelte` files, 1.6x slower warm
+  (0.4 ms a component), loads in a `dotnet build` task and under VS `MSBuild.exe`'s .NET task
+  host on wp1, output runs in Chromium behind an import map. No linux-musl native package; 44 MB
+  per RID. Results in `docs/ecosystem-comparison.md`; scratch in `tmp/svelte-spike/`,
+  `scripts/cleanup/svelte-spike.sh`. Go or drop is the user's.
 
 ## Next
 
