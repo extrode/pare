@@ -382,9 +382,9 @@ BenchmarkDotNet 0.15.8, one `TypeStripper.Strip` call per source, output to a re
 
 | Input | Mean | MB/s | Allocated |
 |---|---:|---:|---:|
-| TypeScript 5.9.3 `checker.ts` (3.1 MB) | 13.3 ms | 235 | 0 B |
-| Real-world corpus, 2,392 files (19.5 MB) | 75.0 ms | 218 | 0 B |
-| `(a = ` nested 1,000 deep | 38.1 ms | 0.2 | 0 B |
+| TypeScript 5.9.3 `checker.ts` (3.1 MB) | 9.4 ms | 333 | 0 B |
+| Real-world corpus, 2,392 files (19.5 MB) | 59.8 ms | 273 | 0 B |
+| `(a = ` nested 1,000 deep | 37.4 ms | 0.2 | 0 B |
 
 Deep nesting is quadratic, as in TypeScript's own parser; real code never reaches it.
 
