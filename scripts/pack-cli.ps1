@@ -7,7 +7,7 @@
 # Then runs the host RID's binary 20 times and `dotnet tool install`s it from a pointer package.
 # -SkipPack only runs that check, on archives already in tmp/dist: for a machine without Visual
 # Studio, such as a Windows on ARM test machine given win-arm64 packed elsewhere.
-# Usage: pwsh scripts/pack-cli.ps1 [-Version 0.4.0] [-SkipPack]
+# Usage: pwsh scripts/pack-cli.ps1 [-Version 0.5.0] [-SkipPack]
 param([string]$Version, [switch]$SkipPack)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
