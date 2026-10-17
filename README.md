@@ -423,9 +423,9 @@ BenchmarkDotNet 0.15.8, one `TypeStripper.Strip` call per source, output to a re
 
 | Input | Mean | MB/s | Allocated |
 |---|---:|---:|---:|
-| TypeScript 5.9.3 `checker.ts` (3.1 MB) | 9.4 ms | 333 | 0 B |
-| Real-world corpus, 2,392 files (19.5 MB) | 59.8 ms | 273 | 0 B |
-| `(a = ` nested 1,000 deep | 37.4 ms | 0.2 | 0 B |
+| TypeScript 5.9.3 `checker.ts` (3.1 MB) | 9.3 ms | 335 | 0 B |
+| Real-world corpus, 2,392 files (19.5 MB) | 60.2 ms | 272 | 0 B |
+| `(a = ` nested 1,000 deep | 32.3 ms | 0.2 | 0 B |
 
 Deep nesting is quadratic, as in TypeScript's own parser; real code never reaches it.
 
@@ -439,11 +439,11 @@ uses it), read from its cache after `deno cache --no-check`.
 
 | Tool | Same bytes | Same tree | Same but imports dropped or names renamed | Differ | Throughput | Pare is |
 |---|---:|---:|---:|---:|---:|---:|
-| Pare 0.1.0 | - | - | - | - | 184-229 MB/s | - |
-| Node 24.16 `stripTypeScriptTypes` | 1,898 | 490 | - | 0 | 35-38 MB/s | 5-7x faster |
-| oxc-transform 0.154.0 | 13 | 2,375 | 0 | 0 | 69-81 MB/s | 2-3x faster |
-| ts-blank-space 0.9.0 | 1,967 | 420 | - | 1 | 25-27 MB/s | 7-9x faster |
-| esbuild 0.28.2 | 11 | 1,961 | 296 | 120 | 9-10 MB/s | 19-26x faster |
+| Pare 0.5.0 | - | - | - | - | 279 MB/s | - |
+| Node 24.16 `stripTypeScriptTypes` | 1,898 | 490 | - | 0 | 40 MB/s | 7.0x faster |
+| oxc-transform 0.154.0 | 13 | 2,375 | 0 | 0 | 87 MB/s | 3.2x faster |
+| ts-blank-space 0.9.0 | 1,967 | 420 | - | 1 | 28 MB/s | 10.0x faster |
+| esbuild 0.28.2 | 11 | 1,961 | 296 | 120 | 12 MB/s | 23.4x faster |
 | Deno 2.9.7 (swc) | 11 | 2,326 | 51 | 0 | - | - |
 
 - Same tree but not same bytes: Node and ts-blank-space keep tabs and write UTF-8-width spaces for
@@ -457,11 +457,11 @@ uses it), read from its cache after `deno cache --no-check`.
   expressions; none is a Pare error.
 - Four files are left out: their output does not parse for any stripper, because they import or
   re-export a type without `type`, which needs type information to remove.
-- Whole process over all files: `pare` CLI (NativeAOT) 0.5-0.8 s, `deno cache --no-check` from a
-  cold cache 1.3-2.1 s.
+- Whole process over all files: `pare` CLI (NativeAOT) 0.95 s, `deno cache --no-check` from a
+  cold cache 1.1 s, one run each.
 
-Throughput ranges are over separate runs on a laptop; BenchmarkDotNet's numbers above are the
-steady ones. To reproduce:
+Throughput is the best of 5 passes in one run on a laptop and moves by 10-20% between runs;
+BenchmarkDotNet's numbers above are the steady ones. To reproduce:
 
 ```sh
 dotnet run scripts/get-bench-corpus.cs                       # ~25 MB into .corpus/realworld
