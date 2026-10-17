@@ -92,6 +92,15 @@ static void *repeat(void *unused) {
     return NULL;
 }
 
+static void *all(void *unused) {
+    (void)unused;
+    strips();
+    rejects();
+    invalid();
+    deep(NULL);
+    return NULL;
+}
+
 static void run(void *(*fn)(void *), size_t stack) {
     pthread_attr_t attr;
     pthread_attr_init(&attr);
@@ -104,10 +113,12 @@ static void run(void *(*fn)(void *), size_t stack) {
 }
 
 int main(void) {
-    strips();
-    rejects();
-    invalid();
-    deep(NULL);
+    /* musl: .NET misreads the main thread's stack size, so pare.h says to call from a thread
+       you created. glibc, macOS: the main thread too. */
+#if !defined(__linux__) || defined(__GLIBC__)
+    all(NULL);
+#endif
+    run(all, 0);
     run(deep, 512 * 1024);
 
     pthread_t threads[4];
