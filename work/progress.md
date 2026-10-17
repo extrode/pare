@@ -332,7 +332,10 @@ convention). Update at the end of every session.
   (0.4 ms a component), loads in a `dotnet build` task and under VS `MSBuild.exe`'s .NET task
   host on wp1, output runs in Chromium behind an import map. No linux-musl native package; 44 MB
   per RID. Results in `docs/ecosystem-comparison.md`; scratch in `tmp/svelte-spike/`,
-  `scripts/cleanup/svelte-spike.sh`. Go or drop is the user's.
+  `scripts/cleanup/svelte-spike.sh`. Go: Svelte support is a separate product, Husk (`../husk`,
+  created the same day with the spike as `prototypes/001-engine-spike`, the ClearScript vs Jint
+  comparison and the Cloudflare/Deno survey); decision 004. Pare's part: a public MSBuild
+  extension point (`work/todo.md`).
 
 ## Next
 

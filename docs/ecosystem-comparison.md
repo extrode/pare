@@ -199,4 +199,6 @@ the host passes `rootDir`; without it the CSS scope hashes differ from Node's.
 - **Not checked:** a Linux or win-arm64 run, CSS output (the spike drops `result.css`, Svelte's
   default `css: "external"`), development mode, source maps, `.svelte.ts` modules.
 
-Spike code and inputs are scratch (`tmp/svelte-spike/`), not committed. Go or drop is open.
+Go (2026-10-17), as a separate product: **Husk** (`../husk`), built on Pare's packages
+([decision 004](decisions/2026-10-17-004-svelte-is-husk.md)). The spike code, the ClearScript vs
+Jint comparison (Jint is 13-25x slower than V8) and the Cloudflare and Deno survey live there.
