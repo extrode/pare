@@ -56,6 +56,9 @@ Real, but needs a decision, a dependency, or more information first. Say which.
   reload mode treats saving one as an unsupported change and restarts the app. (2026-10-17)
 - PARE201 lists the same source twice when one `PareCompileSource` is declared twice (a package's
   `.props` plus the project file). (2026-10-17)
+- `scripts/pack-cli.sh` skips the Linux RIDs without a message when `docker info` fails, and still
+  ends "packed"; 0.6.0 went out with 17 of 29 assets because of it. Fail, or print what was
+  skipped, unless `--no-docker`. (2026-10-17)
 
 ## Dropped
 
