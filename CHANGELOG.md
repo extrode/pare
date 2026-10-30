@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+- `Extrode.Pare.Cli` is published to nuget.org by `release.yml` as one framework-dependent .NET
+  tool: `dotnet tool install -g Extrode.Pare.Cli`. It needs the .NET 10 runtime and starts slower
+  than the NativeAOT binary. The NativeAOT CLI and libpare remain GitHub Release archives.
+- Fixed: the 0.2.0 entry said `dotnet tool install -g Extrode.Pare.Cli` installed the NativeAOT
+  binary. No release up to 0.6.2 published that package to nuget.org; the archives were the only
+  way in.
+
 ## [0.6.2] - 2026-10-30
 
 No change to the library or the build task. The release carries the icon on the NuGet packages, the
@@ -126,10 +133,10 @@ nuget.org were built from 2e91e58 and are unchanged.
   is saved while the app runs in Development, so `dotnet watch` hot reload reloads the page with
   fresh JavaScript. It also gives `CreateSlimBuilder` apps `dotnet watch`'s browser refresh.
 - The core library packs as `Extrode.Pare`.
-- `pare` CLI as a .NET tool: `dotnet tool install -g Extrode.Pare.Cli` installs the NativeAOT
-  binary for osx, linux, linux-musl and win (arm64 and x64), and a framework-dependent build on other
-  platforms. `scripts/pack-cli.sh` packs the tool packages and `pare-<version>-<rid>.tar.gz`
-  archives, building Linux in Docker.
+- `pare` CLI as a .NET tool package (NativeAOT per RID for osx, linux, linux-musl and win, arm64 and
+  x64, plus a framework-dependent `any` build). `scripts/pack-cli.sh` packs the tool packages and
+  `pare-<version>-<rid>.tar.gz` archives, building Linux in Docker. These packages were never
+  published to nuget.org; the archives were the way in.
 - Fixed: on linux-musl-arm64 (Alpine), about one `pare` process in four rejected every input with
   `PARE001` at 1:1. .NET misreads the main thread's stack size there, so the parser's depth guard
   failed at once; the CLI now runs on a thread with an 8 MB stack.

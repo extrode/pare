@@ -3,23 +3,29 @@
     <OutputType>Exe</OutputType>
     <AssemblyName>pare</AssemblyName>
     <RootNamespace>Extrode.Pare.Cli</RootNamespace>
-    <PublishAot>true</PublishAot>
+    <PublishAot Condition="'$(PareCliFrameworkDependent)' != 'true'">true</PublishAot>
     <IsAotCompatible>true</IsAotCompatible>
     <!-- ~7% faster stripping for ~2% more binary (measured 2026-10-17, osx-arm64). -->
     <OptimizationPreference>Speed</OptimizationPreference>
   </PropertyGroup>
   <!-- .NET tool. `dotnet pack` makes the pointer package; `dotnet pack -r <rid>` makes the
        NativeAOT package for one RID and must run on that OS; `dotnet pack -r any` makes the
-       framework-dependent fallback for every other platform. scripts/pack-cli.sh runs them. -->
+       framework-dependent fallback for every other platform. scripts/pack-cli.sh runs them.
+       `dotnet pack -p:PareCliFrameworkDependent=true` makes the one framework-dependent package
+       that release.yml publishes to nuget.org: no RID packages, runs on the .NET 10 runtime. -->
   <PropertyGroup>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>pare</ToolCommandName>
     <PackageId>Extrode.Pare.Cli</PackageId>
-    <ToolPackageRuntimeIdentifiers>osx-arm64;osx-x64;linux-arm64;linux-x64;linux-musl-arm64;linux-musl-x64;win-arm64;win-x64;any</ToolPackageRuntimeIdentifiers>
+    <ToolPackageRuntimeIdentifiers Condition="'$(PareCliFrameworkDependent)' != 'true'">osx-arm64;osx-x64;linux-arm64;linux-x64;linux-musl-arm64;linux-musl-x64;win-arm64;win-x64;any</ToolPackageRuntimeIdentifiers>
     <Description>pare: strips TypeScript type syntax to JavaScript. NativeAOT, no Node.</Description>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>typescript;type-stripping;cli;nativeaot</PackageTags>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(PareCliFrameworkDependent)' == 'true'">
+    <Description>pare: strips TypeScript type syntax to JavaScript. Framework-dependent .NET tool, needs the .NET 10 runtime, no Node. A standalone native binary that needs no .NET is on the GitHub Releases page.</Description>
+    <PackageTags>typescript;type-stripping;cli</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Extrode.Pare\Extrode.Pare.csproj" />
