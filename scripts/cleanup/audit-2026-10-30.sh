@@ -40,7 +40,7 @@ remove() { # relative-path
 }
 
 printf '== 1. scratch\n'
-for rel in tmp/audit tmp/stranger tmp/guide tmp/pk tmp/docs-src tmp/shot.py tmp/bad.ts dist/docs-site; do
+for rel in tmp/audit tmp/stranger tmp/guide tmp/pk tmp/docs-src tmp/shot.py tmp/bad.ts; do
     remove "$rel" "$([ "$delete_scratch" = 1 ] && echo yes || echo no)"
 done
 for f in "$repo"/tmp/shot-*.png; do [ -e "$f" ] && remove "tmp/$(basename "$f")" "$([ "$delete_scratch" = 1 ] && echo yes || echo no)"; done
