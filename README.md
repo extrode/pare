@@ -1,5 +1,9 @@
 # Pare
 
+<p align="center">
+  <img src="docs/assets/logo/pare-mark.svg" alt="Pare" width="160">
+</p>
+
 Write TypeScript. Ship JavaScript. No Node.
 
 Pare is a TypeScript type stripper written in C# for .NET 10. It reads your `.ts` files and

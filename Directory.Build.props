@@ -15,5 +15,10 @@
     <Copyright>Copyright (c) 2026 Extrode (extrode.com)</Copyright>
     <RepositoryUrl>https://github.com/extrode/pare</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <!-- 128x128 render of docs/assets/logo/pare-mark.svg on white. -->
+    <PackageIcon>pare-icon-128.png</PackageIcon>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)docs/assets/logo/pare-icon-128.png" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
 </Project>
