@@ -388,6 +388,13 @@ convention). Update at the end of every session.
   `dist/docs-site` rebuilt. Library and build task unchanged. All tests pass on macOS (1 skip: VS
   MSBuild). Tag `v0.6.3`, the push and the archives (`pack-cli.sh`, Docker; wp1 for Windows) are
   the user's.
+- **0.6.3 released (2026-10-31):** tag `v0.6.3` on main 0c8ee8c; the three libraries and the
+  framework-dependent `Extrode.Pare.Cli` 0.6.3 are on nuget.org and in GitHub Packages
+  (`release.yml` gained the GitHub Packages push). `dotnet tool install Extrode.Pare.Cli --version
+  0.6.3` from nuget.org installs and strips a file. 16 archives in `tmp/assets-0.6.3` (12 mac/Linux
+  from `pack-cli.sh` with Microsoft's SDK 10.0.403 in `tmp/msdotnet`, since Homebrew's dotnet trips
+  `check-macos-libs.sh`; 4 Windows zips from wp1, which was fast-forwarded to dev). Upload with
+  `gh release upload v0.6.3 tmp/assets-0.6.3/*` is the user's. Windows tests not re-run.
 
 ## Next
 
