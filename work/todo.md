@@ -81,3 +81,9 @@ Not doing, with the reason. Kept so the same idea does not get re-raised every q
 - `AllocationTests` retries up to 5 times (added 2026-10-30 for a Windows CI flake): an allocation
   that happens on some calls but not others (a buffer grown every Nth call) could pass on a clean
   attempt. A per-call allocation still fails (break-checked). Review range fe99295..85df724.
+
+- Docs still say `Extrode.Pare.Cli` is "not on nuget.org yet": `README.md:72`,
+  `docs/01-getting-started/README.md:42`, `docs/01-getting-started/first-static-site.md:18`, and
+  likely `docs/03-guides/cli.md`. Change them in the release prep that tags the first version
+  carrying `PareCliFrameworkDependent` (the install line, the .NET 10 runtime need, slower start-up
+  than the archive). Rebuild `dist/docs-site` with `scripts/build-docs.sh`. (2026-10-30)
