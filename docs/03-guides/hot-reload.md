@@ -11,6 +11,8 @@ a `.ts` file is saved, so the `.js` would go stale.
 ```
 
 ```csharp
+using Extrode.Pare.AspNetCore;
+
 builder.AddPareDevelopment();   // before builder.Build(); does nothing outside Development
 ```
 

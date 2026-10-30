@@ -76,9 +76,12 @@ dotnet add package Extrode.Pare.Build
 dotnet add package Extrode.Pare.AspNetCore
 ```
 
-Mark the first one `PrivateAssets="all"` in your project file, and add one line to `Program.cs`:
+Mark the first one `PrivateAssets="all"` in your project file, and add a `using` and one line to
+`Program.cs`:
 
 ```csharp
+using Extrode.Pare.AspNetCore;
+
 builder.AddPareDevelopment();   // re-strips on save; does nothing outside Development
 ```
 
