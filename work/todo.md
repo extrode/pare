@@ -31,8 +31,10 @@ Small, clear, and could be picked up without a design decision.
 
 - A new `.ts` outside `wwwroot` that a `PareServeAt` glob would match is not stripped by
   `AddPareDevelopment` until the next build (the development map lists only built sources).
-- README `## CLI` install line assumes nuget.org; until then it needs `--add-source` (as
-  docs/cli-quickstart.md says).
+- `Extrode.Pare.Cli` is not on nuget.org and release.yml attaches only the three nupkgs, so the
+  CLI and libpare archives are uploaded by hand (`scripts/pack-cli.sh`, `gh release upload`). The
+  docs point at the archives; decide whether the workflow publishes them. Tool install with
+  `--add-source`: docs/03-guides/offline-restore.md.
 - PARE203 stops at the first bad `PareServeAt` (MSBuild ends a batched `Error` at its first
   batch), so its 9 test cases need 9 builds (~14 s). Reporting every bad item in one build would
   let them share one. The serving tests share one build since 2026-10-15 (subset 68 s to 42 s).
@@ -56,6 +58,9 @@ Real, but needs a decision, a dependency, or more information first. Say which.
   reload mode treats saving one as an unsupported change and restarts the app. (2026-10-17)
 - PARE201 lists the same source twice when one `PareCompileSource` is declared twice (a package's
   `.props` plus the project file). (2026-10-17)
+- `scripts/pack-cli.sh` skips the Linux RIDs without a message when `docker info` fails, and still
+  ends "packed"; 0.6.0 went out with 17 of 29 assets because of it. Fail, or print what was
+  skipped, unless `--no-docker`. (2026-10-17)
 
 ## Dropped
 

@@ -336,6 +336,13 @@ convention). Update at the end of every session.
   created the same day with the spike as `prototypes/001-engine-spike`, the ClearScript vs Jint
   comparison and the Cloudflare/Deno survey); decision 004. Pare's part: a public MSBuild
   extension point (`work/todo.md`).
+- **0.6.0 released (2026-10-17):** the compile extension point (decision 005), tag `v0.6.0` on
+  main b46ece4, GitHub prerelease. 529 tests on macOS, 528 passed, 1 skipped (VS MSBuild); not
+  run on wp1. 29 assets. First published with 17: `pack-cli.sh` skips its Docker step without a
+  word when Docker is not running; the 12 linux and linux-musl assets were packed afterwards from
+  a worktree at `v0.6.0`, each verified in its container, and uploaded. Quickstart at
+  0.6.0: every command re-run against the osx-arm64 archive and the tool packages; the sample
+  page checked in Chromium and Firefox.
 
 ## Next
 

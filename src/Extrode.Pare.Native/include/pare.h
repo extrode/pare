@@ -40,7 +40,7 @@ extern "C" {
 #define PARE_REWRITE_RELATIVE_IMPORT_EXTENSIONS 1u
 
 typedef struct pare_diagnostic {
-    int32_t code;    /* 1 syntax error; 100-107 non-erasable syntax (docs/error-codes.md) */
+    int32_t code;    /* 1 syntax error; 100-107 non-erasable syntax (docs/06-reference/error-codes.md) */
     int32_t line;    /* 1-based */
     int32_t column;  /* 1-based, in UTF-16 code units: what browsers and the pare CLI report */
     int32_t start;   /* byte offset into the source passed in */
@@ -70,7 +70,7 @@ PARE_API void pare_free(pare_result *result);
 PARE_API const char *pare_message(int32_t code);
 PARE_API const char *pare_hint(int32_t code);
 
-PARE_API const char *pare_version(void);   /* e.g. "0.6.0" */
+PARE_API const char *pare_version(void);   /* e.g. "0.6.1" */
 PARE_API uint32_t pare_abi_version(void);  /* PARE_ABI_VERSION the library was built with */
 
 #ifdef __cplusplus
