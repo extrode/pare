@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en" class="jt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Troubleshooting — pare docs</title>
+<link rel="stylesheet" href="site.css">
+<script>
+/* Inline, in the head, and before anything paints. A saved preference applied
+   from nav.js would arrive after the first frame, and the reader would watch
+   the page flash the wrong theme on every navigation. */
+(function () {
+  var d = document.documentElement;
+  var KEYS = ['theme', 'fs', 'nav-w', 'toc', 'nav'];
+  /* Over file:// Firefox gives every page its own empty localStorage, so the link
+     that brought the reader here carries the preferences too: ?dg=nav-w:336,ts:…
+     The newer of the two wins, by the ts each side records at its last change, so
+     a reload after a change keeps the change and a stale bookmark loses to storage. */
+  var fromLink = {};
+  var m = /[?&]dg=([^&#]*)/.exec(location.search);
+  if (m) decodeURIComponent(m[1]).split(',').forEach(function (kv) {
+    var i = kv.indexOf(':');
+    if (i > 0) fromLink[kv.slice(0, i)] = kv.slice(i + 1);
+  });
+  var pref = {};
+  try {
+    var stored = parseInt(localStorage.getItem('dg-ts'), 10) || 0;
+    var linked = parseInt(fromLink.ts, 10) || 0;
+    if (m && linked >= stored) {
+      KEYS.forEach(function (k) {
+        pref[k] = fromLink[k] || null;
+        if (pref[k]) localStorage.setItem('dg-' + k, pref[k]); else localStorage.removeItem('dg-' + k);
+      });
+      localStorage.setItem('dg-ts', String(linked));
+    } else {
+      KEYS.forEach(function (k) { pref[k] = localStorage.getItem('dg-' + k); });
+    }
+  } catch (e) { /* private mode, file:// with storage denied -- the link still counts */
+    KEYS.forEach(function (k) { pref[k] = fromLink[k] || null; });
+  }
+  if (pref.theme === 'light' || pref.theme === 'dark') d.setAttribute('data-theme', pref.theme);
+  var s = parseFloat(pref.fs);
+  if (s >= 0.75 && s <= 1.75) d.style.setProperty('--fs-scale', String(s));
+  var w = parseInt(pref['nav-w'], 10);
+  if (w >= 180 && w <= 480) d.style.setProperty('--nav-w', w + 'px');
+  if (pref.toc === 'hidden') d.setAttribute('data-toc', 'hidden');
+  if (pref.nav === 'hidden') d.setAttribute('data-nav', 'hidden');
+})();
+</script>
+</head>
+<body class="jt">
+<div class="jt-shell">
+
+  <!-- ===== header ===== -->
+  <header class="jt-header">
+    <button class="hamburger" aria-label="Toggle navigation" onclick="toggleNav()">&#9776;</button>
+    <div class="header-brand">
+      <span class="brand-name">pare</span>
+      <span class="brand-crumb">Reference &#8250; Troubleshooting</span>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-tools">
+      <button class="tool-btn search-btn" type="button" onclick="openSearch()" title="Search (/)">
+        <span class="search-word">search</span><kbd>/</kbd>
+      </button>
+      <div class="fs-group" role="group" aria-label="Text size">
+        <button class="tool-btn" onclick="fontSize(-1)" title="Smaller text">A&#8722;</button>
+        <button class="tool-btn" onclick="fontSize(0)" title="Reset text size">A</button>
+        <button class="tool-btn" onclick="fontSize(1)" title="Larger text">A+</button>
+      </div>
+      <button class="tool-btn theme-btn" id="theme-btn" onclick="cycleTheme()"
+              title="Colour scheme" aria-live="polite">auto</button>
+    </div>
+  </header>
+
+  <!-- ===== body ===== -->
+  <div class="jt-body">
+
+    <!-- sidebar backdrop (mobile) -->
+    <div class="nav-backdrop" id="nav-backdrop" onclick="toggleNav()"></div>
+
+    <!-- sidebar -->
+    <nav class="jt-sidebar" id="jt-sidebar" aria-label="Documentation navigation">
+      <div class="sidebar-filter">
+        <span class="filter-icon">/</span>
+        <input type="text" id="nav-filter" placeholder="filter nav" oninput="filterNav(this.value)" autocomplete="off">
+      </div>
+      <div class="sidebar-scroll" id="sidebar-scroll">
+        <div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Overview</span>
+  </div>
+  <div class="nav-group-items">  <a href="00-overview-readme.html">Pare documentation</a>  <a href="00-overview-comparison.html">Pare and the alternatives</a>  <a href="00-overview-how-it-works.html">How Pare works</a>  <a href="00-overview-what-pare-does-not-do.html">What Pare does not do</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Getting started</span>
+  </div>
+  <div class="nav-group-items">  <a href="01-getting-started-readme.html">Getting started</a>  <a href="01-getting-started-first-static-site.html">Your first static site</a>  <a href="01-getting-started-first-web-app.html">Your first web app</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Guides</span>
+  </div>
+  <div class="nav-group-items">  <a href="03-guides-readme.html">Guides</a>  <a href="03-guides-c-library.html">Using libpare from C and other languages</a>  <a href="03-guides-cli.html">The pare command</a>  <a href="03-guides-compile-other-languages.html">Compiling other languages</a>  <a href="03-guides-hot-reload.html">Hot reload</a>  <a href="03-guides-library.html">Using the library</a>  <a href="03-guides-non-web-projects.html">Non-web projects</a>  <a href="03-guides-offline-restore.html">Offline and vendored packages</a>  <a href="03-guides-razor-class-libraries.html">Razor class libraries</a>  <a href="03-guides-type-checking.html">Type checking in CI</a>  <a href="03-guides-typescript-outside-wwwroot.html">TypeScript outside wwwroot</a>  </div>
+</div>
+<div class="nav-group" data-group data-open="true">
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Reference</span>
+  </div>
+  <div class="nav-group-items">  <a href="06-reference-readme.html">Reference</a>  <a href="06-reference-benchmarks.html">Benchmarks</a>  <a href="06-reference-c-api.html">C API</a>  <a href="06-reference-error-codes.html">Error codes</a>  <a href="06-reference-license.html">License</a>  <a href="06-reference-msbuild-properties.html">MSBuild properties</a>  <a href="06-reference-output-changes.html">Output changes</a>  <a href="06-reference-supported-syntax.html">Supported syntax</a>  <a href="06-reference-troubleshooting.html" class="active" aria-current="page">Troubleshooting</a>  </div>
+</div>
+
+      </div>
+      <div class="nav-resizer" id="nav-resizer" title="Drag to resize, double-click to reset"></div>
+    </nav>
+
+    <!-- content -->
+    <main class="jt-content has-toc" id="jt-content">
+      <nav class="toc" aria-label="On this page"><button class="toc-tab" type="button" onclick="toggleToc()" title="Show on this page (o)">On this page</button><div class="toc-title"><span>On this page</span><button class="toc-toggle" type="button" onclick="toggleToc()" title="Hide or show (o)"></button></div><a class="toc-l2" href="#the-page-is-blank-or-the-script-404s">The page is blank, or the script 404s</a><a class="toc-l2" href="#warning-pare200-not-served">warning PARE200: not served</a><a class="toc-l2" href="#warning-pare202-not-served">warning PARE202: not served</a><a class="toc-l2" href="#an-edit-does-not-show-up-under-dotnet-watch">An edit does not show up under dotnet watch</a><a class="toc-l2" href="#the-build-says-error-pare100-to-pare107">The build says error PARE100 to PARE107</a><a class="toc-l2" href="#error-pare001-syntax-error">error PARE001: syntax error</a><a class="toc-l2" href="#a-type-error-went-through">A type error went through</a><a class="toc-l2" href="#an-import-fails-at-run-time-but-the-file-stripped-fine">An import fails at run time but the file stripped fine</a><a class="toc-l2" href="#visual-studio">Visual Studio</a><a class="toc-l2" href="#linux-musl-arm64-and-nativeaot">linux-musl-arm64 and NativeAOT</a></nav>
+      <div class="content-inner">
+        <nav class="breadcrumb" aria-label="Breadcrumb">Reference &#8250; Troubleshooting</nav>
+        <article>
+<h1 id="troubleshooting">Troubleshooting</h1>
+<h2 id="the-page-is-blank-or-the-script-404s">The page is blank, or the script 404s</h2>
+<ul>
+<li>Is the page asking for <code>.js</code>? The <code>.ts</code> is never served in a published site. Point your
+<code>&lt;script&gt;</code> at <code>/js/app.js</code>.</li>
+<li>Did the build run? Look for <code>obj/&lt;configuration&gt;/&lt;tfm&gt;/pare/js/app.js</code>.</li>
+<li>Did you call <code>app.MapStaticAssets()</code>? The build registers Pare's output as a static web asset,
+and <code>MapStaticAssets</code> serves it. With <code>CreateSlimBuilder</code>, also call
+<code>builder.WebHost.UseStaticWebAssets()</code>; without it an unpublished run answers requests that send
+<code>Accept-Encoding</code> with the build's compressed copies it cannot find, 200 and an empty body.</li>
+<li>Is <code>/</code> a 404 while <code>/js/app.js</code> works? Add <code>app.UseDefaultFiles();</code> and <code>app.UseRouting();</code>
+before <code>app.MapStaticAssets();</code>.</li>
+</ul>
+<h2 id="warning-pare200-not-served"><code>warning PARE200: not served</code></h2>
+<p>A <code>foo.js</code> sits next to <code>foo.ts</code> in <code>wwwroot</code>. Delete it (and any <code>.gitignore</code> rule for it). The
+build serves the stripped <code>foo.ts</code> from <code>obj/</code>.</p>
+<h2 id="warning-pare202-not-served"><code>warning PARE202: not served</code></h2>
+<p>A source outside <code>wwwroot</code> has no <code>PareServeAt</code>. Add one, or add <code>PARE202</code> to <code>NoWarn</code>. See
+<a href="03-guides-typescript-outside-wwwroot.html">TypeScript outside wwwroot</a>.</p>
+<h2 id="an-edit-does-not-show-up-under-dotnet-watch">An edit does not show up under <code>dotnet watch</code></h2>
+<ul>
+<li>Did you call <code>builder.AddPareDevelopment()</code>? Without it a <code>.ts</code> save runs no build.</li>
+<li>Run <code>dotnet watch</code> from the project directory, not with <code>--project</code> from elsewhere.</li>
+<li>A <code>PublishAot</code> project needs <code>&lt;StartupHookSupport Condition=&quot;'$(Configuration)' == 'Debug'&quot;&gt;true&lt;/StartupHookSupport&gt;</code>.</li>
+<li>A <code>.ts</code> file you <strong>added</strong> during the session is 404 until the next build. Press Ctrl+R.</li>
+</ul>
+<p>More in <a href="03-guides-hot-reload.html">Hot reload</a>.</p>
+<h2 id="the-build-says-error-pare100-to-pare107">The build says <code>error PARE100</code> to <code>PARE107</code></h2>
+<p>Your TypeScript uses syntax that needs generated code. <a href="06-reference-error-codes.html">Error codes</a> shows the
+plain JavaScript to write for each. Turn on <code>&quot;erasableSyntaxOnly&quot;: true</code> in <code>tsconfig.json</code> so the
+editor warns you first.</p>
+<h2 id="error-pare001-syntax-error"><code>error PARE001: syntax error</code></h2>
+<p>The file is not valid TypeScript at that position. Pare stops at the first syntax error. <code>.tsx</code> and
+JSX are not supported.</p>
+<h2 id="a-type-error-went-through">A type error went through</h2>
+<p>Pare does not check types. See <a href="03-guides-type-checking.html">Type checking in CI</a>.</p>
+<h2 id="an-import-fails-at-run-time-but-the-file-stripped-fine">An import fails at run time but the file stripped fine</h2>
+<p>You imported a type without <code>type</code>: <code>import { Foo } from &quot;./foo.ts&quot;</code> where <code>Foo</code> is an interface.
+Pare cannot know, so it keeps the import. Write <code>import type { Foo }</code> or <code>import { type Foo }</code>, and
+set <code>&quot;verbatimModuleSyntax&quot;: true</code> so <code>tsc</code> reminds you.</p>
+<h2 id="visual-studio">Visual Studio</h2>
+<p>Visual Studio 2026 (MSBuild 18) runs the task in MSBuild's .NET task host, a separate process.
+Visual Studio 2022 cannot build <code>net10.0</code> projects at all.</p>
+<h2 id="linux-musl-arm64-and-nativeaot">linux-musl-arm64 and NativeAOT</h2>
+<p>.NET misreads the main thread's stack size there, so the deep-nesting check fails at once. Call
+<code>TypeStripper.Strip</code> (or <code>pare_strip</code>) from a thread you created.</p>
+
+        </article>
+        <div class="page-nav" id="page-nav">
+          <div class="prev-next"><a class="pn-prev" href="06-reference-supported-syntax.html">
+  <span class="pn-label">&#8592; prev</span>
+  <span class="pn-title">Supported syntax</span>
+</a><span></span></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===== status bar ===== -->
+  <footer class="jt-statusbar">
+    <span class="status-dot">&#9679; pare docs</span>
+    <span class="status-spacer"></span>
+    <button class="status-kbd" type="button" onclick="toggleHelp()"><kbd>?</kbd> shortcuts</button>
+  </footer>
+</div>
+
+<!-- ===== search (opened with / or Ctrl+K; the index loads on first use) ===== -->
+<div class="search-overlay" id="search-overlay" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <input type="search" id="search-input" placeholder="search the docs" autocomplete="off"
+           spellcheck="false" oninput="runSearch(this.value)">
+    <div class="search-results" id="search-results" role="listbox"></div>
+    <div class="search-foot"><kbd>&#8593;</kbd><kbd>&#8595;</kbd> move <kbd>Enter</kbd> open <kbd>Esc</kbd> close</div>
+  </div>
+</div>
+
+<!-- ===== keyboard shortcuts ===== -->
+<div class="kbd-help" id="kbd-help" hidden>
+  <div class="kbd-box" role="dialog" aria-label="Keyboard shortcuts">
+    <div class="kbd-title">Keyboard shortcuts</div>
+    <table>
+      <tr><td><kbd>/</kbd> <kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>search</td></tr>
+      <tr><td><kbd>f</kbd></td><td>filter the sidebar; <kbd>Enter</kbd> opens the first match, <kbd>Esc</kbd> clears</td></tr>
+      <tr><td><kbd>h</kbd></td><td>home</td></tr>
+      <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>previous / next page</td></tr>
+      <tr><td><kbd>j</kbd> <kbd>k</kbd></td><td>next / previous heading</td></tr>
+      <tr><td><kbd>b</kbd></td><td>toggle the sidebar</td></tr>
+      <tr><td><kbd>w</kbd></td><td>reset the sidebar width</td></tr>
+      <tr><td><kbd>o</kbd></td><td>toggle "on this page"</td></tr>
+      <tr><td><kbd>t</kbd></td><td>colour scheme: auto, light, dark</td></tr>
+      <tr><td><kbd>-</kbd> <kbd>=</kbd> <kbd>0</kbd></td><td>text smaller / larger / reset</td></tr>
+      <tr><td><kbd>?</kbd></td><td>this panel</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>close</td></tr>
+    </table>
+  </div>
+</div>
+<script src="nav.js"></script>
+</body>
+</html>

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en" class="jt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How Pare works — pare docs</title>
+<link rel="stylesheet" href="site.css">
+<script>
+/* Inline, in the head, and before anything paints. A saved preference applied
+   from nav.js would arrive after the first frame, and the reader would watch
+   the page flash the wrong theme on every navigation. */
+(function () {
+  var d = document.documentElement;
+  var KEYS = ['theme', 'fs', 'nav-w', 'toc', 'nav'];
+  /* Over file:// Firefox gives every page its own empty localStorage, so the link
+     that brought the reader here carries the preferences too: ?dg=nav-w:336,ts:…
+     The newer of the two wins, by the ts each side records at its last change, so
+     a reload after a change keeps the change and a stale bookmark loses to storage. */
+  var fromLink = {};
+  var m = /[?&]dg=([^&#]*)/.exec(location.search);
+  if (m) decodeURIComponent(m[1]).split(',').forEach(function (kv) {
+    var i = kv.indexOf(':');
+    if (i > 0) fromLink[kv.slice(0, i)] = kv.slice(i + 1);
+  });
+  var pref = {};
+  try {
+    var stored = parseInt(localStorage.getItem('dg-ts'), 10) || 0;
+    var linked = parseInt(fromLink.ts, 10) || 0;
+    if (m && linked >= stored) {
+      KEYS.forEach(function (k) {
+        pref[k] = fromLink[k] || null;
+        if (pref[k]) localStorage.setItem('dg-' + k, pref[k]); else localStorage.removeItem('dg-' + k);
+      });
+      localStorage.setItem('dg-ts', String(linked));
+    } else {
+      KEYS.forEach(function (k) { pref[k] = localStorage.getItem('dg-' + k); });
+    }
+  } catch (e) { /* private mode, file:// with storage denied -- the link still counts */
+    KEYS.forEach(function (k) { pref[k] = fromLink[k] || null; });
+  }
+  if (pref.theme === 'light' || pref.theme === 'dark') d.setAttribute('data-theme', pref.theme);
+  var s = parseFloat(pref.fs);
+  if (s >= 0.75 && s <= 1.75) d.style.setProperty('--fs-scale', String(s));
+  var w = parseInt(pref['nav-w'], 10);
+  if (w >= 180 && w <= 480) d.style.setProperty('--nav-w', w + 'px');
+  if (pref.toc === 'hidden') d.setAttribute('data-toc', 'hidden');
+  if (pref.nav === 'hidden') d.setAttribute('data-nav', 'hidden');
+})();
+</script>
+</head>
+<body class="jt">
+<div class="jt-shell">
+
+  <!-- ===== header ===== -->
+  <header class="jt-header">
+    <button class="hamburger" aria-label="Toggle navigation" onclick="toggleNav()">&#9776;</button>
+    <div class="header-brand">
+      <span class="brand-name">pare</span>
+      <span class="brand-crumb">Overview &#8250; How Pare works</span>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-tools">
+      <button class="tool-btn search-btn" type="button" onclick="openSearch()" title="Search (/)">
+        <span class="search-word">search</span><kbd>/</kbd>
+      </button>
+      <div class="fs-group" role="group" aria-label="Text size">
+        <button class="tool-btn" onclick="fontSize(-1)" title="Smaller text">A&#8722;</button>
+        <button class="tool-btn" onclick="fontSize(0)" title="Reset text size">A</button>
+        <button class="tool-btn" onclick="fontSize(1)" title="Larger text">A+</button>
+      </div>
+      <button class="tool-btn theme-btn" id="theme-btn" onclick="cycleTheme()"
+              title="Colour scheme" aria-live="polite">auto</button>
+    </div>
+  </header>
+
+  <!-- ===== body ===== -->
+  <div class="jt-body">
+
+    <!-- sidebar backdrop (mobile) -->
+    <div class="nav-backdrop" id="nav-backdrop" onclick="toggleNav()"></div>
+
+    <!-- sidebar -->
+    <nav class="jt-sidebar" id="jt-sidebar" aria-label="Documentation navigation">
+      <div class="sidebar-filter">
+        <span class="filter-icon">/</span>
+        <input type="text" id="nav-filter" placeholder="filter nav" oninput="filterNav(this.value)" autocomplete="off">
+      </div>
+      <div class="sidebar-scroll" id="sidebar-scroll">
+        <div class="nav-group" data-group data-open="true">
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Overview</span>
+  </div>
+  <div class="nav-group-items">  <a href="00-overview-readme.html">Pare documentation</a>  <a href="00-overview-comparison.html">Pare and the alternatives</a>  <a href="00-overview-how-it-works.html" class="active" aria-current="page">How Pare works</a>  <a href="00-overview-what-pare-does-not-do.html">What Pare does not do</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Getting started</span>
+  </div>
+  <div class="nav-group-items">  <a href="01-getting-started-readme.html">Getting started</a>  <a href="01-getting-started-first-static-site.html">Your first static site</a>  <a href="01-getting-started-first-web-app.html">Your first web app</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Guides</span>
+  </div>
+  <div class="nav-group-items">  <a href="03-guides-readme.html">Guides</a>  <a href="03-guides-c-library.html">Using libpare from C and other languages</a>  <a href="03-guides-cli.html">The pare command</a>  <a href="03-guides-compile-other-languages.html">Compiling other languages</a>  <a href="03-guides-hot-reload.html">Hot reload</a>  <a href="03-guides-library.html">Using the library</a>  <a href="03-guides-non-web-projects.html">Non-web projects</a>  <a href="03-guides-offline-restore.html">Offline and vendored packages</a>  <a href="03-guides-razor-class-libraries.html">Razor class libraries</a>  <a href="03-guides-type-checking.html">Type checking in CI</a>  <a href="03-guides-typescript-outside-wwwroot.html">TypeScript outside wwwroot</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Reference</span>
+  </div>
+  <div class="nav-group-items">  <a href="06-reference-readme.html">Reference</a>  <a href="06-reference-benchmarks.html">Benchmarks</a>  <a href="06-reference-c-api.html">C API</a>  <a href="06-reference-error-codes.html">Error codes</a>  <a href="06-reference-license.html">License</a>  <a href="06-reference-msbuild-properties.html">MSBuild properties</a>  <a href="06-reference-output-changes.html">Output changes</a>  <a href="06-reference-supported-syntax.html">Supported syntax</a>  <a href="06-reference-troubleshooting.html">Troubleshooting</a>  </div>
+</div>
+
+      </div>
+      <div class="nav-resizer" id="nav-resizer" title="Drag to resize, double-click to reset"></div>
+    </nav>
+
+    <!-- content -->
+    <main class="jt-content has-toc" id="jt-content">
+      <nav class="toc" aria-label="On this page"><button class="toc-tab" type="button" onclick="toggleToc()" title="Show on this page (o)">On this page</button><div class="toc-title"><span>On this page</span><button class="toc-toggle" type="button" onclick="toggleToc()" title="Hide or show (o)"></button></div><a class="toc-l2" href="#what-erase-means">What &quot;erase&quot; means</a><a class="toc-l2" href="#a-few-things-are-not-whitespace">A few things are not whitespace</a><a class="toc-l2" href="#why-it-is-fast">Why it is fast</a><a class="toc-l2" href="#where-the-pieces-live">Where the pieces live</a><a class="toc-l2" href="#inside-a-net-build">Inside a .NET build</a></nav>
+      <div class="content-inner">
+        <nav class="breadcrumb" aria-label="Breadcrumb">Overview &#8250; How Pare works</nav>
+        <article>
+<h1 id="how-pare-works">How Pare works</h1>
+<p>Pare reads your TypeScript once, finds the parts that are only types, and writes the same text
+back with those parts replaced by spaces. It never builds a syntax tree and never prints code, so
+nothing it does not understand can be reformatted or lost.</p>
+<figure class="diagram" style="--dw:986px"><svg id="dg0" width="100%" xmlns="http://www.w3.org/2000/svg" class="flowchart" style="max-width:986px;" viewBox="0 0 986.5 173.5" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#dg0{font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:14px;fill:var(--dg-text, #e6edf3);}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#dg0 .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#dg0 .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#dg0 .error-icon{fill:var(--dg-cluster-bg, #141922);}#dg0 .error-text{fill:var(--dg-edge-label, #ebe6dd);stroke:var(--dg-edge-label, #ebe6dd);}#dg0 .edge-thickness-normal{stroke-width:1px;}#dg0 .edge-thickness-thick{stroke-width:3.5px;}#dg0 .edge-pattern-solid{stroke-dasharray:0;}#dg0 .edge-thickness-invisible{stroke-width:0;fill:none;}#dg0 .edge-pattern-dashed{stroke-dasharray:3;}#dg0 .edge-pattern-dotted{stroke-dasharray:2;}#dg0 .marker{fill:var(--dg-line, #8b97a8);stroke:var(--dg-line, #8b97a8);}#dg0 .marker.cross{stroke:var(--dg-line, #8b97a8);}#dg0 svg{font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:14px;}#dg0 p{margin:0;}#dg0 .label{font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;color:var(--dg-text, #e6edf3);}#dg0 .cluster-label text{fill:var(--dg-title, #f0ece6);}#dg0 .cluster-label span{color:var(--dg-title, #f0ece6);}#dg0 .cluster-label span p{background-color:transparent;}#dg0 .label text,#dg0 span{fill:var(--dg-text, #e6edf3);color:var(--dg-text, #e6edf3);}#dg0 .node rect,#dg0 .node circle,#dg0 .node ellipse,#dg0 .node polygon,#dg0 .node path{fill:var(--dg-node-bg, #161b24);stroke:var(--dg-border, #2b323d);stroke-width:1px;}#dg0 .rough-node .label text,#dg0 .node .label text,#dg0 .image-shape .label,#dg0 .icon-shape .label{text-anchor:middle;}#dg0 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#dg0 .rough-node .label,#dg0 .node .label,#dg0 .image-shape .label,#dg0 .icon-shape .label{text-align:center;}#dg0 .node.clickable{cursor:pointer;}#dg0 .root .anchor path{fill:var(--dg-line, #8b97a8)!important;stroke-width:0;stroke:var(--dg-line, #8b97a8);}#dg0 .arrowheadPath{fill:var(--dg-title, #f0ece6);}#dg0 .edgePaths .path{stroke:var(--dg-line, #8b97a8);stroke-width:1px;}#dg0 .flowchart-link{stroke:var(--dg-line, #8b97a8);fill:none;}#dg0 .edgeLabel{background-color:var(--dg-node-bg-2, #1b2230);text-align:center;}#dg0 .edgeLabel p{background-color:var(--dg-node-bg-2, #1b2230);}#dg0 .edgeLabel rect{opacity:0.5;background-color:var(--dg-node-bg-2, #1b2230);fill:var(--dg-node-bg-2, #1b2230);}#dg0 .labelBkg{background-color:var(--dg-label-bg, rgba(27, 34, 48, 0.5));}#dg0 .cluster rect{fill:var(--dg-cluster-bg, #141922);stroke:hsl(218.5714285714, 0%, 0.5882352941%);stroke-width:1px;}#dg0 .cluster text{fill:var(--dg-title, #f0ece6);}#dg0 .cluster span{color:var(--dg-title, #f0ece6);}#dg0 .node .collapsed-indicator{fill:hsl(218.5714285714, 0%, 0.5882352941%);stroke:none;opacity:0.6;}#dg0 .node .collapsed-separator{stroke:hsl(218.5714285714, 0%, 0.5882352941%);stroke-width:0.75px;}#dg0 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:12px;background:var(--dg-cluster-bg, #141922);border:1px solid hsl(218.5714285714, 0%, 0.5882352941%);border-radius:2px;pointer-events:none;z-index:100;}#dg0 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:var(--dg-text, #e6edf3);}#dg0 rect.text{fill:none;stroke-width:0;}#dg0 .icon-shape,#dg0 .image-shape{background-color:var(--dg-node-bg-2, #1b2230);text-align:center;}#dg0 .icon-shape p,#dg0 .image-shape p{background-color:var(--dg-node-bg-2, #1b2230);padding:2px;}#dg0 .icon-shape .label rect,#dg0 .image-shape .label rect{opacity:0.5;background-color:var(--dg-node-bg-2, #1b2230);fill:var(--dg-node-bg-2, #1b2230);}#dg0 .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#dg0 .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#dg0 .node .neo-node{stroke:var(--dg-border, #2b323d);}#dg0 [data-look="neo"].node rect,#dg0 [data-look="neo"].cluster rect,#dg0 [data-look="neo"].node polygon{stroke:url(#dg0-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#dg0 [data-look="neo"].swimlane.cluster rect{filter:none;}#dg0 [data-look="neo"].node path{stroke:url(#dg0-gradient);stroke-width:1px;}#dg0 [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#dg0 [data-look="neo"].node .neo-line path{stroke:var(--dg-border, #2b323d);filter:none;}#dg0 [data-look="neo"].node circle{stroke:url(#dg0-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#dg0 [data-look="neo"].node circle .state-start{fill:#000000;}#dg0 [data-look="neo"].icon-shape .icon{fill:url(#dg0-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#dg0 [data-look="neo"].icon-shape .icon-neo path{stroke:url(#dg0-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#dg0 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}#dg0 [stop-color="#2b323d"]{stop-color:var(--dg-border, #2b323d);}</style><g><marker id="dg0_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="dg0_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="dg0_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></path></marker><marker id="dg0_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></polygon></marker><marker id="dg0_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="dg0_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="dg0_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="dg0_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="dg0_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="dg0_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="dg0_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5;"></path></marker><marker id="dg0_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0;"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M106.781,104.084L110.948,105.778C115.115,107.473,123.448,110.861,131.115,112.556C138.781,114.25,145.781,114.25,149.281,114.25L152.781,114.25" id="dg0-L_A_B_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_A_B_0" data-points="W3sieCI6MTA2Ljc4MTI1LCJ5IjoxMDQuMDg0MDY4NDczMDA5ODZ9LHsieCI6MTMxLjc4MTI1LCJ5IjoxMTQuMjV9LHsieCI6MTU2Ljc4MTI1LCJ5IjoxMTQuMjV9XQ==" data-look="classic" marker-end="url(#dg0_flowchart-v2-pointEnd)"></path><path d="M250.938,114.25L255.104,114.25C259.271,114.25,267.604,114.25,275.271,114.25C282.938,114.25,289.938,114.25,293.438,114.25L296.938,114.25" id="dg0-L_B_C_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_B_C_0" data-points="W3sieCI6MjUwLjkzNzUsInkiOjExNC4yNX0seyJ4IjoyNzUuOTM3NSwieSI6MTE0LjI1fSx7IngiOjMwMC45Mzc1LCJ5IjoxMTQuMjV9XQ==" data-look="classic" marker-end="url(#dg0_flowchart-v2-pointEnd)"></path><path d="M430.203,97.038L451.036,91.49C471.87,85.942,513.536,74.846,558.741,65.619C603.945,56.391,652.686,49.033,677.057,45.353L701.428,41.674" id="dg0-L_C_D_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_C_D_0" data-points="W3sieCI6NDMwLjIwMzEyNSwieSI6OTcuMDM4MDE1NDkwNDYyNjZ9LHsieCI6NTU1LjIwMzEyNSwieSI6NjMuNzV9LHsieCI6NzA1LjM4MjgxMjUsInkiOjQxLjA3Njk0ODU3MDk4Mjk2NH1d" data-look="classic" marker-end="url(#dg0_flowchart-v2-pointEnd)"></path><path d="M86.242,58.5L93.832,51.792C101.422,45.083,116.601,31.667,136.204,24.958C155.807,18.25,179.833,18.25,203.859,18.25C227.885,18.25,251.911,18.25,278.863,18.25C305.815,18.25,335.693,18.25,382.237,18.25C428.781,18.25,491.992,18.25,547.963,20.104C603.934,21.959,652.664,25.668,677.029,27.522L701.394,29.377" id="dg0-L_A_D_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_A_D_0" data-points="W3sieCI6ODYuMjQxNzQxOTIwMTUyMSwieSI6NTguNX0seyJ4IjoxMzEuNzgxMjUsInkiOjE4LjI1fSx7IngiOjIwMy44NTkzNzUsInkiOjE4LjI1fSx7IngiOjI3NS45Mzc1LCJ5IjoxOC4yNX0seyJ4IjozNjUuNTcwMzEyNSwieSI6MTguMjV9LHsieCI6NTU1LjIwMzEyNSwieSI6MTguMjV9LHsieCI6NzA1LjM4MjgxMjUsInkiOjI5LjY4MDIxNjAwOTY2OTc0Nn1d" data-look="classic" marker-end="url(#dg0_flowchart-v2-pointEnd)"></path><path d="M805.758,33.5L814.121,33.5C822.484,33.5,839.211,33.5,851.074,33.5C862.938,33.5,869.938,33.5,873.438,33.5L876.938,33.5" id="dg0-L_D_E_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_D_E_0" data-points="W3sieCI6ODA1Ljc1NzgxMjUsInkiOjMzLjV9LHsieCI6ODU1LjkzNzUsInkiOjMzLjV9LHsieCI6ODgwLjkzNzUsInkiOjMzLjV9XQ==" data-look="classic" marker-end="url(#dg0_flowchart-v2-pointEnd)"></path><path d="M430.203,123.026L451.036,125.855C471.87,128.684,513.536,134.342,554.536,137.171C595.536,140,635.87,140,656.036,140L676.203,140" id="dg0-L_C_F_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_C_F_0" data-points="W3sieCI6NDMwLjIwMzEyNSwieSI6MTIzLjAyNjQwNzk0Mjk4MTkyfSx7IngiOjU1NS4yMDMxMjUsInkiOjE0MH0seyJ4Ijo2ODAuMjAzMTI1LCJ5IjoxNDB9XQ==" data-look="classic" marker-end="url(#dg0_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_A_B_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_B_C_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(566.33948, 62.06871)"><g class="label" data-id="L_C_D_0" transform="translate(-40.1875, -10.5)"><foreignObject width="80.375" height="21"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"><p>erase ranges</p></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_A_D_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_D_E_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(555.203125, 140)"><g class="label" data-id="L_C_F_0" transform="translate(-100, -21)"><foreignObject width="200" height="42"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="edgeLabel"><p>enum, namespace with values, ...</p></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="dg0-flowchart-A-0" data-look="classic" transform="translate(57.390625, 84)"><rect class="basic label-container" style="" x="-49.390625" y="-25.5" width="98.78125" height="51"></rect><g class="label" style="" transform="translate(-19.390625, -10.5)"><rect></rect><foreignObject width="38.78125" height="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 300px; text-align: center;"><span class="nodeLabel"><p>app.ts</p></span></div></foreignObject></g></g><g class="node default" id="dg0-flowchart-B-1" data-look="classic" transform="translate(203.859375, 114.25)"><rect class="basic label-container" style="" x="-47.078125" y="-25.5" width="94.15625" height="51"></rect><g class="label" style="" transform="translate(-17.078125, -10.5)"><rect></rect><foreignObject width="34.15625" height="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 300px; text-align: center;"><span class="nodeLabel"><p>Lexer</p></span></div></foreignObject></g></g><g class="node default" id="dg0-flowchart-C-3" data-look="classic" transform="translate(365.5703125, 114.25)"><rect class="basic label-container" style="" x="-64.6328125" y="-25.5" width="129.265625" height="51"></rect><g class="label" style="" transform="translate(-34.6328125, -10.5)"><rect></rect><foreignObject width="69.265625" height="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 300px; text-align: center;"><span class="nodeLabel"><p>Recognizer</p></span></div></foreignObject></g></g><g class="node default" id="dg0-flowchart-D-5" data-look="classic" transform="translate(755.5703125, 33.5)"><rect class="basic label-container" style="" x="-50.1875" y="-25.5" width="100.375" height="51"></rect><g class="label" style="" transform="translate(-20.1875, -10.5)"><rect></rect><foreignObject width="40.375" height="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 300px; text-align: center;"><span class="nodeLabel"><p>Eraser</p></span></div></foreignObject></g></g><g class="node default" id="dg0-flowchart-E-9" data-look="classic" transform="translate(929.71875, 33.5)"><rect class="basic label-container" style="" x="-48.78125" y="-25.5" width="97.5625" height="51"></rect><g class="label" style="" transform="translate(-18.78125, -10.5)"><rect></rect><foreignObject width="37.5625" height="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 300px; text-align: center;"><span class="nodeLabel"><p>app.js</p></span></div></foreignObject></g></g><g class="node default" id="dg0-flowchart-F-11" data-look="classic" transform="translate(755.5703125, 140)"><rect class="basic label-container" style="" x="-75.3671875" y="-25.5" width="150.734375" height="51"></rect><g class="label" style="" transform="translate(-45.3671875, -10.5)"><rect></rect><foreignObject width="90.734375" height="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 300px; text-align: center;"><span class="nodeLabel"><p>PARE1xx error</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="dg0-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="dg0-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="dg0-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#2b323d" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(220, 0%, 4.7058823529%)" stop-opacity="1"></stop></linearGradient></svg></figure>
+<ol>
+<li><strong>The lexer</strong> splits the text into tokens: names, numbers, strings, template literals,
+regular expressions, comments.</li>
+<li><strong>The recognizer</strong> walks the tokens with TypeScript's own grammar rules (it follows
+<code>parser.ts</code>) and records which ranges are types. It writes down a list of ranges, not a tree.</li>
+<li><strong>The eraser</strong> copies the source to the output, writing a space for every character in those
+ranges. Line breaks inside an erased range are kept, so line numbers never change.</li>
+</ol>
+<p>If the recognizer meets syntax that cannot be erased, such as <code>enum</code>, the file is rejected with
+an error that names the line and what to write instead.</p>
+<h2 id="what-erase-means">What &quot;erase&quot; means</h2>
+<table>
+<thead>
+<tr>
+<th>You write</th>
+<th>Pare writes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>let x: number = 1;</code></td>
+<td><code>let x         = 1;</code></td>
+</tr>
+<tr>
+<td><code>function f&lt;T&gt;(a: T): T {}</code></td>
+<td><code>function f   (a   )    {}</code></td>
+</tr>
+<tr>
+<td><code>value as string</code></td>
+<td><code>value          </code></td>
+</tr>
+<tr>
+<td><code>interface A { x: number }</code></td>
+<td>(spaces, the line breaks stay)</td>
+</tr>
+<tr>
+<td><code>import type { A } from &quot;m&quot;;</code></td>
+<td>(spaces)</td>
+</tr>
+<tr>
+<td><code>import { type A, b } from &quot;m&quot;;</code></td>
+<td><code>import {         b } from &quot;m&quot;;</code></td>
+</tr>
+</tbody>
+</table>
+<p>The full list is in <a href="06-reference-supported-syntax.html">Supported syntax</a>.</p>
+<h2 id="a-few-things-are-not-whitespace">A few things are not whitespace</h2>
+<p>In a handful of cases erasing alone would change what the program means, so Pare adds a character
+or edits an import:</p>
+<ul>
+<li><code>import &quot;./util.ts&quot;</code> becomes <code>import &quot;./util.js&quot;</code> in the CLI and in the MSBuild package.</li>
+<li>A line that begins with <code>(</code> or <code>[</code> after an erased statement gets a <code>;</code> so it does not glue
+onto the line above.</li>
+</ul>
+<p><a href="06-reference-output-changes.html">Output changes</a> lists every case.</p>
+<h2 id="why-it-is-fast">Why it is fast</h2>
+<p>The lexer and recognizer work on spans of the original text and write erase ranges into a
+buffer that is reused. While Pare parses it allocates nothing: no tokens, no strings, no tree.
+On <code>checker.ts</code> from the TypeScript repository (3.1 MB) it takes about 9 ms, around 335 MB/s.
+See <a href="06-reference-benchmarks.html">Benchmarks</a>.</p>
+<h2 id="where-the-pieces-live">Where the pieces live</h2>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Extrode.Pare</code></td>
+<td>the library: <code>TypeStripper.Strip</code>. No dependencies.</td>
+</tr>
+<tr>
+<td><code>Extrode.Pare.Cli</code></td>
+<td>the <code>pare</code> command line tool, NativeAOT</td>
+</tr>
+<tr>
+<td><code>Extrode.Pare.Build</code></td>
+<td>an MSBuild task and targets that strip <code>.ts</code> during <code>dotnet build</code></td>
+</tr>
+<tr>
+<td><code>Extrode.Pare.AspNetCore</code></td>
+<td><code>AddPareDevelopment()</code>: re-strips on save under <code>dotnet watch</code></td>
+</tr>
+<tr>
+<td><code>libpare</code></td>
+<td>the same stripper as a C shared library, for other languages</td>
+</tr>
+</tbody>
+</table>
+<h2 id="inside-a-net-build">Inside a .NET build</h2>
+<figure class="diagram" style="--dw:569px"><svg id="dg1" width="100%" xmlns="http://www.w3.org/2000/svg" class="flowchart" style="max-width:569px;" viewBox="0 0 569.421875 471" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#dg1{font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:14px;fill:var(--dg-text, #e6edf3);}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#dg1 .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#dg1 .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#dg1 .error-icon{fill:var(--dg-cluster-bg, #141922);}#dg1 .error-text{fill:var(--dg-edge-label, #ebe6dd);stroke:var(--dg-edge-label, #ebe6dd);}#dg1 .edge-thickness-normal{stroke-width:1px;}#dg1 .edge-thickness-thick{stroke-width:3.5px;}#dg1 .edge-pattern-solid{stroke-dasharray:0;}#dg1 .edge-thickness-invisible{stroke-width:0;fill:none;}#dg1 .edge-pattern-dashed{stroke-dasharray:3;}#dg1 .edge-pattern-dotted{stroke-dasharray:2;}#dg1 .marker{fill:var(--dg-line, #8b97a8);stroke:var(--dg-line, #8b97a8);}#dg1 .marker.cross{stroke:var(--dg-line, #8b97a8);}#dg1 svg{font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:14px;}#dg1 p{margin:0;}#dg1 .label{font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;color:var(--dg-text, #e6edf3);}#dg1 .cluster-label text{fill:var(--dg-title, #f0ece6);}#dg1 .cluster-label span{color:var(--dg-title, #f0ece6);}#dg1 .cluster-label span p{background-color:transparent;}#dg1 .label text,#dg1 span{fill:var(--dg-text, #e6edf3);color:var(--dg-text, #e6edf3);}#dg1 .node rect,#dg1 .node circle,#dg1 .node ellipse,#dg1 .node polygon,#dg1 .node path{fill:var(--dg-node-bg, #161b24);stroke:var(--dg-border, #2b323d);stroke-width:1px;}#dg1 .rough-node .label text,#dg1 .node .label text,#dg1 .image-shape .label,#dg1 .icon-shape .label{text-anchor:middle;}#dg1 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#dg1 .rough-node .label,#dg1 .node .label,#dg1 .image-shape .label,#dg1 .icon-shape .label{text-align:center;}#dg1 .node.clickable{cursor:pointer;}#dg1 .root .anchor path{fill:var(--dg-line, #8b97a8)!important;stroke-width:0;stroke:var(--dg-line, #8b97a8);}#dg1 .arrowheadPath{fill:var(--dg-title, #f0ece6);}#dg1 .edgePaths .path{stroke:var(--dg-line, #8b97a8);stroke-width:1px;}#dg1 .flowchart-link{stroke:var(--dg-line, #8b97a8);fill:none;}#dg1 .edgeLabel{background-color:var(--dg-node-bg-2, #1b2230);text-align:center;}#dg1 .edgeLabel p{background-color:var(--dg-node-bg-2, #1b2230);}#dg1 .edgeLabel rect{opacity:0.5;background-color:var(--dg-node-bg-2, #1b2230);fill:var(--dg-node-bg-2, #1b2230);}#dg1 .labelBkg{background-color:var(--dg-label-bg, rgba(27, 34, 48, 0.5));}#dg1 .cluster rect{fill:var(--dg-cluster-bg, #141922);stroke:hsl(218.5714285714, 0%, 0.5882352941%);stroke-width:1px;}#dg1 .cluster text{fill:var(--dg-title, #f0ece6);}#dg1 .cluster span{color:var(--dg-title, #f0ece6);}#dg1 .node .collapsed-indicator{fill:hsl(218.5714285714, 0%, 0.5882352941%);stroke:none;opacity:0.6;}#dg1 .node .collapsed-separator{stroke:hsl(218.5714285714, 0%, 0.5882352941%);stroke-width:0.75px;}#dg1 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:12px;background:var(--dg-cluster-bg, #141922);border:1px solid hsl(218.5714285714, 0%, 0.5882352941%);border-radius:2px;pointer-events:none;z-index:100;}#dg1 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:var(--dg-text, #e6edf3);}#dg1 rect.text{fill:none;stroke-width:0;}#dg1 .icon-shape,#dg1 .image-shape{background-color:var(--dg-node-bg-2, #1b2230);text-align:center;}#dg1 .icon-shape p,#dg1 .image-shape p{background-color:var(--dg-node-bg-2, #1b2230);padding:2px;}#dg1 .icon-shape .label rect,#dg1 .image-shape .label rect{opacity:0.5;background-color:var(--dg-node-bg-2, #1b2230);fill:var(--dg-node-bg-2, #1b2230);}#dg1 .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#dg1 .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#dg1 .node .neo-node{stroke:var(--dg-border, #2b323d);}#dg1 [data-look="neo"].node rect,#dg1 [data-look="neo"].cluster rect,#dg1 [data-look="neo"].node polygon{stroke:url(#dg1-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#dg1 [data-look="neo"].swimlane.cluster rect{filter:none;}#dg1 [data-look="neo"].node path{stroke:url(#dg1-gradient);stroke-width:1px;}#dg1 [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#dg1 [data-look="neo"].node .neo-line path{stroke:var(--dg-border, #2b323d);filter:none;}#dg1 [data-look="neo"].node circle{stroke:url(#dg1-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#dg1 [data-look="neo"].node circle .state-start{fill:#000000;}#dg1 [data-look="neo"].icon-shape .icon{fill:url(#dg1-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#dg1 [data-look="neo"].icon-shape .icon-neo path{stroke:url(#dg1-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#dg1 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}#dg1 [stop-color="#2b323d"]{stop-color:var(--dg-border, #2b323d);}</style><g><marker id="dg1_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="dg1_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="dg1_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></path></marker><marker id="dg1_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></polygon></marker><marker id="dg1_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="dg1_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="dg1_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="dg1_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="dg1_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="dg1_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="dg1_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5;"></path></marker><marker id="dg1_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0;"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M246.621,59L246.621,63.167C246.621,67.333,246.621,75.667,246.621,83.333C246.621,91,246.621,98,246.621,101.5L246.621,105" id="dg1-L_S_T_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_S_T_0" data-points="W3sieCI6MjQ2LjYyMTA5Mzc1LCJ5Ijo1OX0seyJ4IjoyNDYuNjIxMDkzNzUsInkiOjg0fSx7IngiOjI0Ni42MjEwOTM3NSwieSI6MTA5fV0=" data-look="classic" marker-end="url(#dg1_flowchart-v2-pointEnd)"></path><path d="M246.621,160L246.621,164.167C246.621,168.333,246.621,176.667,246.621,184.333C246.621,192,246.621,199,246.621,202.5L246.621,206" id="dg1-L_T_O_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_T_O_0" data-points="W3sieCI6MjQ2LjYyMTA5Mzc1LCJ5IjoxNjB9LHsieCI6MjQ2LjYyMTA5Mzc1LCJ5IjoxODV9LHsieCI6MjQ2LjYyMTA5Mzc1LCJ5IjoyMTB9XQ==" data-look="classic" marker-end="url(#dg1_flowchart-v2-pointEnd)"></path><path d="M246.621,261L246.621,265.167C246.621,269.333,246.621,277.667,246.621,285.333C246.621,293,246.621,300,246.621,303.5L246.621,307" id="dg1-L_O_W_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_O_W_0" data-points="W3sieCI6MjQ2LjYyMTA5Mzc1LCJ5IjoyNjF9LHsieCI6MjQ2LjYyMTA5Mzc1LCJ5IjoyODZ9LHsieCI6MjQ2LjYyMTA5Mzc1LCJ5IjozMTF9XQ==" data-look="classic" marker-end="url(#dg1_flowchart-v2-pointEnd)"></path><path d="M170.447,362L158,366.167C145.553,370.333,120.659,378.667,108.212,386.333C95.766,394,95.766,401,95.766,404.5L95.766,408" id="dg1-L_W_R1_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_W_R1_0" data-points="W3sieCI6MTcwLjQ0NjU1MDEyMzc2MjQsInkiOjM2Mn0seyJ4Ijo5NS43NjU2MjUsInkiOjM4N30seyJ4Ijo5NS43NjU2MjUsInkiOjQxMn1d" data-look="classic" marker-end="url(#dg1_flowchart-v2-pointEnd)"></path><path d="M322.796,362L335.242,366.167C347.689,370.333,372.583,378.667,385.03,386.333C397.477,394,397.477,401,397.477,404.5L397.477,408" id="dg1-L_W_R2_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_W_R2_0" data-points="W3sieCI6MzIyLjc5NTYzNzM3NjIzNzYsInkiOjM2Mn0seyJ4IjozOTcuNDc2NTYyNSwieSI6Mzg3fSx7IngiOjM5Ny40NzY1NjI1LCJ5Ijo0MTJ9XQ==" data-look="classic" marker-end="url(#dg1_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_S_T_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_T_O_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_O_W_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_W_R1_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_W_R2_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="dg1-flowchart-S-0" data-look="classic" transform="translate(246.62109375, 33.5)"><rect class="basic label-container" style="" x="-88.796875" y="-25.5" width="177.59375" height="51"></rect><g class="label" style="" transform="translate(-58.796875, -10.5)"><rect></rect><foreignObject width="117.59375" height="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 300px; text-align: center;"><span class="nodeLabel"><p>wwwroot/js/app.ts</p></span></div></foreignObject></g></g><g class="node default" id="dg1-flowchart-T-1" data-look="classic" transform="translate(246.62109375, 134.5)"><rect class="basic label-container" style="" x="-156.96875" y="-25.5" width="313.9375" height="51"></rect><g class="label" style="" transform="translate(-126.96875, -10.5)"><rect></rect><foreignObject width="253.9375" height="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 300px; text-align: center;"><span class="nodeLabel"><p>PareStripTypeScript target (before Build)</p></span></div></foreignObject></g></g><g class="node default" id="dg1-flowchart-O-3" data-look="classic" transform="translate(246.62109375, 235.5)"><rect class="basic label-container" style="" x="-136.375" y="-25.5" width="272.75" height="51"></rect><g class="label" style="" transform="translate(-106.375, -10.5)"><rect></rect><foreignObject width="212.75" height="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 300px; text-align: center;"><span class="nodeLabel"><p>obj/Debug/net10.0/pare/js/app.js</p></span></div></foreignObject></g></g><g class="node default" id="dg1-flowchart-W-5" data-look="classic" transform="translate(246.62109375, 336.5)"><rect class="basic label-container" style="" x="-113.578125" y="-25.5" width="227.15625" height="51"></rect><g class="label" style="" transform="translate(-83.578125, -10.5)"><rect></rect><foreignObject width="167.15625" height="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 300px; text-align: center;"><span class="nodeLabel"><p>static web asset: /js/app.js</p></span></div></foreignObject></g></g><g class="node default" id="dg1-flowchart-R1-7" data-look="classic" transform="translate(95.765625, 437.5)"><rect class="basic label-container" style="" x="-87.765625" y="-25.5" width="175.53125" height="51"></rect><g class="label" style="" transform="translate(-57.765625, -10.5)"><rect></rect><foreignObject width="115.53125" height="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 300px; text-align: center;"><span class="nodeLabel"><p>dotnet run: served</p></span></div></foreignObject></g></g><g class="node default" id="dg1-flowchart-R2-9" data-look="classic" transform="translate(397.4765625, 437.5)"><rect class="basic label-container" style="" x="-163.9453125" y="-25.5" width="327.890625" height="51"></rect><g class="label" style="" transform="translate(-133.9453125, -10.5)"><rect></rect><foreignObject width="267.890625" height="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 300px; text-align: center;"><span class="nodeLabel"><p>dotnet publish: compressed and published</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="dg1-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="dg1-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="dg1-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#2b323d" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(220, 0%, 4.7058823529%)" stop-opacity="1"></stop></linearGradient></svg></figure>
+<p>The output lives under <code>obj/</code>, never in your source tree, so there is nothing to put in
+<code>.gitignore</code>. The build keeps the <code>.ts</code> out of the published site and deletes the output of a
+<code>.ts</code> you delete.</p>
+
+        </article>
+        <div class="page-nav" id="page-nav">
+          <div class="prev-next"><a class="pn-prev" href="00-overview-comparison.html">
+  <span class="pn-label">&#8592; prev</span>
+  <span class="pn-title">Pare and the alternatives</span>
+</a><a class="pn-next" href="00-overview-what-pare-does-not-do.html">
+  <span class="pn-label">next &#8594;</span>
+  <span class="pn-title">What Pare does not do</span>
+</a></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===== status bar ===== -->
+  <footer class="jt-statusbar">
+    <span class="status-dot">&#9679; pare docs</span>
+    <span class="status-spacer"></span>
+    <button class="status-kbd" type="button" onclick="toggleHelp()"><kbd>?</kbd> shortcuts</button>
+  </footer>
+</div>
+
+<!-- ===== search (opened with / or Ctrl+K; the index loads on first use) ===== -->
+<div class="search-overlay" id="search-overlay" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <input type="search" id="search-input" placeholder="search the docs" autocomplete="off"
+           spellcheck="false" oninput="runSearch(this.value)">
+    <div class="search-results" id="search-results" role="listbox"></div>
+    <div class="search-foot"><kbd>&#8593;</kbd><kbd>&#8595;</kbd> move <kbd>Enter</kbd> open <kbd>Esc</kbd> close</div>
+  </div>
+</div>
+
+<!-- ===== keyboard shortcuts ===== -->
+<div class="kbd-help" id="kbd-help" hidden>
+  <div class="kbd-box" role="dialog" aria-label="Keyboard shortcuts">
+    <div class="kbd-title">Keyboard shortcuts</div>
+    <table>
+      <tr><td><kbd>/</kbd> <kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>search</td></tr>
+      <tr><td><kbd>f</kbd></td><td>filter the sidebar; <kbd>Enter</kbd> opens the first match, <kbd>Esc</kbd> clears</td></tr>
+      <tr><td><kbd>h</kbd></td><td>home</td></tr>
+      <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>previous / next page</td></tr>
+      <tr><td><kbd>j</kbd> <kbd>k</kbd></td><td>next / previous heading</td></tr>
+      <tr><td><kbd>b</kbd></td><td>toggle the sidebar</td></tr>
+      <tr><td><kbd>w</kbd></td><td>reset the sidebar width</td></tr>
+      <tr><td><kbd>o</kbd></td><td>toggle "on this page"</td></tr>
+      <tr><td><kbd>t</kbd></td><td>colour scheme: auto, light, dark</td></tr>
+      <tr><td><kbd>-</kbd> <kbd>=</kbd> <kbd>0</kbd></td><td>text smaller / larger / reset</td></tr>
+      <tr><td><kbd>?</kbd></td><td>this panel</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>close</td></tr>
+    </table>
+  </div>
+</div>
+<script src="nav.js"></script>
+</body>
+</html>

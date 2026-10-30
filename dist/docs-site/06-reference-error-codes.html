@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en" class="jt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Error codes — pare docs</title>
+<link rel="stylesheet" href="site.css">
+<script>
+/* Inline, in the head, and before anything paints. A saved preference applied
+   from nav.js would arrive after the first frame, and the reader would watch
+   the page flash the wrong theme on every navigation. */
+(function () {
+  var d = document.documentElement;
+  var KEYS = ['theme', 'fs', 'nav-w', 'toc', 'nav'];
+  /* Over file:// Firefox gives every page its own empty localStorage, so the link
+     that brought the reader here carries the preferences too: ?dg=nav-w:336,ts:…
+     The newer of the two wins, by the ts each side records at its last change, so
+     a reload after a change keeps the change and a stale bookmark loses to storage. */
+  var fromLink = {};
+  var m = /[?&]dg=([^&#]*)/.exec(location.search);
+  if (m) decodeURIComponent(m[1]).split(',').forEach(function (kv) {
+    var i = kv.indexOf(':');
+    if (i > 0) fromLink[kv.slice(0, i)] = kv.slice(i + 1);
+  });
+  var pref = {};
+  try {
+    var stored = parseInt(localStorage.getItem('dg-ts'), 10) || 0;
+    var linked = parseInt(fromLink.ts, 10) || 0;
+    if (m && linked >= stored) {
+      KEYS.forEach(function (k) {
+        pref[k] = fromLink[k] || null;
+        if (pref[k]) localStorage.setItem('dg-' + k, pref[k]); else localStorage.removeItem('dg-' + k);
+      });
+      localStorage.setItem('dg-ts', String(linked));
+    } else {
+      KEYS.forEach(function (k) { pref[k] = localStorage.getItem('dg-' + k); });
+    }
+  } catch (e) { /* private mode, file:// with storage denied -- the link still counts */
+    KEYS.forEach(function (k) { pref[k] = fromLink[k] || null; });
+  }
+  if (pref.theme === 'light' || pref.theme === 'dark') d.setAttribute('data-theme', pref.theme);
+  var s = parseFloat(pref.fs);
+  if (s >= 0.75 && s <= 1.75) d.style.setProperty('--fs-scale', String(s));
+  var w = parseInt(pref['nav-w'], 10);
+  if (w >= 180 && w <= 480) d.style.setProperty('--nav-w', w + 'px');
+  if (pref.toc === 'hidden') d.setAttribute('data-toc', 'hidden');
+  if (pref.nav === 'hidden') d.setAttribute('data-nav', 'hidden');
+})();
+</script>
+</head>
+<body class="jt">
+<div class="jt-shell">
+
+  <!-- ===== header ===== -->
+  <header class="jt-header">
+    <button class="hamburger" aria-label="Toggle navigation" onclick="toggleNav()">&#9776;</button>
+    <div class="header-brand">
+      <span class="brand-name">pare</span>
+      <span class="brand-crumb">Reference &#8250; Error codes</span>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-tools">
+      <button class="tool-btn search-btn" type="button" onclick="openSearch()" title="Search (/)">
+        <span class="search-word">search</span><kbd>/</kbd>
+      </button>
+      <div class="fs-group" role="group" aria-label="Text size">
+        <button class="tool-btn" onclick="fontSize(-1)" title="Smaller text">A&#8722;</button>
+        <button class="tool-btn" onclick="fontSize(0)" title="Reset text size">A</button>
+        <button class="tool-btn" onclick="fontSize(1)" title="Larger text">A+</button>
+      </div>
+      <button class="tool-btn theme-btn" id="theme-btn" onclick="cycleTheme()"
+              title="Colour scheme" aria-live="polite">auto</button>
+    </div>
+  </header>
+
+  <!-- ===== body ===== -->
+  <div class="jt-body">
+
+    <!-- sidebar backdrop (mobile) -->
+    <div class="nav-backdrop" id="nav-backdrop" onclick="toggleNav()"></div>
+
+    <!-- sidebar -->
+    <nav class="jt-sidebar" id="jt-sidebar" aria-label="Documentation navigation">
+      <div class="sidebar-filter">
+        <span class="filter-icon">/</span>
+        <input type="text" id="nav-filter" placeholder="filter nav" oninput="filterNav(this.value)" autocomplete="off">
+      </div>
+      <div class="sidebar-scroll" id="sidebar-scroll">
+        <div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Overview</span>
+  </div>
+  <div class="nav-group-items">  <a href="00-overview-readme.html">Pare documentation</a>  <a href="00-overview-comparison.html">Pare and the alternatives</a>  <a href="00-overview-how-it-works.html">How Pare works</a>  <a href="00-overview-what-pare-does-not-do.html">What Pare does not do</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Getting started</span>
+  </div>
+  <div class="nav-group-items">  <a href="01-getting-started-readme.html">Getting started</a>  <a href="01-getting-started-first-static-site.html">Your first static site</a>  <a href="01-getting-started-first-web-app.html">Your first web app</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Guides</span>
+  </div>
+  <div class="nav-group-items">  <a href="03-guides-readme.html">Guides</a>  <a href="03-guides-c-library.html">Using libpare from C and other languages</a>  <a href="03-guides-cli.html">The pare command</a>  <a href="03-guides-compile-other-languages.html">Compiling other languages</a>  <a href="03-guides-hot-reload.html">Hot reload</a>  <a href="03-guides-library.html">Using the library</a>  <a href="03-guides-non-web-projects.html">Non-web projects</a>  <a href="03-guides-offline-restore.html">Offline and vendored packages</a>  <a href="03-guides-razor-class-libraries.html">Razor class libraries</a>  <a href="03-guides-type-checking.html">Type checking in CI</a>  <a href="03-guides-typescript-outside-wwwroot.html">TypeScript outside wwwroot</a>  </div>
+</div>
+<div class="nav-group" data-group data-open="true">
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Reference</span>
+  </div>
+  <div class="nav-group-items">  <a href="06-reference-readme.html">Reference</a>  <a href="06-reference-benchmarks.html">Benchmarks</a>  <a href="06-reference-c-api.html">C API</a>  <a href="06-reference-error-codes.html" class="active" aria-current="page">Error codes</a>  <a href="06-reference-license.html">License</a>  <a href="06-reference-msbuild-properties.html">MSBuild properties</a>  <a href="06-reference-output-changes.html">Output changes</a>  <a href="06-reference-supported-syntax.html">Supported syntax</a>  <a href="06-reference-troubleshooting.html">Troubleshooting</a>  </div>
+</div>
+
+      </div>
+      <div class="nav-resizer" id="nav-resizer" title="Drag to resize, double-click to reset"></div>
+    </nav>
+
+    <!-- content -->
+    <main class="jt-content has-toc" id="jt-content">
+      <nav class="toc" aria-label="On this page"><button class="toc-tab" type="button" onclick="toggleToc()" title="Show on this page (o)">On this page</button><div class="toc-title"><span>On this page</span><button class="toc-toggle" type="button" onclick="toggleToc()" title="Hide or show (o)"></button></div><a class="toc-l2" href="#pare001">PARE001</a><a class="toc-l2" href="#pare100">PARE100</a><a class="toc-l2" href="#pare101">PARE101</a><a class="toc-l2" href="#pare102">PARE102</a><a class="toc-l2" href="#pare103">PARE103</a><a class="toc-l2" href="#pare104">PARE104</a><a class="toc-l2" href="#pare105">PARE105</a><a class="toc-l2" href="#pare106">PARE106</a><a class="toc-l2" href="#pare107">PARE107</a><a class="toc-l2" href="#pare200">PARE200</a><a class="toc-l2" href="#pare201">PARE201</a><a class="toc-l2" href="#pare202">PARE202</a><a class="toc-l2" href="#pare203">PARE203</a><a class="toc-l2" href="#pare204">PARE204</a></nav>
+      <div class="content-inner">
+        <nav class="breadcrumb" aria-label="Breadcrumb">Reference &#8250; Error codes</nav>
+        <article>
+<h1 id="error-codes">Error codes</h1>
+<p>Pare only erases types: it replaces type syntax with spaces and changes nothing else, so every
+line and column of the output matches the source. TypeScript syntax that would need new
+JavaScript written in its place cannot be erased, so Pare rejects it instead of guessing. This is
+the rule behind TypeScript's <code>erasableSyntaxOnly</code> option and Node's built-in type stripping:
+turning on <code>erasableSyntaxOnly</code> in <code>tsconfig.json</code> makes <code>tsc</code> and the editor report the
+PARE100 to PARE105 cases as TS1294. Pare also rejects parameter decorators (PARE106), which that
+option allows.</p>
+<p>A rejected file gets no output. The CLI exits with 1, the MSBuild package fails the build, and
+<code>AddPareDevelopment</code> logs the error and keeps the previous <code>.js</code>. Every rejection in a file is
+reported in one run.</p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Kind</th>
+<th>Message</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="#pare001">PARE001</a></td>
+<td>error</td>
+<td>syntax error</td>
+</tr>
+<tr>
+<td><a href="#pare100">PARE100</a></td>
+<td>error</td>
+<td>'enum' generates runtime code and cannot be erased</td>
+</tr>
+<tr>
+<td><a href="#pare101">PARE101</a></td>
+<td>error</td>
+<td>namespace containing values generates runtime code</td>
+</tr>
+<tr>
+<td><a href="#pare102">PARE102</a></td>
+<td>error</td>
+<td>parameter property generates runtime code</td>
+</tr>
+<tr>
+<td><a href="#pare103">PARE103</a></td>
+<td>error</td>
+<td>'import x = ...' generates runtime code</td>
+</tr>
+<tr>
+<td><a href="#pare104">PARE104</a></td>
+<td>error</td>
+<td>'export =' is CommonJS-only emit</td>
+</tr>
+<tr>
+<td><a href="#pare105">PARE105</a></td>
+<td>error</td>
+<td>angle-bracket type assertion is not supported</td>
+</tr>
+<tr>
+<td><a href="#pare106">PARE106</a></td>
+<td>error</td>
+<td>parameter decorators need legacy experimentalDecorators</td>
+</tr>
+<tr>
+<td><a href="#pare107">PARE107</a></td>
+<td>error</td>
+<td>a type-only import cannot have both a default and named bindings</td>
+</tr>
+<tr>
+<td><a href="#pare200">PARE200</a></td>
+<td>warning (MSBuild)</td>
+<td>not served: the build now writes this file's output under obj/ and serves that. Delete it.</td>
+</tr>
+<tr>
+<td><a href="#pare201">PARE201</a></td>
+<td>error (MSBuild)</td>
+<td>two sources map to one URL</td>
+</tr>
+<tr>
+<td><a href="#pare202">PARE202</a></td>
+<td>warning (MSBuild)</td>
+<td>not served: outside wwwroot with no PareServeAt</td>
+</tr>
+<tr>
+<td><a href="#pare203">PARE203</a></td>
+<td>error (MSBuild)</td>
+<td>PareServeAt is not a URL folder</td>
+</tr>
+<tr>
+<td><a href="#pare204">PARE204</a></td>
+<td>error (MSBuild)</td>
+<td>PareCompileSource needs PareCompiler and PareOutputExtension</td>
+</tr>
+</tbody>
+</table>
+<p>Errors print as <code>file:line:col: error PARE100: message (hint)</code> from the CLI and the hot-reload
+watcher, and as <code>file(line,col): error PARE100: message (hint)</code> from MSBuild.</p>
+<h2 id="pare001">PARE001</h2>
+<p><code>syntax error (check the syntax at this position)</code></p>
+<p>The input is not valid TypeScript at this position. Pare stops at the first syntax error; the
+position is the token where parsing failed. Nesting too deep for the parser's stack (thousands of
+levels) is reported the same way rather than crashing. <code>.tsx</code> and JSX are not supported.</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">let total = ;
+</code></pre>
+</div>
+<p>Fix the syntax:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">let total = 0;
+</code></pre>
+</div>
+<h2 id="pare100">PARE100</h2>
+<p><code>'enum' generates runtime code and cannot be erased (use a 'const' object with 'as const' instead of 'enum')</code></p>
+<p>An <code>enum</code> compiles to an object built at run time, so it cannot be erased. <code>const enum</code> is
+rejected too: <code>tsc</code> inlines its members at each use, which an eraser cannot do. <code>declare enum</code>
+emits nothing and is erased.</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">enum Color { Red, Green }
+</code></pre>
+</div>
+<p>Use an object with <code>as const</code>, and a type of the same name for its values:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">const Color = { Red: 0, Green: 1 } as const;
+type Color = (typeof Color)[keyof typeof Color];
+let c: Color = Color.Red;
+</code></pre>
+</div>
+<h2 id="pare101">PARE101</h2>
+<p><code>namespace containing values generates runtime code (use an ES module instead of a namespace)</code></p>
+<p>A <code>namespace</code> or <code>module</code> block that declares values (variables, functions, classes, nested
+namespaces with values) compiles to an object built at run time. A namespace that holds only types,
+or one marked <code>declare</code>, is erased.</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">namespace Util {
+  export const version = 1;
+}
+</code></pre>
+</div>
+<p>Use a module: export the values from the file, and keep namespaces for types only:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">export const version = 1;
+namespace Shapes {
+  export type Kind = &quot;circle&quot; | &quot;square&quot;;
+}
+let k: Shapes.Kind = &quot;circle&quot;;
+</code></pre>
+</div>
+<h2 id="pare102">PARE102</h2>
+<p><code>parameter property generates runtime code (declare the field in the class body and assign it in the constructor)</code></p>
+<p>A constructor parameter with <code>public</code>, <code>private</code>, <code>protected</code>, <code>readonly</code> or <code>override</code> also
+declares a field and assigns it, which needs code that is not in the source.</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">class Point {
+  constructor(public x: number) {}
+}
+</code></pre>
+</div>
+<p>Declare the field and assign it yourself:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">class Point {
+  x: number;
+  constructor(x: number) {
+    this.x = x;
+  }
+}
+</code></pre>
+</div>
+<h2 id="pare103">PARE103</h2>
+<p><code>'import x = ...' generates runtime code (use an ES 'import' declaration)</code></p>
+<p><code>import x = require(&quot;m&quot;)</code> is CommonJS emit, and <code>import x = N.y</code> creates a variable. <code>import type x = require(&quot;m&quot;)</code> is erased.</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">import fs = require(&quot;node:fs&quot;);
+</code></pre>
+</div>
+<p>Use an ES import, or <code>import type</code> when only types are used:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">import fs from &quot;node:fs&quot;;
+import type Fs = require(&quot;node:fs&quot;);
+</code></pre>
+</div>
+<h2 id="pare104">PARE104</h2>
+<p><code>'export =' is CommonJS-only emit (use 'export default' instead)</code></p>
+<p><code>export =</code> compiles to <code>module.exports = ...</code>, which has no ES module form.</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">function greet() {}
+export = greet;
+</code></pre>
+</div>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">function greet() {}
+export default greet;
+</code></pre>
+</div>
+<h2 id="pare105">PARE105</h2>
+<p><code>angle-bracket type assertion is not supported (use 'expr as T' instead of '&lt;T&gt;expr')</code></p>
+<p><code>&lt;T&gt;expr</code> is the older assertion form. It reads like JSX and is not allowed in <code>.tsx</code> files, so
+Pare accepts only the <code>as</code> form, which every TypeScript file can use.</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">declare const input: unknown;
+let n = &lt;number&gt;input;
+</code></pre>
+</div>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">declare const input: unknown;
+let n = input as number;
+</code></pre>
+</div>
+<h2 id="pare106">PARE106</h2>
+<p><code>parameter decorators need legacy experimentalDecorators (use TC39 decorators on the class or member instead)</code></p>
+<p>Decorators on parameters exist only in TypeScript's legacy <code>experimentalDecorators</code> mode, whose
+emit rewrites the class. Standard (TC39) decorators on classes and members are kept as written; the
+runtime has to support them.</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">declare function log(target: object, key: string, index: number): void;
+class Api {
+  get(@log id: string) {}
+}
+</code></pre>
+</div>
+<p>Decorate the method instead:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">declare function log(value: Function, context: ClassMethodDecoratorContext): void;
+class Api {
+  @log
+  get(id: string) {}
+}
+</code></pre>
+</div>
+<h2 id="pare107">PARE107</h2>
+<p><code>a type-only import cannot have both a default and named bindings (split it into two 'import type' declarations)</code></p>
+<p>TypeScript rejects this form too (TS1363).</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">import type Config, { Options } from &quot;./config.ts&quot;;
+</code></pre>
+</div>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">import type Config from &quot;./config.ts&quot;;
+import type { Options } from &quot;./config.ts&quot;;
+</code></pre>
+</div>
+<h2 id="pare200">PARE200</h2>
+<p><code>warning PARE200: not served: the build now writes this file's output under obj/ and serves that. Delete it.</code></p>
+<p>MSBuild package only, for web projects whose output goes under <code>obj/</code> (the default since 0.3). A
+<code>foo.js</code> sits next to <code>foo.ts</code> in <code>wwwroot</code>: left there by Pare 0.2, which wrote output next to
+the source, or written by hand. The build serves and publishes the stripped <code>foo.ts</code> from <code>obj/</code>
+and leaves <code>foo.js</code> out, so the two cannot conflict. The same holds for another compiler's output
+(<code>App.svelte.js</code> next to <code>App.svelte</code>). The build still succeeds.</p>
+<p>Delete the <code>foo.js</code> files the warning names, and any <code>.gitignore</code> rules added for them. If a
+hand-written <code>foo.js</code> is the one you want served, rename it or the <code>.ts</code>.</p>
+<h2 id="pare201">PARE201</h2>
+<p><code>error PARE201: two sources map to one URL, js/app.js: wwwroot/js/app.ts, Scripts/app.ts. Serve one under a different PareServeAt folder, or remove one from its item.</code></p>
+<p>MSBuild package only, for web projects whose output goes under <code>obj/</code>. Each source's output is
+served at a URL: its path below <code>wwwroot</code> by default, or below the folder its <code>PareServeAt</code> names.
+Two sources ended up with the same one, which would also make them write the same file. The
+sources of another compiler (<code>PareCompileSource</code>) count too, so a <code>.svelte</code> and a <code>.ts</code> cannot
+share a URL. Paths
+that differ only in case count as the same, as they do on macOS and Windows file systems. The
+build stops before stripping anything.</p>
+<p>Give one of the named sources a different <code>PareServeAt</code>, or exclude one of them from
+<code>TypeScriptSource</code> (<code>&lt;TypeScriptSource Remove=&quot;Scripts/app.ts&quot; /&gt;</code>) or <code>PareCompileSource</code>.</p>
+<h2 id="pare202">PARE202</h2>
+<p><code>warning PARE202: not served: outside wwwroot with no PareServeAt, so the .js goes next to the source and is not a static web asset. Add PareServeAt=&quot;js&quot; to its item to serve it under js/, or add PARE202 to NoWarn to keep it as is.</code></p>
+<p>MSBuild package only, for web projects whose output goes under <code>obj/</code>. A <code>TypeScriptSource</code> (or
+<code>PareCompileSource</code>) item outside <code>wwwroot</code>, such as <code>Scripts/app.ts</code>, has no <code>PareServeAt</code>. Its output is written next to
+it, as <code>Scripts/app.js</code>, which the web app does not serve or publish. The build still succeeds.
+Not reported for <code>PareOutDir</code>, outside web projects, or for a <code>.razor.ts</code> or <code>.cshtml.ts</code>, whose
+output beside the component the SDK serves itself.</p>
+<p>To serve it, name the URL folder:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">XML</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="xml"><code class="language-xml"><span class="tok-punc">&lt;</span><span class="tok-tag">TypeScriptSource</span> <span class="tok-attr">Include</span>=<span class="tok-str">&quot;Scripts/**/*.ts&quot;</span> <span class="tok-attr">PareServeAt</span>=<span class="tok-str">&quot;js&quot;</span> <span class="tok-punc">/&gt;</span>
+</code></pre>
+</div>
+<p>To keep the output next to the source on purpose, add <code>&lt;NoWarn&gt;$(NoWarn);PARE202&lt;/NoWarn&gt;</code> to the
+project.</p>
+<h2 id="pare203">PARE203</h2>
+<p><code>error PARE203: PareServeAt=&quot;js/app.js&quot; is not a URL folder. Give a folder such as js, or / for the root, with no . or .. segment, colon, double slash or file name: the file name comes from the source.</code></p>
+<p>MSBuild package only. <code>PareServeAt</code> names a folder; each file's name and extension come from its
+source (<code>app.ts</code> gives <code>app.js</code>, <code>app.mts</code> gives <code>app.mjs</code>). Values with a <code>.</code> or <code>..</code> segment, a
+colon, <code>//</code> (or <code>\\</code>), or ending in a script extension such as <code>.js</code> or <code>.ts</code> are rejected. The
+build stops before stripping anything.</p>
+<p>Use a folder: <code>PareServeAt=&quot;js&quot;</code>, or <code>PareServeAt=&quot;/&quot;</code> to serve at the root of the project's
+static web assets.</p>
+<h2 id="pare204">PARE204</h2>
+<p><code>error PARE204: PareCompileSource needs PareCompiler (the compiler's name: letters, digits, . _ -) and PareOutputExtension (the output's extension, a dot and a name such as .svelte.js); got PareCompiler=&quot;husk&quot; PareOutputExtension=&quot;svelte.js&quot;.</code></p>
+<p>MSBuild package only. A package that compiles another language to JavaScript (see
+<a href="03-guides-compile-other-languages.html">Compiling other languages</a>) declared a <code>PareCompileSource</code> item without a <code>PareCompiler</code> made of letters, digits, <code>.</code>, <code>_</code>
+and <code>-</code>, or without a <code>PareOutputExtension</code> that starts with a dot and holds no folder or quote. The build stops before compiling
+anything. This is a fault in that package's <code>.props</code> or in the project file that added the item:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">XML</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="xml"><code class="language-xml"><span class="tok-punc">&lt;</span><span class="tok-tag">PareCompileSource</span> <span class="tok-attr">Include</span>=<span class="tok-str">&quot;Components/**/*.svelte&quot;</span> <span class="tok-attr">PareCompiler</span>=<span class="tok-str">&quot;husk&quot;</span> <span class="tok-attr">PareOutputExtension</span>=<span class="tok-str">&quot;.svelte.js&quot;</span> <span class="tok-punc">/&gt;</span>
+</code></pre>
+</div>
+
+        </article>
+        <div class="page-nav" id="page-nav">
+          <div class="prev-next"><a class="pn-prev" href="06-reference-c-api.html">
+  <span class="pn-label">&#8592; prev</span>
+  <span class="pn-title">C API</span>
+</a><a class="pn-next" href="06-reference-license.html">
+  <span class="pn-label">next &#8594;</span>
+  <span class="pn-title">License</span>
+</a></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===== status bar ===== -->
+  <footer class="jt-statusbar">
+    <span class="status-dot">&#9679; pare docs</span>
+    <span class="status-spacer"></span>
+    <button class="status-kbd" type="button" onclick="toggleHelp()"><kbd>?</kbd> shortcuts</button>
+  </footer>
+</div>
+
+<!-- ===== search (opened with / or Ctrl+K; the index loads on first use) ===== -->
+<div class="search-overlay" id="search-overlay" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <input type="search" id="search-input" placeholder="search the docs" autocomplete="off"
+           spellcheck="false" oninput="runSearch(this.value)">
+    <div class="search-results" id="search-results" role="listbox"></div>
+    <div class="search-foot"><kbd>&#8593;</kbd><kbd>&#8595;</kbd> move <kbd>Enter</kbd> open <kbd>Esc</kbd> close</div>
+  </div>
+</div>
+
+<!-- ===== keyboard shortcuts ===== -->
+<div class="kbd-help" id="kbd-help" hidden>
+  <div class="kbd-box" role="dialog" aria-label="Keyboard shortcuts">
+    <div class="kbd-title">Keyboard shortcuts</div>
+    <table>
+      <tr><td><kbd>/</kbd> <kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>search</td></tr>
+      <tr><td><kbd>f</kbd></td><td>filter the sidebar; <kbd>Enter</kbd> opens the first match, <kbd>Esc</kbd> clears</td></tr>
+      <tr><td><kbd>h</kbd></td><td>home</td></tr>
+      <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>previous / next page</td></tr>
+      <tr><td><kbd>j</kbd> <kbd>k</kbd></td><td>next / previous heading</td></tr>
+      <tr><td><kbd>b</kbd></td><td>toggle the sidebar</td></tr>
+      <tr><td><kbd>w</kbd></td><td>reset the sidebar width</td></tr>
+      <tr><td><kbd>o</kbd></td><td>toggle "on this page"</td></tr>
+      <tr><td><kbd>t</kbd></td><td>colour scheme: auto, light, dark</td></tr>
+      <tr><td><kbd>-</kbd> <kbd>=</kbd> <kbd>0</kbd></td><td>text smaller / larger / reset</td></tr>
+      <tr><td><kbd>?</kbd></td><td>this panel</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>close</td></tr>
+    </table>
+  </div>
+</div>
+<script src="nav.js"></script>
+</body>
+</html>

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en" class="jt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compiling other languages — pare docs</title>
+<link rel="stylesheet" href="site.css">
+<script>
+/* Inline, in the head, and before anything paints. A saved preference applied
+   from nav.js would arrive after the first frame, and the reader would watch
+   the page flash the wrong theme on every navigation. */
+(function () {
+  var d = document.documentElement;
+  var KEYS = ['theme', 'fs', 'nav-w', 'toc', 'nav'];
+  /* Over file:// Firefox gives every page its own empty localStorage, so the link
+     that brought the reader here carries the preferences too: ?dg=nav-w:336,ts:…
+     The newer of the two wins, by the ts each side records at its last change, so
+     a reload after a change keeps the change and a stale bookmark loses to storage. */
+  var fromLink = {};
+  var m = /[?&]dg=([^&#]*)/.exec(location.search);
+  if (m) decodeURIComponent(m[1]).split(',').forEach(function (kv) {
+    var i = kv.indexOf(':');
+    if (i > 0) fromLink[kv.slice(0, i)] = kv.slice(i + 1);
+  });
+  var pref = {};
+  try {
+    var stored = parseInt(localStorage.getItem('dg-ts'), 10) || 0;
+    var linked = parseInt(fromLink.ts, 10) || 0;
+    if (m && linked >= stored) {
+      KEYS.forEach(function (k) {
+        pref[k] = fromLink[k] || null;
+        if (pref[k]) localStorage.setItem('dg-' + k, pref[k]); else localStorage.removeItem('dg-' + k);
+      });
+      localStorage.setItem('dg-ts', String(linked));
+    } else {
+      KEYS.forEach(function (k) { pref[k] = localStorage.getItem('dg-' + k); });
+    }
+  } catch (e) { /* private mode, file:// with storage denied -- the link still counts */
+    KEYS.forEach(function (k) { pref[k] = fromLink[k] || null; });
+  }
+  if (pref.theme === 'light' || pref.theme === 'dark') d.setAttribute('data-theme', pref.theme);
+  var s = parseFloat(pref.fs);
+  if (s >= 0.75 && s <= 1.75) d.style.setProperty('--fs-scale', String(s));
+  var w = parseInt(pref['nav-w'], 10);
+  if (w >= 180 && w <= 480) d.style.setProperty('--nav-w', w + 'px');
+  if (pref.toc === 'hidden') d.setAttribute('data-toc', 'hidden');
+  if (pref.nav === 'hidden') d.setAttribute('data-nav', 'hidden');
+})();
+</script>
+</head>
+<body class="jt">
+<div class="jt-shell">
+
+  <!-- ===== header ===== -->
+  <header class="jt-header">
+    <button class="hamburger" aria-label="Toggle navigation" onclick="toggleNav()">&#9776;</button>
+    <div class="header-brand">
+      <span class="brand-name">pare</span>
+      <span class="brand-crumb">Guides &#8250; Compiling other languages</span>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-tools">
+      <button class="tool-btn search-btn" type="button" onclick="openSearch()" title="Search (/)">
+        <span class="search-word">search</span><kbd>/</kbd>
+      </button>
+      <div class="fs-group" role="group" aria-label="Text size">
+        <button class="tool-btn" onclick="fontSize(-1)" title="Smaller text">A&#8722;</button>
+        <button class="tool-btn" onclick="fontSize(0)" title="Reset text size">A</button>
+        <button class="tool-btn" onclick="fontSize(1)" title="Larger text">A+</button>
+      </div>
+      <button class="tool-btn theme-btn" id="theme-btn" onclick="cycleTheme()"
+              title="Colour scheme" aria-live="polite">auto</button>
+    </div>
+  </header>
+
+  <!-- ===== body ===== -->
+  <div class="jt-body">
+
+    <!-- sidebar backdrop (mobile) -->
+    <div class="nav-backdrop" id="nav-backdrop" onclick="toggleNav()"></div>
+
+    <!-- sidebar -->
+    <nav class="jt-sidebar" id="jt-sidebar" aria-label="Documentation navigation">
+      <div class="sidebar-filter">
+        <span class="filter-icon">/</span>
+        <input type="text" id="nav-filter" placeholder="filter nav" oninput="filterNav(this.value)" autocomplete="off">
+      </div>
+      <div class="sidebar-scroll" id="sidebar-scroll">
+        <div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Overview</span>
+  </div>
+  <div class="nav-group-items">  <a href="00-overview-readme.html">Pare documentation</a>  <a href="00-overview-comparison.html">Pare and the alternatives</a>  <a href="00-overview-how-it-works.html">How Pare works</a>  <a href="00-overview-what-pare-does-not-do.html">What Pare does not do</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Getting started</span>
+  </div>
+  <div class="nav-group-items">  <a href="01-getting-started-readme.html">Getting started</a>  <a href="01-getting-started-first-static-site.html">Your first static site</a>  <a href="01-getting-started-first-web-app.html">Your first web app</a>  </div>
+</div>
+<div class="nav-group" data-group data-open="true">
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Guides</span>
+  </div>
+  <div class="nav-group-items">  <a href="03-guides-readme.html">Guides</a>  <a href="03-guides-c-library.html">Using libpare from C and other languages</a>  <a href="03-guides-cli.html">The pare command</a>  <a href="03-guides-compile-other-languages.html" class="active" aria-current="page">Compiling other languages</a>  <a href="03-guides-hot-reload.html">Hot reload</a>  <a href="03-guides-library.html">Using the library</a>  <a href="03-guides-non-web-projects.html">Non-web projects</a>  <a href="03-guides-offline-restore.html">Offline and vendored packages</a>  <a href="03-guides-razor-class-libraries.html">Razor class libraries</a>  <a href="03-guides-type-checking.html">Type checking in CI</a>  <a href="03-guides-typescript-outside-wwwroot.html">TypeScript outside wwwroot</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Reference</span>
+  </div>
+  <div class="nav-group-items">  <a href="06-reference-readme.html">Reference</a>  <a href="06-reference-benchmarks.html">Benchmarks</a>  <a href="06-reference-c-api.html">C API</a>  <a href="06-reference-error-codes.html">Error codes</a>  <a href="06-reference-license.html">License</a>  <a href="06-reference-msbuild-properties.html">MSBuild properties</a>  <a href="06-reference-output-changes.html">Output changes</a>  <a href="06-reference-supported-syntax.html">Supported syntax</a>  <a href="06-reference-troubleshooting.html">Troubleshooting</a>  </div>
+</div>
+
+      </div>
+      <div class="nav-resizer" id="nav-resizer" title="Drag to resize, double-click to reset"></div>
+    </nav>
+
+    <!-- content -->
+    <main class="jt-content has-toc" id="jt-content">
+      <nav class="toc" aria-label="On this page"><button class="toc-tab" type="button" onclick="toggleToc()" title="Show on this page (o)">On this page</button><div class="toc-title"><span>On this page</span><button class="toc-toggle" type="button" onclick="toggleToc()" title="Hide or show (o)"></button></div><a class="toc-l2" href="#declare-the-sources-and-your-target">Declare the sources and your target</a><a class="toc-l2" href="#hot-reload">Hot reload</a></nav>
+      <div class="content-inner">
+        <nav class="breadcrumb" aria-label="Breadcrumb">Guides &#8250; Compiling other languages</nav>
+        <article>
+<h1 id="compiling-other-languages">Compiling other languages</h1>
+<p>For authors of build packages. Pare's plumbing, the part that puts output under <code>obj/</code>, serves it
+as a static web asset, publishes it compressed, and deletes it with its source, works for any
+compile-to-JavaScript step. <a href="https://github.com/extrode/husk">Husk</a>, which compiles Svelte
+components, uses it. If you only write TypeScript you can skip this page.</p>
+<h2 id="declare-the-sources-and-your-target">Declare the sources and your target</h2>
+<p>Usually in your package's <code>.props</code> and <code>.targets</code>:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">XML</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="xml"><code class="language-xml"><span class="tok-punc">&lt;</span><span class="tok-tag">ItemGroup</span><span class="tok-punc">&gt;</span>
+  <span class="tok-punc">&lt;</span><span class="tok-tag">PareCompileSource</span> <span class="tok-attr">Include</span>=<span class="tok-str">&quot;Components/**/*.svelte&quot;</span> <span class="tok-attr">PareCompiler</span>=<span class="tok-str">&quot;husk&quot;</span>
+                     <span class="tok-attr">PareOutputExtension</span>=<span class="tok-str">&quot;.svelte.js&quot;</span> <span class="tok-attr">PareServeAt</span>=<span class="tok-str">&quot;/&quot;</span> <span class="tok-punc">/&gt;</span>
+<span class="tok-punc">&lt;/</span><span class="tok-tag">ItemGroup</span><span class="tok-punc">&gt;</span>
+<span class="tok-punc">&lt;</span><span class="tok-tag">PropertyGroup</span><span class="tok-punc">&gt;</span>
+  <span class="tok-punc">&lt;</span><span class="tok-tag">PareCompileDependsOn</span><span class="tok-punc">&gt;</span>$(PareCompileDependsOn);HuskCompile<span class="tok-punc">&lt;/</span><span class="tok-tag">PareCompileDependsOn</span><span class="tok-punc">&gt;</span>
+<span class="tok-punc">&lt;/</span><span class="tok-tag">PropertyGroup</span><span class="tok-punc">&gt;</span>
+<span class="tok-punc">&lt;</span><span class="tok-tag">Target</span> <span class="tok-attr">Name</span>=<span class="tok-str">&quot;HuskCompile&quot;</span> <span class="tok-attr">Inputs</span>=<span class="tok-str">&quot;@(PareCompileSource)&quot;</span> <span class="tok-attr">Outputs</span>=&<span class="tok-attr">quot</span>;@(<span class="tok-attr">PareCompileSource-</span><span class="tok-punc">&gt;</span>'%(PareOutputPath)')&quot;&gt;
+  <span class="tok-com">&lt;!-- write each source's output to %(PareOutputPath) --&gt;</span>
+<span class="tok-punc">&lt;/</span><span class="tok-tag">Target</span><span class="tok-punc">&gt;</span>
+</code></pre>
+</div>
+<table>
+<thead>
+<tr>
+<th>Metadata</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PareCompiler</code></td>
+<td>required: the compiler's name, the same as its <code>IPareCompiler.Name</code></td>
+</tr>
+<tr>
+<td><code>PareOutputExtension</code></td>
+<td>required: the output's name is the source's name without its extension, plus this (<code>App.svelte</code> + <code>.svelte.js</code> = <code>App.svelte.js</code>)</td>
+</tr>
+<tr>
+<td><code>PareServeAt</code></td>
+<td>as for <code>TypeScriptSource</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Targets in <code>PareCompileDependsOn</code> run inside <code>PareStripTypeScript</code>, after the strip and before
+the outputs are registered. Each <code>@(PareCompileSource)</code> then has <code>PareOutputPath</code> (where to
+write; relative paths are below the project) and <code>PareRelativePath</code> (its URL or resource name).
+Skipping up-to-date sources is the target's job (<code>Inputs</code>/<code>Outputs</code>).</li>
+<li>Two outputs from one source (a component's <code>.js</code> and <code>.css</code>) are two items with the same
+<code>Include</code> and different extensions. Every file the target writes under <code>obj/</code> must be one of
+these outputs: the build deletes any other file there as a deleted source's output (a <code>.js.map</code>
+it was not told about, say).</li>
+<li>The sources leave <code>Content</code>, so a <code>.svelte</code> under <code>wwwroot</code> is not published. They are <code>Watch</code>
+items. <code>@(PareOutput)</code> lists their outputs, with <code>%(PareCompiler)</code>.</li>
+<li><code>error PARE204</code> for a missing <code>PareCompiler</code> (letters, digits, <code>.</code>, <code>_</code>, <code>-</code>) or
+<code>PareOutputExtension</code>. PARE201, PARE202 and PARE203 apply as for TypeScript, across both kinds of
+source.</li>
+</ul>
+<h2 id="hot-reload">Hot reload</h2>
+<p>On save in Development, <code>AddPareDevelopment()</code> hands each such source to the <code>IPareCompiler</code> with
+its name, registered in DI:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">C#</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="csharp"><code class="language-csharp">builder.<span class="tok-var">Services</span>.<span class="tok-fn">AddSingleton</span>&lt;<span class="tok-type">IPareCompiler</span>, <span class="tok-type">SvelteCompiler</span>&gt;();
+builder.<span class="tok-fn">AddPareDevelopment</span>();   <span class="tok-com">// a second call, from another package's setup, adds no watcher; its options apply too</span>
+</code></pre>
+</div>
+<p><code>CompileAsync(sourcePath, source, outputPaths, logger, cancellationToken)</code> returns the text of each
+output keyed by path, or null after logging its errors (the old outputs stay). Pare calls each
+compiler one source at a time, writes what changed and deletes the outputs of a deleted source.
+Sources out of date at start are compiled before the app serves. A source whose compiler is not
+registered gets a warning at start and is not compiled.</p>
+<p>The decision behind this is
+decision 005 (<code>docs/decisions/</code> in the <a href="https://github.com/extrode/pare/tree/dev/docs/decisions">repository</a>).</p>
+
+        </article>
+        <div class="page-nav" id="page-nav">
+          <div class="prev-next"><a class="pn-prev" href="03-guides-cli.html">
+  <span class="pn-label">&#8592; prev</span>
+  <span class="pn-title">The pare command</span>
+</a><a class="pn-next" href="03-guides-hot-reload.html">
+  <span class="pn-label">next &#8594;</span>
+  <span class="pn-title">Hot reload</span>
+</a></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===== status bar ===== -->
+  <footer class="jt-statusbar">
+    <span class="status-dot">&#9679; pare docs</span>
+    <span class="status-spacer"></span>
+    <button class="status-kbd" type="button" onclick="toggleHelp()"><kbd>?</kbd> shortcuts</button>
+  </footer>
+</div>
+
+<!-- ===== search (opened with / or Ctrl+K; the index loads on first use) ===== -->
+<div class="search-overlay" id="search-overlay" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <input type="search" id="search-input" placeholder="search the docs" autocomplete="off"
+           spellcheck="false" oninput="runSearch(this.value)">
+    <div class="search-results" id="search-results" role="listbox"></div>
+    <div class="search-foot"><kbd>&#8593;</kbd><kbd>&#8595;</kbd> move <kbd>Enter</kbd> open <kbd>Esc</kbd> close</div>
+  </div>
+</div>
+
+<!-- ===== keyboard shortcuts ===== -->
+<div class="kbd-help" id="kbd-help" hidden>
+  <div class="kbd-box" role="dialog" aria-label="Keyboard shortcuts">
+    <div class="kbd-title">Keyboard shortcuts</div>
+    <table>
+      <tr><td><kbd>/</kbd> <kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>search</td></tr>
+      <tr><td><kbd>f</kbd></td><td>filter the sidebar; <kbd>Enter</kbd> opens the first match, <kbd>Esc</kbd> clears</td></tr>
+      <tr><td><kbd>h</kbd></td><td>home</td></tr>
+      <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>previous / next page</td></tr>
+      <tr><td><kbd>j</kbd> <kbd>k</kbd></td><td>next / previous heading</td></tr>
+      <tr><td><kbd>b</kbd></td><td>toggle the sidebar</td></tr>
+      <tr><td><kbd>w</kbd></td><td>reset the sidebar width</td></tr>
+      <tr><td><kbd>o</kbd></td><td>toggle "on this page"</td></tr>
+      <tr><td><kbd>t</kbd></td><td>colour scheme: auto, light, dark</td></tr>
+      <tr><td><kbd>-</kbd> <kbd>=</kbd> <kbd>0</kbd></td><td>text smaller / larger / reset</td></tr>
+      <tr><td><kbd>?</kbd></td><td>this panel</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>close</td></tr>
+    </table>
+  </div>
+</div>
+<script src="nav.js"></script>
+</body>
+</html>

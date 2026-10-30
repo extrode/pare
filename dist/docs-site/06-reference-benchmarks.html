@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en" class="jt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Benchmarks — pare docs</title>
+<link rel="stylesheet" href="site.css">
+<script>
+/* Inline, in the head, and before anything paints. A saved preference applied
+   from nav.js would arrive after the first frame, and the reader would watch
+   the page flash the wrong theme on every navigation. */
+(function () {
+  var d = document.documentElement;
+  var KEYS = ['theme', 'fs', 'nav-w', 'toc', 'nav'];
+  /* Over file:// Firefox gives every page its own empty localStorage, so the link
+     that brought the reader here carries the preferences too: ?dg=nav-w:336,ts:…
+     The newer of the two wins, by the ts each side records at its last change, so
+     a reload after a change keeps the change and a stale bookmark loses to storage. */
+  var fromLink = {};
+  var m = /[?&]dg=([^&#]*)/.exec(location.search);
+  if (m) decodeURIComponent(m[1]).split(',').forEach(function (kv) {
+    var i = kv.indexOf(':');
+    if (i > 0) fromLink[kv.slice(0, i)] = kv.slice(i + 1);
+  });
+  var pref = {};
+  try {
+    var stored = parseInt(localStorage.getItem('dg-ts'), 10) || 0;
+    var linked = parseInt(fromLink.ts, 10) || 0;
+    if (m && linked >= stored) {
+      KEYS.forEach(function (k) {
+        pref[k] = fromLink[k] || null;
+        if (pref[k]) localStorage.setItem('dg-' + k, pref[k]); else localStorage.removeItem('dg-' + k);
+      });
+      localStorage.setItem('dg-ts', String(linked));
+    } else {
+      KEYS.forEach(function (k) { pref[k] = localStorage.getItem('dg-' + k); });
+    }
+  } catch (e) { /* private mode, file:// with storage denied -- the link still counts */
+    KEYS.forEach(function (k) { pref[k] = fromLink[k] || null; });
+  }
+  if (pref.theme === 'light' || pref.theme === 'dark') d.setAttribute('data-theme', pref.theme);
+  var s = parseFloat(pref.fs);
+  if (s >= 0.75 && s <= 1.75) d.style.setProperty('--fs-scale', String(s));
+  var w = parseInt(pref['nav-w'], 10);
+  if (w >= 180 && w <= 480) d.style.setProperty('--nav-w', w + 'px');
+  if (pref.toc === 'hidden') d.setAttribute('data-toc', 'hidden');
+  if (pref.nav === 'hidden') d.setAttribute('data-nav', 'hidden');
+})();
+</script>
+</head>
+<body class="jt">
+<div class="jt-shell">
+
+  <!-- ===== header ===== -->
+  <header class="jt-header">
+    <button class="hamburger" aria-label="Toggle navigation" onclick="toggleNav()">&#9776;</button>
+    <div class="header-brand">
+      <span class="brand-name">pare</span>
+      <span class="brand-crumb">Reference &#8250; Benchmarks</span>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-tools">
+      <button class="tool-btn search-btn" type="button" onclick="openSearch()" title="Search (/)">
+        <span class="search-word">search</span><kbd>/</kbd>
+      </button>
+      <div class="fs-group" role="group" aria-label="Text size">
+        <button class="tool-btn" onclick="fontSize(-1)" title="Smaller text">A&#8722;</button>
+        <button class="tool-btn" onclick="fontSize(0)" title="Reset text size">A</button>
+        <button class="tool-btn" onclick="fontSize(1)" title="Larger text">A+</button>
+      </div>
+      <button class="tool-btn theme-btn" id="theme-btn" onclick="cycleTheme()"
+              title="Colour scheme" aria-live="polite">auto</button>
+    </div>
+  </header>
+
+  <!-- ===== body ===== -->
+  <div class="jt-body">
+
+    <!-- sidebar backdrop (mobile) -->
+    <div class="nav-backdrop" id="nav-backdrop" onclick="toggleNav()"></div>
+
+    <!-- sidebar -->
+    <nav class="jt-sidebar" id="jt-sidebar" aria-label="Documentation navigation">
+      <div class="sidebar-filter">
+        <span class="filter-icon">/</span>
+        <input type="text" id="nav-filter" placeholder="filter nav" oninput="filterNav(this.value)" autocomplete="off">
+      </div>
+      <div class="sidebar-scroll" id="sidebar-scroll">
+        <div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Overview</span>
+  </div>
+  <div class="nav-group-items">  <a href="00-overview-readme.html">Pare documentation</a>  <a href="00-overview-comparison.html">Pare and the alternatives</a>  <a href="00-overview-how-it-works.html">How Pare works</a>  <a href="00-overview-what-pare-does-not-do.html">What Pare does not do</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Getting started</span>
+  </div>
+  <div class="nav-group-items">  <a href="01-getting-started-readme.html">Getting started</a>  <a href="01-getting-started-first-static-site.html">Your first static site</a>  <a href="01-getting-started-first-web-app.html">Your first web app</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Guides</span>
+  </div>
+  <div class="nav-group-items">  <a href="03-guides-readme.html">Guides</a>  <a href="03-guides-c-library.html">Using libpare from C and other languages</a>  <a href="03-guides-cli.html">The pare command</a>  <a href="03-guides-compile-other-languages.html">Compiling other languages</a>  <a href="03-guides-hot-reload.html">Hot reload</a>  <a href="03-guides-library.html">Using the library</a>  <a href="03-guides-non-web-projects.html">Non-web projects</a>  <a href="03-guides-offline-restore.html">Offline and vendored packages</a>  <a href="03-guides-razor-class-libraries.html">Razor class libraries</a>  <a href="03-guides-type-checking.html">Type checking in CI</a>  <a href="03-guides-typescript-outside-wwwroot.html">TypeScript outside wwwroot</a>  </div>
+</div>
+<div class="nav-group" data-group data-open="true">
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Reference</span>
+  </div>
+  <div class="nav-group-items">  <a href="06-reference-readme.html">Reference</a>  <a href="06-reference-benchmarks.html" class="active" aria-current="page">Benchmarks</a>  <a href="06-reference-c-api.html">C API</a>  <a href="06-reference-error-codes.html">Error codes</a>  <a href="06-reference-license.html">License</a>  <a href="06-reference-msbuild-properties.html">MSBuild properties</a>  <a href="06-reference-output-changes.html">Output changes</a>  <a href="06-reference-supported-syntax.html">Supported syntax</a>  <a href="06-reference-troubleshooting.html">Troubleshooting</a>  </div>
+</div>
+
+      </div>
+      <div class="nav-resizer" id="nav-resizer" title="Drag to resize, double-click to reset"></div>
+    </nav>
+
+    <!-- content -->
+    <main class="jt-content has-toc" id="jt-content">
+      <nav class="toc" aria-label="On this page"><button class="toc-tab" type="button" onclick="toggleToc()" title="Show on this page (o)">On this page</button><div class="toc-title"><span>On this page</span><button class="toc-toggle" type="button" onclick="toggleToc()" title="Hide or show (o)"></button></div><a class="toc-l2" href="#library-speed">Library speed</a><a class="toc-l2" href="#against-other-tools">Against other tools</a><a class="toc-l2" href="#real-world-check">Real-world check</a><a class="toc-l2" href="#reproduce">Reproduce</a></nav>
+      <div class="content-inner">
+        <nav class="breadcrumb" aria-label="Breadcrumb">Reference &#8250; Benchmarks</nav>
+        <article>
+<h1 id="benchmarks">Benchmarks</h1>
+<p>Measured on an Apple M1 Max (osx-arm64), .NET 10.0, Release build.</p>
+<h2 id="library-speed">Library speed</h2>
+<p>BenchmarkDotNet 0.15.8, one <code>TypeStripper.Strip</code> call per source, output to a reused buffer:</p>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th style="text-align: right;">Mean</th>
+<th style="text-align: right;">MB/s</th>
+<th style="text-align: right;">Allocated</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TypeScript 5.9.3 <code>checker.ts</code> (3.1 MB)</td>
+<td style="text-align: right;">9.3 ms</td>
+<td style="text-align: right;">335</td>
+<td style="text-align: right;">0 B</td>
+</tr>
+<tr>
+<td>Real-world corpus, 2,392 files (19.5 MB)</td>
+<td style="text-align: right;">60.2 ms</td>
+<td style="text-align: right;">272</td>
+<td style="text-align: right;">0 B</td>
+</tr>
+<tr>
+<td><code>(a = </code> nested 1,000 deep</td>
+<td style="text-align: right;">32.3 ms</td>
+<td style="text-align: right;">0.2</td>
+<td style="text-align: right;">0 B</td>
+</tr>
+</tbody>
+</table>
+<p>Deep nesting is quadratic, as in TypeScript's own parser. Real code never reaches it.</p>
+<h2 id="against-other-tools">Against other tools</h2>
+<p>The same 2,392 files (TypeScript's compiler, Vue, Hono, Deno std, Svelte, Zod at pinned commits)
+through other tools. Each tool's output is compared with Pare's byte for byte, then as an Acornima
+syntax tree without locations. Printers (esbuild, oxc, Deno) reprint literals, so the tree
+comparison ignores literal spelling, <code>{ a: a }</code> versus <code>{ a }</code> and <code>void 0</code> versus <code>undefined</code>. For
+printers, a looser comparison also ignores imports (they drop unused ones) and a numeric suffix on
+names (they rename a shadowed <code>x</code> to <code>x1</code>). Deno is Deno's own transpiler (swc, as <code>deno run</code> uses
+it), read from its cache after <code>deno cache --no-check</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th style="text-align: right;">Same bytes</th>
+<th style="text-align: right;">Same tree</th>
+<th style="text-align: right;">Same but imports dropped or names renamed</th>
+<th style="text-align: right;">Differ</th>
+<th style="text-align: right;">Throughput</th>
+<th style="text-align: right;">Pare is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pare 0.5.0</td>
+<td style="text-align: right;">-</td>
+<td style="text-align: right;">-</td>
+<td style="text-align: right;">-</td>
+<td style="text-align: right;">-</td>
+<td style="text-align: right;">279 MB/s</td>
+<td style="text-align: right;">-</td>
+</tr>
+<tr>
+<td>Node 24.16 <code>stripTypeScriptTypes</code></td>
+<td style="text-align: right;">1,898</td>
+<td style="text-align: right;">490</td>
+<td style="text-align: right;">-</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">40 MB/s</td>
+<td style="text-align: right;">7.0x faster</td>
+</tr>
+<tr>
+<td>oxc-transform 0.154.0</td>
+<td style="text-align: right;">13</td>
+<td style="text-align: right;">2,375</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">87 MB/s</td>
+<td style="text-align: right;">3.2x faster</td>
+</tr>
+<tr>
+<td>ts-blank-space 0.9.0</td>
+<td style="text-align: right;">1,967</td>
+<td style="text-align: right;">420</td>
+<td style="text-align: right;">-</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">28 MB/s</td>
+<td style="text-align: right;">10.0x faster</td>
+</tr>
+<tr>
+<td>esbuild 0.28.2</td>
+<td style="text-align: right;">11</td>
+<td style="text-align: right;">1,961</td>
+<td style="text-align: right;">296</td>
+<td style="text-align: right;">120</td>
+<td style="text-align: right;">12 MB/s</td>
+<td style="text-align: right;">23.4x faster</td>
+</tr>
+<tr>
+<td>Deno 2.9.7 (swc)</td>
+<td style="text-align: right;">11</td>
+<td style="text-align: right;">2,326</td>
+<td style="text-align: right;">51</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">-</td>
+<td style="text-align: right;">-</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Same tree but not the same bytes: Node and ts-blank-space keep tabs and write UTF-8-width spaces
+for non-ASCII comment text, and Pare writes its semicolon fixes in a few places they leave blank.</li>
+<li>ts-blank-space's one difference is a bug on its side: <code>get!: T</code> followed by another field on the
+next line becomes a getter, and its output does not parse. Pare had the same bug until this
+comparison found it.</li>
+<li>Deno's 51: it drops imports whose names are unused, including <code>import {} from &quot;m&quot;</code>, which still
+loads <code>m</code> (Pare keeps it, as <code>verbatimModuleSyntax</code> requires), and renames shadowed bindings.</li>
+<li>esbuild's 120: it turns strings with line breaks into template literals and folds some
+expressions. None is a Pare error.</li>
+<li>Four files are left out: their output does not parse for any stripper, because they import or
+re-export a type without <code>type</code>, which needs type information to remove.</li>
+<li>Whole process over all files: the <code>pare</code> CLI (NativeAOT) 0.95 s, <code>deno cache --no-check</code> from a
+cold cache 1.1 s, one run each.</li>
+</ul>
+<p>Throughput is the best of 5 passes in one run on a laptop and moves by 10 to 20 percent between
+runs. The BenchmarkDotNet numbers above are the steady ones.</p>
+<h2 id="real-world-check">Real-world check</h2>
+<p><code>scripts/run-std-tests.cs</code> runs Deno's standard library test suite on Pare's output. It strips a
+copy of <a href="https://github.com/denoland/std">denoland/std</a> (pinned commit, 1,600+ files) with the
+<code>pare</code> CLI in about 0.5 s, points the <code>@std/*</code> imports at the <code>.js</code> files, and runs <code>deno test</code> on
+each package's original <code>*_test.ts</code> and stripped <code>*_test.js</code>:</p>
+<ul>
+<li>38 of 42 packages give the same result (4,997 passing tests). 5,521 tests pass on Pare's output
+in all.</li>
+<li>csv: one test compares <code>Function.prototype.toString()</code> with Deno's reprinted <code>(n)=&gt;n</code>. A
+blanking stripper keeps <code>(n        ) =&gt; n</code>.</li>
+<li>testing: snapshot tests look for a snapshot file named after the <code>.ts</code> test file.</li>
+<li>http: one test passes only on the <code>.js</code> copy, because the TypeScript copy sits under a dot
+directory (<code>.corpus</code>) that <code>serveDir()</code> refuses.</li>
+<li>expect: not run. Pare rejects three of its files (parameter properties and a <code>&lt;T&gt;x</code> assertion,
+which generate runtime code), so <code>expect.js</code> is missing.</li>
+</ul>
+<p>Failures common to both runs (cli, encoding, fmt, fs and others) come from the environment.</p>
+<h2 id="reproduce">Reproduce</h2>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">bash</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="sh"><code class="language-sh"><span class="tok-fn">dotnet</span> run scripts/get-bench-corpus.cs                       <span class="tok-com"># ~25 MB into .corpus/realworld</span>
+<span class="tok-fn">npm</span> <span class="tok-attr">--prefix</span> tests/Extrode.Pare.Bench/compare ci <span class="tok-attr">--ignore-scripts</span>
+<span class="tok-fn">dotnet</span> publish src/Extrode.Pare.Cli <span class="tok-attr">-c</span> Release <span class="tok-attr">-r</span> osx-arm64 <span class="tok-attr">-o</span> tmp/aot
+<span class="tok-fn">dotnet</span> run <span class="tok-attr">-c</span> Release <span class="tok-attr">--project</span> tests/Extrode.Pare.Bench -- compare <span class="tok-attr">--passes</span> <span class="tok-num">5</span>
+<span class="tok-fn">dotnet</span> run <span class="tok-attr">-c</span> Release <span class="tok-attr">--project</span> tests/Extrode.Pare.Bench -- <span class="tok-attr">--filter</span> <span class="tok-str">'*'</span>
+<span class="tok-fn">dotnet</span> run scripts/run-std-tests.cs            <span class="tok-com"># or name packages: ... -- yaml semver</span>
+</code></pre>
+</div>
+<p><code>compare</code> writes every tool's output under <code>tmp/compare/</code> and the differences to
+<code>tmp/compare/differences.tsv</code>.</p>
+
+        </article>
+        <div class="page-nav" id="page-nav">
+          <div class="prev-next"><a class="pn-prev" href="06-reference-readme.html">
+  <span class="pn-label">&#8592; prev</span>
+  <span class="pn-title">Reference</span>
+</a><a class="pn-next" href="06-reference-c-api.html">
+  <span class="pn-label">next &#8594;</span>
+  <span class="pn-title">C API</span>
+</a></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===== status bar ===== -->
+  <footer class="jt-statusbar">
+    <span class="status-dot">&#9679; pare docs</span>
+    <span class="status-spacer"></span>
+    <button class="status-kbd" type="button" onclick="toggleHelp()"><kbd>?</kbd> shortcuts</button>
+  </footer>
+</div>
+
+<!-- ===== search (opened with / or Ctrl+K; the index loads on first use) ===== -->
+<div class="search-overlay" id="search-overlay" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <input type="search" id="search-input" placeholder="search the docs" autocomplete="off"
+           spellcheck="false" oninput="runSearch(this.value)">
+    <div class="search-results" id="search-results" role="listbox"></div>
+    <div class="search-foot"><kbd>&#8593;</kbd><kbd>&#8595;</kbd> move <kbd>Enter</kbd> open <kbd>Esc</kbd> close</div>
+  </div>
+</div>
+
+<!-- ===== keyboard shortcuts ===== -->
+<div class="kbd-help" id="kbd-help" hidden>
+  <div class="kbd-box" role="dialog" aria-label="Keyboard shortcuts">
+    <div class="kbd-title">Keyboard shortcuts</div>
+    <table>
+      <tr><td><kbd>/</kbd> <kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>search</td></tr>
+      <tr><td><kbd>f</kbd></td><td>filter the sidebar; <kbd>Enter</kbd> opens the first match, <kbd>Esc</kbd> clears</td></tr>
+      <tr><td><kbd>h</kbd></td><td>home</td></tr>
+      <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>previous / next page</td></tr>
+      <tr><td><kbd>j</kbd> <kbd>k</kbd></td><td>next / previous heading</td></tr>
+      <tr><td><kbd>b</kbd></td><td>toggle the sidebar</td></tr>
+      <tr><td><kbd>w</kbd></td><td>reset the sidebar width</td></tr>
+      <tr><td><kbd>o</kbd></td><td>toggle "on this page"</td></tr>
+      <tr><td><kbd>t</kbd></td><td>colour scheme: auto, light, dark</td></tr>
+      <tr><td><kbd>-</kbd> <kbd>=</kbd> <kbd>0</kbd></td><td>text smaller / larger / reset</td></tr>
+      <tr><td><kbd>?</kbd></td><td>this panel</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>close</td></tr>
+    </table>
+  </div>
+</div>
+<script src="nav.js"></script>
+</body>
+</html>

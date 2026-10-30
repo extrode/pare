@@ -13,4 +13,5 @@ BenchmarkDotNet.Artifacts/
 .claude/worktrees/
 node_modules/
 .DS_Store
-dist/
+/dist/*
+!/dist/docs-site/
