@@ -86,4 +86,7 @@ Not doing, with the reason. Kept so the same idea does not get re-raised every q
   `docs/01-getting-started/README.md:42`, `docs/01-getting-started/first-static-site.md:18`, and
   likely `docs/03-guides/cli.md`. Change them in the release prep that tags the first version
   carrying `PareCliFrameworkDependent` (the install line, the .NET 10 runtime need, slower start-up
-  than the archive). Rebuild `dist/docs-site` with `scripts/build-docs.sh`. (2026-10-30)
+  than the archive). Rebuild `dist/docs-site` with `scripts/build-docs.sh`. The root README is also the nupkg's readme,
+  so a tag pushed before this is done puts "not on nuget.org yet" on the package's own nuget.org
+  page for good; add a test that the packed README lacks that sentence in the same change.
+  (2026-10-30)

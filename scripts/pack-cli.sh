@@ -1,6 +1,8 @@
 #!/bin/sh
 # Packs the pare CLI into tmp/dist:
-#   Extrode.Pare.Cli.<v>.nupkg          .NET tool pointer package (lists the RID packages)
+#   Extrode.Pare.Cli.<v>.nupkg          .NET tool pointer package (lists the RID packages). NOT what
+#                                       nuget.org holds: release.yml publishes a framework-dependent
+#                                       Extrode.Pare.Cli of the same id and version. Do not upload it.
 #   Extrode.Pare.Cli.<rid>.<v>.nupkg    NativeAOT binary for one RID
 #   Extrode.Pare.Cli.any.<v>.nupkg      framework-dependent fallback for unlisted RIDs
 #   pare-<v>-<rid>.tar.gz               the same binary as a standalone archive

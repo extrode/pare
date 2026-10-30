@@ -3,6 +3,7 @@ using System.Diagnostics;
 namespace Extrode.Pare.Integration;
 
 /// <summary>Runs `dotnet build` on a throwaway project that imports the package's props and targets.</summary>
+[Collection("cli-pack")]
 public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildIntegrationTests.ServedProject>
 {
     private static readonly string RepoRoot = FindRepoRoot();

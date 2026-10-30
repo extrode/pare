@@ -1,9 +1,11 @@
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Reflection;
 
 namespace Extrode.Pare.Integration;
 
 /// <summary>Packs the framework-dependent `Extrode.Pare.Cli` that release.yml publishes, installs it and runs it.</summary>
+[Collection("cli-pack")]
 public sealed class CliToolPackageTests : IDisposable
 {
     private const string Version = "0.0.1";
@@ -41,6 +43,19 @@ public sealed class CliToolPackageTests : IDisposable
         string xml = settings.ReadToEnd();
         Assert.Contains("""<Command Name="pare" EntryPoint="pare.dll" Runner="dotnet" />""", xml);
         Assert.DoesNotContain("RuntimeIdentifierPackage", xml);
+
+        using var nuspec = new StreamReader(zip.GetEntry("Extrode.Pare.Cli.nuspec")!.Open());
+        string spec = nuspec.ReadToEnd();
+        Assert.DoesNotContain("NativeAOT", spec, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(".NET 10 runtime", spec);
+    }
+
+    [Fact]
+    public void Classes_that_pack_the_cli_run_one_at_a_time()
+    {
+        // Both pack src/Extrode.Pare.Cli in place in Release, with different settings.
+        foreach (var type in new[] { typeof(CliToolPackageTests), typeof(BuildIntegrationTests) })
+            Assert.Equal("cli-pack", type.GetCustomAttribute<CollectionAttribute>()?.Name);
     }
 
     [Fact]
