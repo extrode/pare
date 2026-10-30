@@ -10,7 +10,7 @@ output in the assembly instead.
   <EnablePareDefaultItems>false</EnablePareDefaultItems>
 </PropertyGroup>
 <ItemGroup>
-  <PackageReference Include="Extrode.Pare.Build" Version="0.6.2" PrivateAssets="all" />
+  <PackageReference Include="Extrode.Pare.Build" Version="0.6.3" PrivateAssets="all" />
   <TypeScriptSource Include="web/**/*.ts" />
 </ItemGroup>
 ```

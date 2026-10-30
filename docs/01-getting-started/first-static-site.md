@@ -10,12 +10,12 @@ from the [releases page](https://github.com/extrode/pare/releases) (`.zip` on Wi
 and put the folder on your `PATH`:
 
 ```sh
-tar -xzf pare-0.6.2-osx-arm64.tar.gz
-export PATH="$PWD/pare-0.6.2-osx-arm64:$PATH"
+tar -xzf pare-0.6.3-osx-arm64.tar.gz
+export PATH="$PWD/pare-0.6.3-osx-arm64:$PATH"
 pare --version
 ```
 
-The `Extrode.Pare.Cli` .NET tool package is not on nuget.org yet, so the archive is the way in.
+With the .NET 10 runtime installed you can use `dotnet tool install -g Extrode.Pare.Cli` instead; it starts slower than the archive.
 
 ## 2. Get the sample
 

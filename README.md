@@ -69,7 +69,7 @@ echo 'const n: number = 1;' | pare --stdin
 const n         = 1;
 ```
 
-The `Extrode.Pare.Cli` .NET tool package is not on nuget.org yet.
+The `Extrode.Pare.Cli` .NET tool package is on nuget.org (`dotnet tool install -g Extrode.Pare.Cli`). It needs the .NET 10 runtime and starts slower than the NativeAOT archive.
 
 ## In an ASP.NET Core app
 
