@@ -3,11 +3,11 @@ using System.Text.RegularExpressions;
 
 namespace Extrode.Pare.Tests;
 
-/// <summary>Keeps docs/error-codes.md in step with the codes Pare emits.</summary>
+/// <summary>Keeps docs/06-reference/error-codes.md in step with the codes Pare emits.</summary>
 public partial class ErrorCodesDocTests
 {
     private static readonly string RepoRoot = FindRepoRoot();
-    private static readonly string Doc = File.ReadAllText(Path.Combine(RepoRoot, "docs", "error-codes.md")).ReplaceLineEndings("\n");
+    private static readonly string Doc = File.ReadAllText(Path.Combine(RepoRoot, "docs", "06-reference", "error-codes.md")).ReplaceLineEndings("\n");
     private static readonly string Targets = File.ReadAllText(Path.Combine(RepoRoot, "src", "Extrode.Pare.Build", "build", "Extrode.Pare.Build.targets"));
 
     private static string FindRepoRoot()

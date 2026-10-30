@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Docs rewritten as a site: overview, a step-by-step first web app and first static site, guides and
+  a reference, built with `scripts/build-docs.sh`. `docs/error-codes.md` moved to
+  `docs/06-reference/error-codes.md`; the README is shorter.
+
 ## [0.6.1] - 2026-10-30
 
 - No PARE200 for a compiled source whose output keeps its name (`clock.svelte.js` to

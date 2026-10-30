@@ -40,7 +40,7 @@ extern "C" {
 #define PARE_REWRITE_RELATIVE_IMPORT_EXTENSIONS 1u
 
 typedef struct pare_diagnostic {
-    int32_t code;    /* 1 syntax error; 100-107 non-erasable syntax (docs/error-codes.md) */
+    int32_t code;    /* 1 syntax error; 100-107 non-erasable syntax (docs/06-reference/error-codes.md) */
     int32_t line;    /* 1-based */
     int32_t column;  /* 1-based, in UTF-16 code units: what browsers and the pare CLI report */
     int32_t start;   /* byte offset into the source passed in */

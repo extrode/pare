@@ -272,8 +272,8 @@ static web assets.
 
 `error PARE204: PareCompileSource needs PareCompiler (the compiler's name: letters, digits, . _ -) and PareOutputExtension (the output's extension, a dot and a name such as .svelte.js); got PareCompiler="husk" PareOutputExtension="svelte.js".`
 
-MSBuild package only. A package that compiles another language to JavaScript (see "Other
-compilers" in the README) declared a `PareCompileSource` item without a `PareCompiler` made of letters, digits, `.`, `_`
+MSBuild package only. A package that compiles another language to JavaScript (see
+[Compiling other languages](../03-guides/compile-other-languages.md)) declared a `PareCompileSource` item without a `PareCompiler` made of letters, digits, `.`, `_`
 and `-`, or without a `PareOutputExtension` that starts with a dot and holds no folder or quote. The build stops before compiling
 anything. This is a fault in that package's `.props` or in the project file that added the item:
 
