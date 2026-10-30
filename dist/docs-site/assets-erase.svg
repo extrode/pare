@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="250" viewBox="0 0 760 250" font-family="'JetBrains Mono', Consolas, monospace">
+  <style>
+    .bg    { fill: #1e2227; stroke: #3a4048; stroke-width: 1.5; }
+    .title { fill: #e8eaed; font-size: 15px; font-weight: 600; }
+    .lane  { fill: #9aa3ad; font-size: 12px; font-weight: 600; }
+    .code  { fill: #d5d9de; font-size: 14px; white-space: pre; }
+    .gone  { fill: #f85149; font-size: 14px; white-space: pre; }
+    .ok    { fill: #56d364; font-size: 12px; font-weight: 600; }
+    .sub   { fill: #6e7781; font-size: 11px; }
+    .ruler { stroke: #4a5158; stroke-width: 1; stroke-dasharray: 3 3; }
+    .flow  { stroke: #4a5158; stroke-width: 1.5; fill: none; }
+  </style>
+  <defs>
+    <marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#4a5158"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="10" y="10" width="740" height="230" rx="8"/>
+  <text x="30" y="38" class="title">Erase, do not rewrite</text>
+
+  <text x="30" y="70" class="lane">app.ts</text>
+  <text x="30" y="96" class="code" xml:space="preserve">let name<tspan class="gone">: string</tspan> = "Pare";</text>
+  <text x="30" y="118" class="code" xml:space="preserve">greet(name<tspan class="gone">!</tspan> <tspan class="gone">as string</tspan>);</text>
+
+  <path class="flow" d="M 380 108 L 420 108" marker-end="url(#a)"/>
+  <text x="338" y="130" class="sub">Pare</text>
+
+  <text x="440" y="70" class="lane">app.js</text>
+  <text x="440" y="96" class="code" xml:space="preserve">let name         = "Pare";</text>
+  <text x="440" y="118" class="code" xml:space="preserve">greet(name           );</text>
+
+  <line class="ruler" x1="30" y1="150" x2="720" y2="150"/>
+  <text x="30" y="178" class="ok">Same line. Same column. Same length.</text>
+  <text x="30" y="200" class="sub">No source map needed: a stack trace in app.js already points at the right place in app.ts.</text>
+  <text x="30" y="220" class="sub">Red is what Pare removes. Line breaks are never removed.</text>
+</svg>

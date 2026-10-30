@@ -40,10 +40,15 @@ remove() { # relative-path
 }
 
 printf '== 1. scratch\n'
-for rel in tmp/audit tmp/stranger tmp/guide tmp/pk tmp/docs-src tmp/shot.py tmp/bad.ts dist/docs-site; do
+for rel in tmp/audit tmp/stranger tmp/guide tmp/pk tmp/docs-src tmp/shot.py tmp/bad.ts; do
     remove "$rel" "$([ "$delete_scratch" = 1 ] && echo yes || echo no)"
 done
 for f in "$repo"/tmp/shot-*.png; do [ -e "$f" ] && remove "tmp/$(basename "$f")" "$([ "$delete_scratch" = 1 ] && echo yes || echo no)"; done
+
+if [ -d "$repo/.worktrees/v0.6.0" ]; then
+    if [ "$execute" = 1 ] && [ "$delete_scratch" = 1 ]; then git -C "$repo" worktree remove --force .worktrees/v0.6.0; printf 'removed worktree .worktrees/v0.6.0\n'
+    else printf 'would remove worktree .worktrees/v0.6.0 (the v0.6.0 rebuild)\n'; fi
+fi
 
 printf '== 2. merged branches\n'
 for b in fix/macos-archives-system-libs fix/windows-ci-tests fix/review-2026-10-30-1 docs/community-files; do

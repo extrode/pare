@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en" class="jt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your first web app — pare docs</title>
+<link rel="stylesheet" href="site.css">
+<script>
+/* Inline, in the head, and before anything paints. A saved preference applied
+   from nav.js would arrive after the first frame, and the reader would watch
+   the page flash the wrong theme on every navigation. */
+(function () {
+  var d = document.documentElement;
+  var KEYS = ['theme', 'fs', 'nav-w', 'toc', 'nav'];
+  /* Over file:// Firefox gives every page its own empty localStorage, so the link
+     that brought the reader here carries the preferences too: ?dg=nav-w:336,ts:…
+     The newer of the two wins, by the ts each side records at its last change, so
+     a reload after a change keeps the change and a stale bookmark loses to storage. */
+  var fromLink = {};
+  var m = /[?&]dg=([^&#]*)/.exec(location.search);
+  if (m) decodeURIComponent(m[1]).split(',').forEach(function (kv) {
+    var i = kv.indexOf(':');
+    if (i > 0) fromLink[kv.slice(0, i)] = kv.slice(i + 1);
+  });
+  var pref = {};
+  try {
+    var stored = parseInt(localStorage.getItem('dg-ts'), 10) || 0;
+    var linked = parseInt(fromLink.ts, 10) || 0;
+    if (m && linked >= stored) {
+      KEYS.forEach(function (k) {
+        pref[k] = fromLink[k] || null;
+        if (pref[k]) localStorage.setItem('dg-' + k, pref[k]); else localStorage.removeItem('dg-' + k);
+      });
+      localStorage.setItem('dg-ts', String(linked));
+    } else {
+      KEYS.forEach(function (k) { pref[k] = localStorage.getItem('dg-' + k); });
+    }
+  } catch (e) { /* private mode, file:// with storage denied -- the link still counts */
+    KEYS.forEach(function (k) { pref[k] = fromLink[k] || null; });
+  }
+  if (pref.theme === 'light' || pref.theme === 'dark') d.setAttribute('data-theme', pref.theme);
+  var s = parseFloat(pref.fs);
+  if (s >= 0.75 && s <= 1.75) d.style.setProperty('--fs-scale', String(s));
+  var w = parseInt(pref['nav-w'], 10);
+  if (w >= 180 && w <= 480) d.style.setProperty('--nav-w', w + 'px');
+  if (pref.toc === 'hidden') d.setAttribute('data-toc', 'hidden');
+  if (pref.nav === 'hidden') d.setAttribute('data-nav', 'hidden');
+})();
+</script>
+</head>
+<body class="jt">
+<div class="jt-shell">
+
+  <!-- ===== header ===== -->
+  <header class="jt-header">
+    <button class="hamburger" aria-label="Toggle navigation" onclick="toggleNav()">&#9776;</button>
+    <div class="header-brand">
+      <span class="brand-name">pare</span>
+      <span class="brand-crumb">Getting started &#8250; Your first web app</span>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-tools">
+      <button class="tool-btn search-btn" type="button" onclick="openSearch()" title="Search (/)">
+        <span class="search-word">search</span><kbd>/</kbd>
+      </button>
+      <div class="fs-group" role="group" aria-label="Text size">
+        <button class="tool-btn" onclick="fontSize(-1)" title="Smaller text">A&#8722;</button>
+        <button class="tool-btn" onclick="fontSize(0)" title="Reset text size">A</button>
+        <button class="tool-btn" onclick="fontSize(1)" title="Larger text">A+</button>
+      </div>
+      <button class="tool-btn theme-btn" id="theme-btn" onclick="cycleTheme()"
+              title="Colour scheme" aria-live="polite">auto</button>
+    </div>
+  </header>
+
+  <!-- ===== body ===== -->
+  <div class="jt-body">
+
+    <!-- sidebar backdrop (mobile) -->
+    <div class="nav-backdrop" id="nav-backdrop" onclick="toggleNav()"></div>
+
+    <!-- sidebar -->
+    <nav class="jt-sidebar" id="jt-sidebar" aria-label="Documentation navigation">
+      <div class="sidebar-filter">
+        <span class="filter-icon">/</span>
+        <input type="text" id="nav-filter" placeholder="filter nav" oninput="filterNav(this.value)" autocomplete="off">
+      </div>
+      <div class="sidebar-scroll" id="sidebar-scroll">
+        <div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Overview</span>
+  </div>
+  <div class="nav-group-items">  <a href="00-overview-readme.html">Pare documentation</a>  <a href="00-overview-comparison.html">Pare and the alternatives</a>  <a href="00-overview-how-it-works.html">How Pare works</a>  <a href="00-overview-what-pare-does-not-do.html">What Pare does not do</a>  </div>
+</div>
+<div class="nav-group" data-group data-open="true">
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Getting started</span>
+  </div>
+  <div class="nav-group-items">  <a href="01-getting-started-readme.html">Getting started</a>  <a href="01-getting-started-first-static-site.html">Your first static site</a>  <a href="01-getting-started-first-web-app.html" class="active" aria-current="page">Your first web app</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Guides</span>
+  </div>
+  <div class="nav-group-items">  <a href="03-guides-readme.html">Guides</a>  <a href="03-guides-c-library.html">Using libpare from C and other languages</a>  <a href="03-guides-cli.html">The pare command</a>  <a href="03-guides-compile-other-languages.html">Compiling other languages</a>  <a href="03-guides-hot-reload.html">Hot reload</a>  <a href="03-guides-library.html">Using the library</a>  <a href="03-guides-non-web-projects.html">Non-web projects</a>  <a href="03-guides-offline-restore.html">Offline and vendored packages</a>  <a href="03-guides-razor-class-libraries.html">Razor class libraries</a>  <a href="03-guides-type-checking.html">Type checking in CI</a>  <a href="03-guides-typescript-outside-wwwroot.html">TypeScript outside wwwroot</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Reference</span>
+  </div>
+  <div class="nav-group-items">  <a href="06-reference-readme.html">Reference</a>  <a href="06-reference-benchmarks.html">Benchmarks</a>  <a href="06-reference-c-api.html">C API</a>  <a href="06-reference-error-codes.html">Error codes</a>  <a href="06-reference-license.html">License</a>  <a href="06-reference-msbuild-properties.html">MSBuild properties</a>  <a href="06-reference-output-changes.html">Output changes</a>  <a href="06-reference-supported-syntax.html">Supported syntax</a>  <a href="06-reference-troubleshooting.html">Troubleshooting</a>  </div>
+</div>
+
+      </div>
+      <div class="nav-resizer" id="nav-resizer" title="Drag to resize, double-click to reset"></div>
+    </nav>
+
+    <!-- content -->
+    <main class="jt-content has-toc" id="jt-content">
+      <nav class="toc" aria-label="On this page"><button class="toc-tab" type="button" onclick="toggleToc()" title="Show on this page (o)">On this page</button><div class="toc-title"><span>On this page</span><button class="toc-toggle" type="button" onclick="toggleToc()" title="Hide or show (o)"></button></div><a class="toc-l2" href="#1-create-the-project">1. Create the project</a><a class="toc-l2" href="#2-add-the-packages">2. Add the packages</a><a class="toc-l2" href="#3-serve-static-files">3. Serve static files</a><a class="toc-l2" href="#4-write-some-typescript">4. Write some TypeScript</a><a class="toc-l2" href="#5-build-and-run">5. Build and run</a><a class="toc-l2" href="#6-edit-and-watch-it-reload">6. Edit and watch it reload</a><a class="toc-l2" href="#7-see-an-error">7. See an error</a><a class="toc-l2" href="#8-publish">8. Publish</a><a class="toc-l2" href="#where-next">Where next</a></nav>
+      <div class="content-inner">
+        <nav class="breadcrumb" aria-label="Breadcrumb">Getting started &#8250; Your first web app</nav>
+        <article>
+<h1 id="your-first-web-app">Your first web app</h1>
+<p>You will build a small ASP.NET Core site whose script is written in TypeScript, and see it served
+as JavaScript. You need the .NET 10 SDK and a terminal. No Node.</p>
+<figure class="diagram" style="--dw:1253px"><svg id="dg0" width="100%" xmlns="http://www.w3.org/2000/svg" class="flowchart" style="max-width:1253px;" viewBox="0 0 1253.390625 67" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#dg0{font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:14px;fill:var(--dg-text, #e6edf3);}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#dg0 .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#dg0 .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#dg0 .error-icon{fill:var(--dg-cluster-bg, #141922);}#dg0 .error-text{fill:var(--dg-edge-label, #ebe6dd);stroke:var(--dg-edge-label, #ebe6dd);}#dg0 .edge-thickness-normal{stroke-width:1px;}#dg0 .edge-thickness-thick{stroke-width:3.5px;}#dg0 .edge-pattern-solid{stroke-dasharray:0;}#dg0 .edge-thickness-invisible{stroke-width:0;fill:none;}#dg0 .edge-pattern-dashed{stroke-dasharray:3;}#dg0 .edge-pattern-dotted{stroke-dasharray:2;}#dg0 .marker{fill:var(--dg-line, #8b97a8);stroke:var(--dg-line, #8b97a8);}#dg0 .marker.cross{stroke:var(--dg-line, #8b97a8);}#dg0 svg{font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:14px;}#dg0 p{margin:0;}#dg0 .label{font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;color:var(--dg-text, #e6edf3);}#dg0 .cluster-label text{fill:var(--dg-title, #f0ece6);}#dg0 .cluster-label span{color:var(--dg-title, #f0ece6);}#dg0 .cluster-label span p{background-color:transparent;}#dg0 .label text,#dg0 span{fill:var(--dg-text, #e6edf3);color:var(--dg-text, #e6edf3);}#dg0 .node rect,#dg0 .node circle,#dg0 .node ellipse,#dg0 .node polygon,#dg0 .node path{fill:var(--dg-node-bg, #161b24);stroke:var(--dg-border, #2b323d);stroke-width:1px;}#dg0 .rough-node .label text,#dg0 .node .label text,#dg0 .image-shape .label,#dg0 .icon-shape .label{text-anchor:middle;}#dg0 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#dg0 .rough-node .label,#dg0 .node .label,#dg0 .image-shape .label,#dg0 .icon-shape .label{text-align:center;}#dg0 .node.clickable{cursor:pointer;}#dg0 .root .anchor path{fill:var(--dg-line, #8b97a8)!important;stroke-width:0;stroke:var(--dg-line, #8b97a8);}#dg0 .arrowheadPath{fill:var(--dg-title, #f0ece6);}#dg0 .edgePaths .path{stroke:var(--dg-line, #8b97a8);stroke-width:1px;}#dg0 .flowchart-link{stroke:var(--dg-line, #8b97a8);fill:none;}#dg0 .edgeLabel{background-color:var(--dg-node-bg-2, #1b2230);text-align:center;}#dg0 .edgeLabel p{background-color:var(--dg-node-bg-2, #1b2230);}#dg0 .edgeLabel rect{opacity:0.5;background-color:var(--dg-node-bg-2, #1b2230);fill:var(--dg-node-bg-2, #1b2230);}#dg0 .labelBkg{background-color:var(--dg-label-bg, rgba(27, 34, 48, 0.5));}#dg0 .cluster rect{fill:var(--dg-cluster-bg, #141922);stroke:hsl(218.5714285714, 0%, 0.5882352941%);stroke-width:1px;}#dg0 .cluster text{fill:var(--dg-title, #f0ece6);}#dg0 .cluster span{color:var(--dg-title, #f0ece6);}#dg0 .node .collapsed-indicator{fill:hsl(218.5714285714, 0%, 0.5882352941%);stroke:none;opacity:0.6;}#dg0 .node .collapsed-separator{stroke:hsl(218.5714285714, 0%, 0.5882352941%);stroke-width:0.75px;}#dg0 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;font-size:12px;background:var(--dg-cluster-bg, #141922);border:1px solid hsl(218.5714285714, 0%, 0.5882352941%);border-radius:2px;pointer-events:none;z-index:100;}#dg0 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:var(--dg-text, #e6edf3);}#dg0 rect.text{fill:none;stroke-width:0;}#dg0 .icon-shape,#dg0 .image-shape{background-color:var(--dg-node-bg-2, #1b2230);text-align:center;}#dg0 .icon-shape p,#dg0 .image-shape p{background-color:var(--dg-node-bg-2, #1b2230);padding:2px;}#dg0 .icon-shape .label rect,#dg0 .image-shape .label rect{opacity:0.5;background-color:var(--dg-node-bg-2, #1b2230);fill:var(--dg-node-bg-2, #1b2230);}#dg0 .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#dg0 .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#dg0 .node .neo-node{stroke:var(--dg-border, #2b323d);}#dg0 [data-look="neo"].node rect,#dg0 [data-look="neo"].cluster rect,#dg0 [data-look="neo"].node polygon{stroke:url(#dg0-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#dg0 [data-look="neo"].swimlane.cluster rect{filter:none;}#dg0 [data-look="neo"].node path{stroke:url(#dg0-gradient);stroke-width:1px;}#dg0 [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#dg0 [data-look="neo"].node .neo-line path{stroke:var(--dg-border, #2b323d);filter:none;}#dg0 [data-look="neo"].node circle{stroke:url(#dg0-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#dg0 [data-look="neo"].node circle .state-start{fill:#000000;}#dg0 [data-look="neo"].icon-shape .icon{fill:url(#dg0-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#dg0 [data-look="neo"].icon-shape .icon-neo path{stroke:url(#dg0-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#dg0 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}#dg0 [stop-color="#2b323d"]{stop-color:var(--dg-border, #2b323d);}</style><g><marker id="dg0_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="dg0_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></path></marker><marker id="dg0_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></path></marker><marker id="dg0_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></polygon></marker><marker id="dg0_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="dg0_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"></circle></marker><marker id="dg0_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="dg0_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"></circle></marker><marker id="dg0_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="dg0_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"></path></marker><marker id="dg0_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5;"></path></marker><marker id="dg0_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0;"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path d="M196.313,33.5L200.479,33.5C204.646,33.5,212.979,33.5,220.646,33.5C228.313,33.5,235.313,33.5,238.813,33.5L242.313,33.5" id="dg0-L_A_B_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_A_B_0" data-points="W3sieCI6MTk2LjMxMjUsInkiOjMzLjV9LHsieCI6MjIxLjMxMjUsInkiOjMzLjV9LHsieCI6MjQ2LjMxMjUsInkiOjMzLjV9XQ==" data-look="classic" marker-end="url(#dg0_flowchart-v2-pointEnd)"></path><path d="M433.438,33.5L437.604,33.5C441.771,33.5,450.104,33.5,457.771,33.5C465.438,33.5,472.438,33.5,475.938,33.5L479.438,33.5" id="dg0-L_B_C_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_B_C_0" data-points="W3sieCI6NDMzLjQzNzUsInkiOjMzLjV9LHsieCI6NDU4LjQzNzUsInkiOjMzLjV9LHsieCI6NDgzLjQzNzUsInkiOjMzLjV9XQ==" data-look="classic" marker-end="url(#dg0_flowchart-v2-pointEnd)"></path><path d="M661.938,33.5L666.104,33.5C670.271,33.5,678.604,33.5,686.271,33.5C693.938,33.5,700.938,33.5,704.438,33.5L707.938,33.5" id="dg0-L_C_D_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_C_D_0" data-points="W3sieCI6NjYxLjkzNzUsInkiOjMzLjV9LHsieCI6Njg2LjkzNzUsInkiOjMzLjV9LHsieCI6NzExLjkzNzUsInkiOjMzLjV9XQ==" data-look="classic" marker-end="url(#dg0_flowchart-v2-pointEnd)"></path><path d="M863.047,33.5L867.214,33.5C871.38,33.5,879.714,33.5,887.38,33.5C895.047,33.5,902.047,33.5,905.547,33.5L909.047,33.5" id="dg0-L_D_E_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_D_E_0" data-points="W3sieCI6ODYzLjA0Njg3NSwieSI6MzMuNX0seyJ4Ijo4ODguMDQ2ODc1LCJ5IjozMy41fSx7IngiOjkxMy4wNDY4NzUsInkiOjMzLjV9XQ==" data-look="classic" marker-end="url(#dg0_flowchart-v2-pointEnd)"></path><path d="M1025.156,33.5L1029.323,33.5C1033.49,33.5,1041.823,33.5,1049.49,33.5C1057.156,33.5,1064.156,33.5,1067.656,33.5L1071.156,33.5" id="dg0-L_E_F_0" class="edge-thickness-normal edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style=";" data-edge="true" data-et="edge" data-id="L_E_F_0" data-points="W3sieCI6MTAyNS4xNTYyNSwieSI6MzMuNX0seyJ4IjoxMDUwLjE1NjI1LCJ5IjozMy41fSx7IngiOjEwNzUuMTU2MjUsInkiOjMzLjV9XQ==" data-look="classic" marker-end="url(#dg0_flowchart-v2-pointEnd)"></path></g><g class="edgeLabels"><g class="edgeLabel"><g class="label" data-id="L_A_B_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_B_C_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_C_D_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_D_E_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g class="label" data-id="L_E_F_0" transform="translate(0, 0)"><foreignObject width="0" height="0"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="dg0-flowchart-A-0" data-look="classic" transform="translate(102.15625, 33.5)"><rect class="basic label-container" style="" x="-94.15625" y="-25.5" width="188.3125" height="51"></rect><g class="label" style="" transform="translate(-64.15625, -10.5)"><rect></rect><foreignObject width="128.3125" height="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 300px; text-align: center;"><span class="nodeLabel"><p>1. Create the project</p></span></div></foreignObject></g></g><g class="node default" id="dg0-flowchart-B-1" data-look="classic" transform="translate(339.875, 33.5)"><rect class="basic label-container" style="" x="-93.5625" y="-25.5" width="187.125" height="51"></rect><g class="label" style="" transform="translate(-63.5625, -10.5)"><rect></rect><foreignObject width="127.125" height="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 300px; text-align: center;"><span class="nodeLabel"><p>2. Add the packages</p></span></div></foreignObject></g></g><g class="node default" id="dg0-flowchart-C-3" data-look="classic" transform="translate(572.6875, 33.5)"><rect class="basic label-container" style="" x="-89.25" y="-25.5" width="178.5" height="51"></rect><g class="label" style="" transform="translate(-59.25, -10.5)"><rect></rect><foreignObject width="118.5" height="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 300px; text-align: center;"><span class="nodeLabel"><p>3. Serve static files</p></span></div></foreignObject></g></g><g class="node default" id="dg0-flowchart-D-5" data-look="classic" transform="translate(787.4921875, 33.5)"><rect class="basic label-container" style="" x="-75.5546875" y="-25.5" width="151.109375" height="51"></rect><g class="label" style="" transform="translate(-45.5546875, -10.5)"><rect></rect><foreignObject width="91.109375" height="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 300px; text-align: center;"><span class="nodeLabel"><p>4. Write app.ts</p></span></div></foreignObject></g></g><g class="node default" id="dg0-flowchart-E-7" data-look="classic" transform="translate(969.1015625, 33.5)"><rect class="basic label-container" style="" x="-56.0546875" y="-25.5" width="112.109375" height="51"></rect><g class="label" style="" transform="translate(-26.0546875, -10.5)"><rect></rect><foreignObject width="52.109375" height="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 300px; text-align: center;"><span class="nodeLabel"><p>5. Run it</p></span></div></foreignObject></g></g><g class="node default" id="dg0-flowchart-F-9" data-look="classic" transform="translate(1160.2734375, 33.5)"><rect class="basic label-container" style="" x="-85.1171875" y="-25.5" width="170.234375" height="51"></rect><g class="label" style="" transform="translate(-55.1171875, -10.5)"><rect></rect><foreignObject width="110.234375" height="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 300px; text-align: center;"><span class="nodeLabel"><p>6. Edit and reload</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="dg0-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><defs><filter id="dg0-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"></feDropShadow></filter></defs><linearGradient id="dg0-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#2b323d" stop-opacity="1"></stop><stop offset="100%" stop-color="hsl(220, 0%, 4.7058823529%)" stop-opacity="1"></stop></linearGradient></svg></figure>
+<h2 id="1-create-the-project">1. Create the project</h2>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">bash</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="sh"><code class="language-sh"><span class="tok-fn">dotnet</span> new web <span class="tok-attr">-n</span> Hello
+<span class="tok-fn">cd</span> Hello
+</code></pre>
+</div>
+<h2 id="2-add-the-packages">2. Add the packages</h2>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">bash</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="sh"><code class="language-sh"><span class="tok-fn">dotnet</span> add package Extrode.Pare.Build
+<span class="tok-fn">dotnet</span> add package Extrode.Pare.AspNetCore
+</code></pre>
+</div>
+<p>Open <code>Hello.csproj</code> and mark the build package private. This keeps the build step out of any
+project that references yours:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">XML</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="xml"><code class="language-xml"><span class="tok-punc">&lt;</span><span class="tok-tag">ItemGroup</span><span class="tok-punc">&gt;</span>
+  <span class="tok-punc">&lt;</span><span class="tok-tag">PackageReference</span> <span class="tok-attr">Include</span>=<span class="tok-str">&quot;Extrode.Pare.Build&quot;</span> <span class="tok-attr">Version</span>=<span class="tok-str">&quot;0.6.1&quot;</span> <span class="tok-attr">PrivateAssets</span>=<span class="tok-str">&quot;all&quot;</span> <span class="tok-punc">/&gt;</span>
+  <span class="tok-punc">&lt;</span><span class="tok-tag">PackageReference</span> <span class="tok-attr">Include</span>=<span class="tok-str">&quot;Extrode.Pare.AspNetCore&quot;</span> <span class="tok-attr">Version</span>=<span class="tok-str">&quot;0.6.1&quot;</span> <span class="tok-punc">/&gt;</span>
+<span class="tok-punc">&lt;/</span><span class="tok-tag">ItemGroup</span><span class="tok-punc">&gt;</span>
+</code></pre>
+</div>
+<p>Use the version <code>dotnet add package</code> wrote for you; <code>0.6.1</code> here is only an example.</p>
+<p>What each does:</p>
+<ul>
+<li><code>Extrode.Pare.Build</code> strips every <code>wwwroot/**/*.ts</code> when you run <code>dotnet build</code>.</li>
+<li><code>Extrode.Pare.AspNetCore</code> strips again when you save a <code>.ts</code> while <code>dotnet watch</code> runs, so you
+see the change without a rebuild.</li>
+</ul>
+<h2 id="3-serve-static-files">3. Serve static files</h2>
+<p>Replace <code>Program.cs</code> with:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">C#</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="csharp"><code class="language-csharp"><span class="tok-kw">using</span> <span class="tok-type">Extrode</span>.<span class="tok-var">Pare</span>.<span class="tok-var">AspNetCore</span>;
+
+<span class="tok-kw">var</span> builder = <span class="tok-type">WebApplication</span>.<span class="tok-fn">CreateBuilder</span>(args);
+builder.<span class="tok-fn">AddPareDevelopment</span>();   <span class="tok-com">// does nothing outside Development</span>
+<span class="tok-kw">var</span> app = builder.<span class="tok-fn">Build</span>();
+
+app.<span class="tok-fn">UseDefaultFiles</span>();          <span class="tok-com">// &quot;/&quot; serves index.html</span>
+app.<span class="tok-fn">UseRouting</span>();
+app.<span class="tok-fn">MapStaticAssets</span>();          <span class="tok-com">// serves what the build registered, including Pare's output</span>
+
+app.<span class="tok-fn">Run</span>();
+</code></pre>
+</div>
+<h2 id="4-write-some-typescript">4. Write some TypeScript</h2>
+<p>Create <code>wwwroot/index.html</code>:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">HTML</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="html"><code class="language-html"><span class="tok-pre">&lt;!doctype html&gt;</span>
+<span class="tok-punc">&lt;</span><span class="tok-tag">html</span> <span class="tok-attr">lang</span>=<span class="tok-str">&quot;en&quot;</span><span class="tok-punc">&gt;</span>
+<span class="tok-punc">&lt;</span><span class="tok-tag">head</span><span class="tok-punc">&gt;</span>
+  <span class="tok-punc">&lt;</span><span class="tok-tag">meta</span> <span class="tok-attr">charset</span>=<span class="tok-str">&quot;utf-8&quot;</span><span class="tok-punc">&gt;</span>
+  <span class="tok-punc">&lt;</span><span class="tok-tag">title</span><span class="tok-punc">&gt;</span>Hello, Pare<span class="tok-punc">&lt;/</span><span class="tok-tag">title</span><span class="tok-punc">&gt;</span>
+  <span class="tok-punc">&lt;</span><span class="tok-tag">script</span> <span class="tok-attr">type</span>=<span class="tok-str">&quot;module&quot;</span> <span class="tok-attr">src</span>=<span class="tok-str">&quot;/js/app.js&quot;</span><span class="tok-punc">&gt;</span><span class="tok-punc">&lt;/</span><span class="tok-tag">script</span><span class="tok-punc">&gt;</span>
+<span class="tok-punc">&lt;/</span><span class="tok-tag">head</span><span class="tok-punc">&gt;</span>
+<span class="tok-punc">&lt;</span><span class="tok-tag">body</span><span class="tok-punc">&gt;</span>
+  <span class="tok-punc">&lt;</span><span class="tok-tag">h1</span> <span class="tok-attr">id</span>=<span class="tok-str">&quot;greeting&quot;</span><span class="tok-punc">&gt;</span><span class="tok-punc">&lt;/</span><span class="tok-tag">h1</span><span class="tok-punc">&gt;</span>
+<span class="tok-punc">&lt;/</span><span class="tok-tag">body</span><span class="tok-punc">&gt;</span>
+<span class="tok-punc">&lt;/</span><span class="tok-tag">html</span><span class="tok-punc">&gt;</span>
+</code></pre>
+</div>
+<p>The page asks for <code>/js/app.js</code>. You will only write <code>app.ts</code>. Create <code>wwwroot/js/app.ts</code>:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">interface Person {
+  name: string;
+}
+
+function greet(person: Person): string {
+  return `Hello, ${person.name}!`;
+}
+
+const heading = document.querySelector(&quot;#greeting&quot;)!;
+heading.textContent = greet({ name: &quot;Pare&quot; });
+</code></pre>
+</div>
+<h2 id="5-build-and-run">5. Build and run</h2>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">bash</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="sh"><code class="language-sh"><span class="tok-fn">dotnet</span> build
+</code></pre>
+</div>
+<p>Look at what the build made:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">text</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="text"><code class="language-text">obj/Debug/net10.0/pare/js/app.js
+</code></pre>
+</div>
+<p>That is your script with the types gone. Open it and compare it with <code>app.ts</code>: same lines, same
+columns.</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">bash</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="sh"><code class="language-sh"><span class="tok-fn">dotnet</span> run
+</code></pre>
+</div>
+<p>Open the address it prints. You should see &quot;Hello, Pare!&quot;. Your browser asked for <code>/js/app.js</code>
+and the build had already registered the stripped file as that URL.</p>
+<h2 id="6-edit-and-watch-it-reload">6. Edit and watch it reload</h2>
+<p>Stop the app and run it with hot reload:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">bash</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="sh"><code class="language-sh"><span class="tok-fn">dotnet</span> watch
+</code></pre>
+</div>
+<p>Change <code>&quot;Pare&quot;</code> in <code>app.ts</code> to your own name and save. The page reloads with the new text and the
+app does not restart.</p>
+<blockquote>
+<p><code>dotnet watch</code> runs no build when only a <code>.ts</code> changes. Without <code>AddPareDevelopment()</code> the
+<code>.js</code> would go stale. That one line is what keeps it fresh.</p>
+</blockquote>
+<h2 id="7-see-an-error">7. See an error</h2>
+<p>Add this to the end of <code>app.ts</code>, after a blank line:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">ts</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="ts"><code class="language-ts">enum Color { Red, Green }
+</code></pre>
+</div>
+<p>Build again:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">text</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="text"><code class="language-text">wwwroot/js/app.ts(12,1): error PARE100: 'enum' generates runtime code and cannot be erased
+(use a 'const' object with 'as const' instead of 'enum')
+</code></pre>
+</div>
+<p>It reads like a C# compiler error and points at the line. Under <code>dotnet watch</code> the same message
+appears in the log and the old <code>.js</code> keeps being served. Replace the enum with the suggestion and
+it builds again. All the codes are in <a href="06-reference-error-codes.html">Error codes</a>.</p>
+<h2 id="8-publish">8. Publish</h2>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">bash</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="sh"><code class="language-sh"><span class="tok-fn">dotnet</span> publish <span class="tok-attr">-c</span> Release
+</code></pre>
+</div>
+<p>The published site holds <code>app.js</code> with <code>.br</code> and <code>.gz</code> copies. The <code>.ts</code> source is not published.
+Set <code>PareKeepSources=true</code> if you want it there.</p>
+<h2 id="where-next">Where next</h2>
+<ul>
+<li>Scripts live outside <code>wwwroot</code>: <a href="03-guides-typescript-outside-wwwroot.html">TypeScript outside wwwroot</a></li>
+<li>Catch type errors in the build: <a href="03-guides-type-checking.html">Type checking in CI</a></li>
+<li>Understand the hot reload details: <a href="03-guides-hot-reload.html">Hot reload</a></li>
+<li>Every setting: <a href="06-reference-msbuild-properties.html">MSBuild properties</a></li>
+</ul>
+
+        </article>
+        <div class="page-nav" id="page-nav">
+          <div class="prev-next"><a class="pn-prev" href="01-getting-started-first-static-site.html">
+  <span class="pn-label">&#8592; prev</span>
+  <span class="pn-title">Your first static site</span>
+</a><a class="pn-next" href="03-guides-readme.html">
+  <span class="pn-label">next &#8594;</span>
+  <span class="pn-title">Guides</span>
+</a></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===== status bar ===== -->
+  <footer class="jt-statusbar">
+    <span class="status-dot">&#9679; pare docs</span>
+    <span class="status-spacer"></span>
+    <button class="status-kbd" type="button" onclick="toggleHelp()"><kbd>?</kbd> shortcuts</button>
+  </footer>
+</div>
+
+<!-- ===== search (opened with / or Ctrl+K; the index loads on first use) ===== -->
+<div class="search-overlay" id="search-overlay" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <input type="search" id="search-input" placeholder="search the docs" autocomplete="off"
+           spellcheck="false" oninput="runSearch(this.value)">
+    <div class="search-results" id="search-results" role="listbox"></div>
+    <div class="search-foot"><kbd>&#8593;</kbd><kbd>&#8595;</kbd> move <kbd>Enter</kbd> open <kbd>Esc</kbd> close</div>
+  </div>
+</div>
+
+<!-- ===== keyboard shortcuts ===== -->
+<div class="kbd-help" id="kbd-help" hidden>
+  <div class="kbd-box" role="dialog" aria-label="Keyboard shortcuts">
+    <div class="kbd-title">Keyboard shortcuts</div>
+    <table>
+      <tr><td><kbd>/</kbd> <kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>search</td></tr>
+      <tr><td><kbd>f</kbd></td><td>filter the sidebar; <kbd>Enter</kbd> opens the first match, <kbd>Esc</kbd> clears</td></tr>
+      <tr><td><kbd>h</kbd></td><td>home</td></tr>
+      <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>previous / next page</td></tr>
+      <tr><td><kbd>j</kbd> <kbd>k</kbd></td><td>next / previous heading</td></tr>
+      <tr><td><kbd>b</kbd></td><td>toggle the sidebar</td></tr>
+      <tr><td><kbd>w</kbd></td><td>reset the sidebar width</td></tr>
+      <tr><td><kbd>o</kbd></td><td>toggle "on this page"</td></tr>
+      <tr><td><kbd>t</kbd></td><td>colour scheme: auto, light, dark</td></tr>
+      <tr><td><kbd>-</kbd> <kbd>=</kbd> <kbd>0</kbd></td><td>text smaller / larger / reset</td></tr>
+      <tr><td><kbd>?</kbd></td><td>this panel</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>close</td></tr>
+    </table>
+  </div>
+</div>
+<script src="nav.js"></script>
+</body>
+</html>
