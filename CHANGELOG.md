@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- `release.yml` leaves an existing GitHub Release alone, so a re-run for a moved tag does not fail
+  at `gh release create`.
+
 - `pack-cli.sh` stops when a macOS binary loads a library outside `/usr/lib` and `/System`
   (`scripts/check-macos-libs.sh`): Homebrew's dotnet links Homebrew's openssl and brotli into
   NativeAOT output.
@@ -11,6 +14,9 @@
   `docs/06-reference/error-codes.md`; the README is shorter.
 
 ## [0.6.1] - 2026-10-30
+
+The `v0.6.1` tag was moved from 2e91e58 to a commit where the Windows tests pass; the packages on
+nuget.org were built from 2e91e58 and are unchanged.
 
 - No PARE200 for a compiled source whose output keeps its name (`clock.svelte.js` to
   `clock.svelte.js`, `index.html` to `index.html`): 0.6.0 reported the source itself as a stale
