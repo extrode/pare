@@ -368,6 +368,20 @@ convention). Update at the end of every session.
   from 0.6.1. It carries the icon (P-shaped peeler, teal, `docs/assets/logo/`) on the four NuGet
   packages, the README logo, the ISL-CLA files and `pages.yml`. Tag `v0.6.2` and the push to `main`
   are the user's. Needs `pack-cli.sh` (Docker) for the archives, as for 0.6.1.
+- **0.6.2 released (2026-10-30):** tag `v0.6.2` on main 5558167; `Extrode.Pare`, `.Build` and
+  `.AspNetCore` 0.6.2 on nuget.org; 19 release assets (3 nupkgs, 12 macOS/Linux archives, 4 Windows
+  zips built on wp1 from a bundle of the tag). `pack-cli.sh` now copies `docs/assets/logo` into
+  its Docker build (the icon made `Directory.Build.props` reference it). The Windows checkout is
+  `C:\home\code\extrode.com\pare` on wp1. CI on Windows had a jsDelivr page-load timeout; the
+  integration tests now serve the sample's CDN imports from `tests/Extrode.Pare.Integration/fixtures/cdn`.
+- **CLI on nuget.org (2026-10-30, unreleased):** user's call after an Opus second opinion
+  (tmp/cli-nuget-opinion.md, not kept). `release.yml` packs `Extrode.Pare.Cli` with
+  `-p:PareCliFrameworkDependent=true`: one framework-dependent tool, no RID packages, needs the .NET
+  10 runtime. The NativeAOT CLI and libpare stay archives. `CliToolPackageTests` packs it, installs
+  it to a temp tool path and runs it; break-checked (csproj condition, workflow line). The README
+  and getting-started pages still say the package is not on nuget.org; change them when the first
+  release carrying this is tagged (see `work/todo.md`). Not tested: `dotnet tool install` from
+  nuget.org itself, and the `extrode` org as package owner (user confirmed the org exists).
 
 ## Next
 
