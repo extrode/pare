@@ -1,8 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Pare">
-  <title>Pare</title>
-  <g fill="none" stroke="#1FA67A" stroke-width="40" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M256 160 C206 118 112 146 102 252 C94 342 160 430 256 420 C352 430 418 342 410 252 C400 146 306 118 256 160 Z"/>
-    <path d="M268 138 C268 92 302 58 352 54 C352 100 318 134 268 138 Z"/>
-    <path d="M226 200 V338 M226 200 H272 A46 46 0 0 1 272 292 H226"/>
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Pare"><title>Pare</title><path fill="#0E9F8E" d="M150 50 H212 V440 A31 31 0 0 1 150 440 Z"/><path fill="#0E9F8E" fill-rule="evenodd" d="M206 50 H300 A110 110 0 0 1 300 270 H206 Z M212 106 H296 A54 54 0 0 1 296 214 H212 Z"/><rect x="210" y="152" width="144" height="16" fill="#0E9F8E"/></svg>
