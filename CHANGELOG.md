@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-- An icon (`docs/assets/logo/pare-mark.svg`), shown in the README and on the NuGet packages.
+- An icon (`docs/assets/logo/pare-mark.svg`), shown on the NuGet packages. The README uses a PNG render of it (`pare-mark-320.png`) because nuget.org does not show SVG images in a package readme.
 - Contributions need the ISL-CLA 1.1 (`CLA.md`, `CONTRIBUTORS.md`), adopted as Jaunty does; see
   `CONTRIBUTING.md`.
 - The docs site is published to https://pare.extrode.com by `.github/workflows/pages.yml` from

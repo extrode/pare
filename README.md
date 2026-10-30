@@ -1,7 +1,7 @@
 # Pare
 
 <p align="center">
-  <img src="docs/assets/logo/pare-mark.svg" alt="Pare" width="160">
+  <img src="docs/assets/logo/pare-mark-320.png" alt="Pare" width="160">
 </p>
 
 Write TypeScript. Ship JavaScript. No Node.
