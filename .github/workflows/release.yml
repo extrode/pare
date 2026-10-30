@@ -1,12 +1,13 @@
-# Publishes Extrode.Pare, Extrode.Pare.Build and Extrode.Pare.AspNetCore to nuget.org and
-# attaches them to a GitHub Release. Same shape as jauntyq's release.yml. Triggered by version
+# Publishes Extrode.Pare, Extrode.Pare.Build, Extrode.Pare.AspNetCore and Extrode.Pare.Cli to
+# nuget.org and attaches them to a GitHub Release. Same shape as jauntyq's release.yml. Triggered by version
 # tags only:
 #
 #   git tag v0.6.2 && git push origin v0.6.2
 #
 # The tag must match <Version> in Directory.Build.props; the guard step fails the run otherwise.
-# Extrode.Pare.Cli is not published here: its NativeAOT packages are built per OS and RID by
-# scripts/pack-cli.sh and scripts/pack-cli.ps1.
+# Extrode.Pare.Cli is published here as ONE framework-dependent .NET tool (-p:PareCliFrameworkDependent=true:
+# no RID packages, needs the .NET 10 runtime). The NativeAOT CLI and libpare stay archives, built per
+# OS and RID by scripts/pack-cli.sh and scripts/pack-cli.ps1 and uploaded to the Release by hand.
 #
 # Trusted publishing (OIDC), not a stored key: NuGet/login exchanges the workflow's short-lived
 # OIDC token for a key valid for one hour. The policy on nuget.org must name this file,
@@ -81,6 +82,7 @@ jobs:
           for p in Extrode.Pare Extrode.Pare.Build Extrode.Pare.AspNetCore; do
             dotnet pack "src/$p" -c Release -o dist/packages
           done
+          dotnet pack src/Extrode.Pare.Cli -c Release -o dist/packages -p:PareCliFrameworkDependent=true
 
       - name: NuGet.org login (OIDC, short-lived key)
         id: nuget-login
