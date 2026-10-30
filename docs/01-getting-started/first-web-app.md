@@ -31,12 +31,12 @@ project that references yours:
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="Extrode.Pare.Build" Version="0.6.1" PrivateAssets="all" />
-  <PackageReference Include="Extrode.Pare.AspNetCore" Version="0.6.1" />
+  <PackageReference Include="Extrode.Pare.Build" Version="0.6.2" PrivateAssets="all" />
+  <PackageReference Include="Extrode.Pare.AspNetCore" Version="0.6.2" />
 </ItemGroup>
 ```
 
-Use the version `dotnet add package` wrote for you; `0.6.1` here is only an example.
+Use the version `dotnet add package` wrote for you; `0.6.2` here is only an example.
 
 What each does:
 
