@@ -7,7 +7,14 @@
 set -eu
 status=0
 for f in "$@"; do
-  bad=$(otool -L "$f" | tail -n +2 | awk '{print $1}' | grep -v -e '^/usr/lib/' -e '^/System/' -e '^@rpath/libpare.dylib$' || true)
+  if ! file -b "$f" 2>/dev/null | grep -q 'Mach-O' || ! listing=$(otool -L "$f" 2>&1); then
+    printf '%s: not a readable Mach-O file\n' "$f" >&2
+    status=1
+    continue
+  fi
+  own=$(otool -D "$f" 2>/dev/null | tail -n +2 || true)
+  bad=$(printf '%s\n' "$listing" | tail -n +2 | awk '{print $1}' | grep -v -e '^/usr/lib/' -e '^/System/' || true)
+  [ -z "$own" ] || bad=$(printf '%s\n' "$bad" | grep -v -x -F -e "$own" || true)
   if [ -n "$bad" ]; then
     echo "$f loads libraries that are not part of macOS:" >&2
     echo "$bad" | sed 's/^/  /' >&2

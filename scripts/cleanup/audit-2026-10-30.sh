@@ -7,7 +7,7 @@
 #
 #   scripts/cleanup/audit-2026-10-30.sh                                    # dry run
 #   scripts/cleanup/audit-2026-10-30.sh --execute --delete-scratch         # scratch and branches
-#   scripts/cleanup/audit-2026-10-30.sh --execute --delete-release-assets  # also tmp/dist 0.6.1 files
+#   scripts/cleanup/audit-2026-10-30.sh --execute --delete-release-assets  # only the tmp/dist 0.6.1 files
 set -euo pipefail
 
 execute=0
