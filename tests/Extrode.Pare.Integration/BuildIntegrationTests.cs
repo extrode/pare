@@ -1262,10 +1262,12 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
         Assert.Contains("LICENSE.md", entries);
         Assert.Contains("NOTICE.md", entries);
         Assert.Contains("README.md", entries);
+        Assert.Contains("pare-icon-128.png", entries);
         using var nuspec = new StreamReader(package.GetEntry("Extrode.Pare.Build.nuspec")!.Open());
         string text = nuspec.ReadToEnd();
         Assert.Contains("<license type=\"file\">LICENSE.md</license>", text);
         Assert.Contains("<readme>README.md</readme>", text);
+        Assert.Contains("<icon>pare-icon-128.png</icon>", text);
         Assert.Contains("<authors>Extrode</authors>", text);
         using var license = new StreamReader(package.GetEntry("LICENSE.md")!.Open());
         Assert.Contains("means **`Extrode (extrode.com)`**", license.ReadToEnd());
