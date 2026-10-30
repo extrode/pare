@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- An icon (`docs/assets/logo/pare-mark.svg`), shown in the README and on the NuGet packages.
+- Contributions need the ISL-CLA 1.1 (`CLA.md`, `CONTRIBUTORS.md`), adopted as Jaunty does; see
+  `CONTRIBUTING.md`.
+- The docs site is published to https://pare.extrode.com by `.github/workflows/pages.yml` from
+  `dist/docs-site`.
 - `release.yml` leaves an existing GitHub Release alone, so a re-run for a moved tag does not fail
   at `gh release create`.
 
