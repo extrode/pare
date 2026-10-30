@@ -1,0 +1,110 @@
+# Publishes Extrode.Pare, Extrode.Pare.Build and Extrode.Pare.AspNetCore to nuget.org and
+# attaches them to a GitHub Release. Same shape as jauntyq's release.yml. Triggered by version
+# tags only:
+#
+#   git tag v0.6.1 && git push origin v0.6.1
+#
+# The tag must match <Version> in Directory.Build.props; the guard step fails the run otherwise.
+# Extrode.Pare.Cli is not published here: its NativeAOT packages are built per OS and RID by
+# scripts/pack-cli.sh and scripts/pack-cli.ps1.
+#
+# Trusted publishing (OIDC), not a stored key: NuGet/login exchanges the workflow's short-lived
+# OIDC token for a key valid for one hour. The policy on nuget.org must name this file,
+# release.yml, and the environment `packages`.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  # Dispatch runs the trusted-publishing check and nothing else.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-trusted-publishing:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: packages
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: NuGet.org login (OIDC, short-lived key)
+        id: nuget-login
+        # Pinned by digest: this step mints the nuget.org publishing key. v1 = 8d19675.
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
+        with:
+          # The nuget.org profile name, not an email address.
+          user: ${{ vars.NUGET_USER }}
+
+      - name: Report
+        run: |
+          if [ -n "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" ]; then
+            echo "::notice title=Trusted publishing works::nuget.org issued a short-lived key."
+          else
+            echo "::error title=No key issued::The token exchange returned nothing. Check the policy's workflow file name and environment."
+            exit 1
+          fi
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    # Waits for a required reviewer (Settings > Environments > packages) before it runs.
+    environment: packages
+    permissions:
+      contents: write   # gh release create
+      id-token: write   # NuGet/login
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # SourceLink resolves commit URLs from the full history.
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Guard - tag matches Directory.Build.props Version
+        run: |
+          PROP_VERSION=$(sed -n 's/.*<Version>\(.*\)<\/Version>.*/\1/p' Directory.Build.props | head -1)
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          echo "props=$PROP_VERSION tag=$TAG_VERSION"
+          [ "$PROP_VERSION" = "$TAG_VERSION" ] || { echo "::error::tag $GITHUB_REF_NAME != <Version>$PROP_VERSION"; exit 1; }
+
+      - name: Unit tests
+        run: dotnet test --project tests/Extrode.Pare.Tests -c Release
+
+      - name: Pack
+        run: |
+          for p in Extrode.Pare Extrode.Pare.Build Extrode.Pare.AspNetCore; do
+            dotnet pack "src/$p" -c Release -o dist/packages
+          done
+
+      - name: NuGet.org login (OIDC, short-lived key)
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      - name: Push to NuGet.org
+        # --skip-duplicate: re-running a partly failed release must not abort on a package that
+        # already landed.
+        run: |
+          for pkg in dist/packages/*.nupkg; do
+            dotnet nuget push "$pkg" \
+              --source "https://api.nuget.org/v3/index.json" \
+              --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
+              --skip-duplicate
+          done
+
+      - name: GitHub Release with package assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          case "$GITHUB_REF_NAME" in
+            v0.*|*-*) prerelease="--prerelease" ;;
+          esac
+          gh release create "$GITHUB_REF_NAME" dist/packages/* --generate-notes --verify-tag $prerelease
