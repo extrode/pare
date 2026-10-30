@@ -61,19 +61,27 @@ public class AllocationTests
     {
         var output = new ArrayBufferWriter<char>(source.Length);
         var sink = new CountingSink();
-        for (int i = 0; i < 3; i++)
-        {
-            output.ResetWrittenCount();
-            Assert.Equal(ok, TypeStripper.Strip(source, output, sink, options));
-        }
 
-        long before = GC.GetAllocatedBytesForCurrentThread();
-        for (int i = 0; i < 10; i++)
+        // ArrayPool.Shared trims on a gen2 GC, which the other tests running in parallel can trigger
+        // between warm-up and measurement (seen once on Windows CI: 808 bytes). A per-call
+        // allocation shows in every attempt, so a clean attempt among five proves there is none.
+        long allocated = long.MaxValue;
+        for (int attempt = 0; attempt < 5 && allocated != 0; attempt++)
         {
-            output.ResetWrittenCount();
-            TypeStripper.Strip(source, output, sink, options);
+            for (int i = 0; i < 3; i++)
+            {
+                output.ResetWrittenCount();
+                Assert.Equal(ok, TypeStripper.Strip(source, output, sink, options));
+            }
+
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            for (int i = 0; i < 10; i++)
+            {
+                output.ResetWrittenCount();
+                TypeStripper.Strip(source, output, sink, options);
+            }
+            allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         }
-        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
         Assert.Equal(0, allocated);
     }
