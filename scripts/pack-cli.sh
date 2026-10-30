@@ -70,7 +70,7 @@ in_docker() { # rid platform image setup-command [pack arguments]
     set -e
     $4
     mkdir /w && cd /repo
-    cp -r src Directory.Build.props Directory.Packages.props global.json LICENSE.md NOTICE.md README.md /w/
+    mkdir -p /w/docs/assets && cp -r docs/assets/logo /w/docs/assets/ && cp -r src Directory.Build.props Directory.Packages.props global.json LICENSE.md NOTICE.md README.md /w/
     cd /w
     dotnet pack src/Extrode.Pare.Cli -c Release -r $1 -o /out -p:Version=$version -v q -nologo $extra
     mkdir -p /out/.publish-$1 && cp src/Extrode.Pare.Cli/bin/Release/net10.0/$1/publish/pare /out/.publish-$1/
