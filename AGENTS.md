@@ -17,7 +17,7 @@ Progress, next steps, corpus pass rate: [work/progress.md](work/progress.md), up
 - `tests/Extrode.Pare.Tests/` xUnit v3 on Microsoft.Testing.Platform. Fast unit tests (<1 s).
 - `tests/Extrode.Pare.Integration/` slow (~2 min): real `dotnet build`/`publish` on temp projects;
   the sample tests drive Chromium, Firefox and WebKit via Microsoft.Playwright (approved
-  2026-10-15, 1.63.0; needs network for jsDelivr) over the build, publish and NativeAOT publish,
+  2026-10-15, 1.63.0; downloads its browsers on first run; the sample's jsDelivr imports are served from `tests/Extrode.Pare.Integration/fixtures/cdn`) over the build, publish and NativeAOT publish,
   and run the stripped modules in Node and Deno.
 - `tests/Extrode.Pare.Conformance/` TypeScript corpus (`dotnet run scripts/get-ts-corpus.cs`) and the
   differential test against tsc (`dotnet run scripts/get-tsc.cs`); each skips when its input is
