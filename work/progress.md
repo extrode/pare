@@ -343,6 +343,27 @@ convention). Update at the end of every session.
   a worktree at `v0.6.0`, each verified in its container, and uploaded. Quickstart at
   0.6.0: every command re-run against the osx-arm64 archive and the tool packages; the sample
   page checked in Chromium and Firefox.
+- **0.6.1 released (2026-10-30):** tag `v0.6.1`, the PARE200 same-name fix. First release through
+  `.github/workflows/release.yml` (NuGet trusted publishing, `packages` environment with a
+  required reviewer, `vars.NUGET_USER`). `Extrode.Pare`, `.Build` and `.AspNetCore` are on
+  nuget.org at 0.6.1; the repo is public. The first push got 403 on `Extrode.Pare` (the policy
+  glob `Extrode.Pare.*` needs the dot); fixed on nuget.org, job re-run. The workflow does not
+  publish `Extrode.Pare.Cli` or the CLI and libpare archives: those are packed with
+  `scripts/pack-cli.sh` (needs Docker) and uploaded by hand, as for 0.6.0. Not done at 0.6.1.
+  Docs rewritten as a site (`docs/0*-*`, `scripts/build-docs.sh`), README rewritten, SECURITY.md
+  and CONTRIBUTING.md added. Husk handoff answered in `../husk`.
+- **Audit (2026-10-30):** 529 tests pass on macOS (1 skip: Visual Studio MSBuild). The published
+  0.6.1 packages restore from nuget.org into a scratch web app: build, publish (`.js`, `.br`,
+  `.gz`, no `.ts`) and serve all work. Found and fixed: (1) the 0.6.0 macOS archives, and any
+  built with Homebrew's dotnet, load five Homebrew libraries (openssl@3, brotli) by absolute
+  path and stop at launch on a Mac without them; `scripts/check-macos-libs.sh` now stops
+  `pack-cli.sh` on that, and the 0.6.1 macOS archives were rebuilt with Microsoft's SDK
+  (system libraries only); (2) the first GitHub CI runs failed on Windows: 7 PARE204 tests and
+  `Compiled_sources_are_served...` expected backslashes the task does not emit (test fix, passes
+  8/8 on wp1), and `AllocationTests` failed once in three runs with 808 bytes (now retried up to
+  five times; break-checked with an injected allocation); (3) the README showed
+  `AddPareDevelopment()` without its `using`. 0.6.1 archives built: osx-arm64, osx-x64,
+  win-x64, win-arm64 (tmp/dist). Linux archives need Docker (not running).
 
 ## Next
 
@@ -364,7 +385,9 @@ Not in the plan yet: nothing. (Error-code page `docs/error-codes.md`, stale `.js
 
 - Lexer leniency vs TypeScript (escape and numeric-literal validation): see `work/todo.md`.
 - Pushing `main` is the user's (a hook blocks it for agents).
-- nuget.org publishing and making `extrode/pare` public: user's call.
+- Done 2026-10-30: nuget.org publishing (three libraries) and a public `extrode/pare`.
+- CLI and libpare archives for 0.6.1, and `Extrode.Pare.Cli` on nuget.org: user's call.
+- Where the docs site is hosted; repo topics; the two Rein handoffs in `docs/handoffs/`.
 
 ## Corpus pass rate
 

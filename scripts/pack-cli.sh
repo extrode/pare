@@ -9,6 +9,8 @@
 # Linux, and linux-{arm64,x64} and linux-musl-{arm64,x64} in Docker when it runs. win-* need a
 # Windows machine: scripts/pack-cli.ps1.
 # Each RID is compiled twice (CLI and library), about a minute each.
+# macOS archives must come from Microsoft's SDK: Homebrew's dotnet links Homebrew libraries into
+# the binary, and scripts/check-macos-libs.sh stops the pack when it sees one.
 # Usage: scripts/pack-cli.sh [--version 0.6.0] [--no-docker]
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -53,8 +55,10 @@ case "$(uname -s)-$(uname -m)" in
 esac
 for rid in $rids; do
   pack -r "$rid"
+  [ "$(uname -s)" != Darwin ] || "$root/scripts/check-macos-libs.sh" "$root/src/Extrode.Pare.Cli/bin/Release/net10.0/$rid/publish/pare"
   archive "$rid" "$root/src/Extrode.Pare.Cli/bin/Release/net10.0/$rid/publish"
   dotnet publish "$root/src/Extrode.Pare.Native" -c Release -r "$rid" -p:Version="$version" -v q -nologo
+  [ "$(uname -s)" != Darwin ] || "$root/scripts/check-macos-libs.sh" "$root/src/Extrode.Pare.Native/bin/Release/net10.0/$rid/publish/libpare.dylib"
   native_archive "$rid" "$root/src/Extrode.Pare.Native/bin/Release/net10.0/$rid/publish/libpare.dylib"
 done
 

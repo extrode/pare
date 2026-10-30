@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- `pack-cli.sh` stops when a macOS binary loads a library outside `/usr/lib` and `/System`
+  (`scripts/check-macos-libs.sh`): Homebrew's dotnet links Homebrew's openssl and brotli into
+  NativeAOT output.
+
 - Docs rewritten as a site: overview, a step-by-step first web app and first static site, guides and
   a reference, built with `scripts/build-docs.sh`. `docs/error-codes.md` moved to
   `docs/06-reference/error-codes.md`; the README is shorter.

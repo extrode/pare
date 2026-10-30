@@ -1032,7 +1032,8 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
                     Compiler: e.TryGetProperty("compiler", out var c) ? c.GetString() : null)).ToList();
             Assert.Equal(3, sources.Count);
             Assert.All(sources, e => Assert.Equal("fake", e.Compiler));
-            Assert.Contains(sources, e => e.Source.EndsWith(Tail("Components/Pages/App.fake"), StringComparison.Ordinal) && e.Output.EndsWith(Tail(ObjOut + "Pages/App.fake.css"), StringComparison.Ordinal));
+            // The map keeps the separators MSBuild gave it ("...\\pare\\Pages/App.fake.css" on Windows); the watcher normalizes with GetFullPath.
+            Assert.Contains(sources, e => Path.GetFullPath(e.Source).EndsWith(Tail("Components/Pages/App.fake"), StringComparison.Ordinal) && Path.GetFullPath(e.Output).EndsWith(Tail(ObjOut + "Pages/App.fake.css"), StringComparison.Ordinal));
         }
 
         var (pubExit, pubOutput) = Run("publish", "-nologo", "-nodeReuse:false", "--disable-build-servers", "-clp:NoSummary", "-o", P("pub"));
@@ -1101,7 +1102,7 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
 
         Assert.NotEqual(0, exit);
         string error = Assert.Single(output.Split('\n').Distinct(), l => l.Contains(expected, StringComparison.Ordinal));
-        Assert.Contains(Path.Combine("wwwroot", "a.fake") + " : " + expected + ": PareCompileSource needs PareCompiler", error);
+        Assert.Contains("wwwroot/a.fake : " + expected + ": PareCompileSource needs PareCompiler", error);
     }
 
     [Fact]
