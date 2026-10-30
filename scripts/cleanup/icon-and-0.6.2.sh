@@ -40,7 +40,7 @@ printf '== 2. branches merged into dev\n'
 for b in feat/pare-icon feat/pare-icon-p fix/readme-logo-png fix/release-existing-release \
     chore/cleanup-script-docs-site chore/pages docs/contributor-cla chore/cleanup-v060-worktree \
     fix/review-2026-10-30-3 chore/audit-2026-10-30 docs/site-and-readme chore/release-0.6.1 \
-    docs/handoff-husk-release fix/pare200-same-name-output; do
+    docs/handoff-husk-release fix/pare200-same-name-output chore/release-0.6.2 chore/cleanup-script-0.6.2; do
     git -C "$repo" show-ref --verify --quiet "refs/heads/$b" || continue
     if [ "$act" = 1 ]; then git -C "$repo" branch -d "$b"
     else printf 'would delete branch %s (git branch -d, refuses if unmerged)\n' "$b"; fi
