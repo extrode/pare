@@ -241,9 +241,10 @@ that runs <code>pare</code> once and prints errors without stopping:</p>
 <p>fails the job with exit code 1 if any file uses syntax Pare cannot erase. To also check types, run
 <code>tsc --noEmit</code> after it; see <a href="03-guides-type-checking.html">Type checking in CI</a>.</p>
 <h2 id="install-options">Install options</h2>
-<p>The .NET tool package installs the NativeAOT binary for osx-arm64, osx-x64, linux-arm64, linux-x64,
-linux-musl-arm64, linux-musl-x64, win-x64 and win-arm64, and a build that needs the .NET 10 runtime
-on any other platform. The same binaries come as archives with no .NET needed.</p>
+<p><code>dotnet tool install -g Extrode.Pare.Cli</code> installs one framework-dependent tool for every platform.
+It needs the .NET 10 runtime and starts slower than the NativeAOT binary. The NativeAOT binaries for
+osx-arm64, osx-x64, linux-arm64, linux-x64, linux-musl-arm64, linux-musl-x64, win-x64 and win-arm64
+come as archives on the releases page and need no .NET.</p>
 
         </article>
         <div class="page-nav" id="page-nav">

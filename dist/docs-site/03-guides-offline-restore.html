@@ -134,8 +134,8 @@ them. Each <a href="https://github.com/extrode/pare/releases">GitHub release</a>
     <span class="code-lang">text</span>
     <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
   </div>
-  <pre data-lang="text"><code class="language-text">packages/Extrode.Pare.0.6.2.nupkg
-packages/Extrode.Pare.Build.0.6.2.nupkg
+  <pre data-lang="text"><code class="language-text">packages/Extrode.Pare.0.6.3.nupkg
+packages/Extrode.Pare.Build.0.6.3.nupkg
 </code></pre>
 </div>
 <p>and add a <code>nuget.config</code> beside the solution (the path is relative to that file):</p>
@@ -156,7 +156,7 @@ packages/Extrode.Pare.Build.0.6.2.nupkg
 <span class="tok-punc">&lt;/</span><span class="tok-tag">configuration</span><span class="tok-punc">&gt;</span>
 </code></pre>
 </div>
-<p>Pin an exact release (<code>Version=&quot;0.6.2&quot;</code>), not a <code>-dev</code> or <code>-*</code> version.</p>
+<p>Pin an exact release (<code>Version=&quot;0.6.3&quot;</code>), not a <code>-dev</code> or <code>-*</code> version.</p>
 <p>The CLI tool package works the same way: put the <code>Extrode.Pare.Cli.*.nupkg</code> files in one folder and
 run <code>dotnet tool install -g Extrode.Pare.Cli --add-source ./packages</code>.</p>
 <p>If your project uses a <code>nuget.config</code> that you do not want published, mark it so:

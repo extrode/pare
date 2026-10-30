@@ -52,6 +52,22 @@ public sealed class CliToolPackageTests : IDisposable
     }
 
     [Fact]
+    public void Release_workflow_pushes_to_github_packages_with_write_permission()
+    {
+        string workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "release.yml"));
+
+        Assert.Contains("https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json", workflow);
+        Assert.Contains("\n      packages: write", workflow);
+    }
+
+    [Fact]
+    public void Readmes_do_not_say_the_cli_package_is_missing_from_nuget()
+    {
+        foreach (string file in new[] { "README.md", "docs/01-getting-started/README.md", "docs/01-getting-started/first-static-site.md" })
+            Assert.DoesNotContain("not on nuget.org", File.ReadAllText(Path.Combine(RepoRoot, file)));
+    }
+
+    [Fact]
     public void Classes_that_pack_the_cli_run_one_at_a_time()
     {
         // Both pack src/Extrode.Pare.Cli in place in Release, with different settings.

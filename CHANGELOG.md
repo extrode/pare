@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- `release.yml` also pushes the packages to GitHub Packages (`packages: write`), so they appear in the repository's Packages tab. 0.6.3 was published before this and is not there.
+
+## [0.6.3] - 2026-10-31
+
+No change to the library or the build task.
+
 - `Extrode.Pare.Cli` is published to nuget.org by `release.yml` as one framework-dependent .NET
   tool: `dotnet tool install -g Extrode.Pare.Cli`. It needs the .NET 10 runtime and starts slower
   than the NativeAOT binary. The NativeAOT CLI and libpare remain GitHub Release archives.

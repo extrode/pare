@@ -73,6 +73,7 @@ fails the job with exit code 1 if any file uses syntax Pare cannot erase. To als
 
 ## Install options
 
-The .NET tool package installs the NativeAOT binary for osx-arm64, osx-x64, linux-arm64, linux-x64,
-linux-musl-arm64, linux-musl-x64, win-x64 and win-arm64, and a build that needs the .NET 10 runtime
-on any other platform. The same binaries come as archives with no .NET needed.
+`dotnet tool install -g Extrode.Pare.Cli` installs one framework-dependent tool for every platform.
+It needs the .NET 10 runtime and starts slower than the NativeAOT binary. The NativeAOT binaries for
+osx-arm64, osx-x64, linux-arm64, linux-x64, linux-musl-arm64, linux-musl-x64, win-x64 and win-arm64
+come as archives on the releases page and need no .NET.

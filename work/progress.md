@@ -382,6 +382,12 @@ convention). Update at the end of every session.
   and getting-started pages still say the package is not on nuget.org; change them when the first
   release carrying this is tagged (see `work/todo.md`). Not tested: `dotnet tool install` from
   nuget.org itself, and the `extrode` org as package owner (user confirmed the org exists).
+- **0.6.3 prepared (2026-10-31):** first release carrying the framework-dependent `Extrode.Pare.Cli`
+  on nuget.org. Version bump, README, getting-started and CLI guide no longer say the package is
+  missing (test `Readmes_do_not_say_the_cli_package_is_missing_from_nuget`, break-checked),
+  `dist/docs-site` rebuilt. Library and build task unchanged. All tests pass on macOS (1 skip: VS
+  MSBuild). Tag `v0.6.3`, the push and the archives (`pack-cli.sh`, Docker; wp1 for Windows) are
+  the user's.
 
 ## Next
 

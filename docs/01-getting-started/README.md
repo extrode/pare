@@ -39,7 +39,8 @@ reference, so projects that reference yours do not inherit the build step.
 
 Download `pare-<version>-<rid>.tar.gz` (`.zip` on Windows) from the
 [releases page](https://github.com/extrode/pare/releases), unpack it and put the folder on your
-`PATH`. It needs no .NET. The `Extrode.Pare.Cli` .NET tool package is not on nuget.org yet.
+`PATH`. It needs no .NET.
+Or install the .NET tool: `dotnet tool install -g Extrode.Pare.Cli`. It needs the .NET 10 runtime and starts slower than the archive.
 
 ## Check that it works
 
