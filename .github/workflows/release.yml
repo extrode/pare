@@ -1,5 +1,5 @@
 # Publishes Extrode.Pare, Extrode.Pare.Build, Extrode.Pare.AspNetCore and Extrode.Pare.Cli to
-# nuget.org and attaches them to a GitHub Release. Same shape as jauntyq's release.yml. Triggered by version
+# nuget.org and GitHub Packages and attaches them to a GitHub Release. Same shape as jauntyq's release.yml. Triggered by version
 # tags only:
 #
 #   git tag v0.6.3 && git push origin v0.6.3
@@ -57,6 +57,7 @@ jobs:
     permissions:
       contents: write   # gh release create
       id-token: write   # NuGet/login
+      packages: write   # push to GitHub Packages
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -98,6 +99,17 @@ jobs:
             dotnet nuget push "$pkg" \
               --source "https://api.nuget.org/v3/index.json" \
               --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
+              --skip-duplicate
+          done
+
+      - name: Push to GitHub Packages
+        # The Packages tab of the repository lists what lands here. GITHUB_TOKEN needs
+        # packages: write (job permissions). --skip-duplicate as for nuget.org.
+        run: |
+          for pkg in dist/packages/*.nupkg; do
+            dotnet nuget push "$pkg" \
+              --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+              --api-key "${{ github.token }}" \
               --skip-duplicate
           done
 

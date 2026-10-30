@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- `release.yml` also pushes the packages to GitHub Packages (`packages: write`), so they appear in the repository's Packages tab. 0.6.3 was published before this and is not there.
+
 ## [0.6.3] - 2026-10-31
 
 No change to the library or the build task.
