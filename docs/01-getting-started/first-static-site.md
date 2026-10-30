@@ -5,9 +5,7 @@ browser. No .NET project, no Node, no bundler.
 
 ## 1. Install `pare`
 
-Pick one.
-
-**A release archive** needs nothing else. Download `pare-<version>-<rid>.tar.gz` for your system
+Download `pare-<version>-<rid>.tar.gz` for your system
 from the [releases page](https://github.com/extrode/pare/releases) (`.zip` on Windows), unpack it
 and put the folder on your `PATH`:
 
@@ -17,12 +15,7 @@ export PATH="$PWD/pare-0.6.1-osx-arm64:$PATH"
 pare --version
 ```
 
-**A .NET tool** needs the .NET SDK:
-
-```sh
-dotnet tool install -g Extrode.Pare.Cli
-pare --version
-```
+The `Extrode.Pare.Cli` .NET tool package is not on nuget.org yet, so the archive is the way in.
 
 ## 2. Get the sample
 

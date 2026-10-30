@@ -53,10 +53,11 @@ Because it only erases, it is also quick: about 330 MB/s, and zero allocations w
 
 ## Try it
 
-You need the .NET 10 SDK.
+Download `pare-<version>-<rid>.tar.gz` (`.zip` on Windows) from the
+[releases page](https://github.com/extrode/pare/releases), unpack it and put the folder on your
+`PATH`. It is a native binary and needs nothing else, not even .NET.
 
 ```sh
-dotnet tool install -g Extrode.Pare.Cli
 echo 'const n: number = 1;' | pare --stdin
 ```
 
@@ -64,9 +65,7 @@ echo 'const n: number = 1;' | pare --stdin
 const n         = 1;
 ```
 
-No .NET? Download a `pare-<version>-<rid>.tar.gz` (or `.zip`) from the
-[releases page](https://github.com/extrode/pare/releases). It is a native binary and needs
-nothing else.
+The `Extrode.Pare.Cli` .NET tool package is not on nuget.org yet.
 
 ## In an ASP.NET Core app
 
