@@ -2,7 +2,7 @@
 # attaches them to a GitHub Release. Same shape as jauntyq's release.yml. Triggered by version
 # tags only:
 #
-#   git tag v0.6.1 && git push origin v0.6.1
+#   git tag v0.6.2 && git push origin v0.6.2
 #
 # The tag must match <Version> in Directory.Build.props; the guard step fails the run otherwise.
 # Extrode.Pare.Cli is not published here: its NativeAOT packages are built per OS and RID by

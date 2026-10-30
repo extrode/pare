@@ -9,7 +9,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest</AnalysisLevel>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <Version>0.6.1</Version>
+    <Version>0.6.2</Version>
     <Authors>Extrode</Authors>
     <Company>Extrode</Company>
     <Copyright>Copyright (c) 2026 Extrode (extrode.com)</Copyright>

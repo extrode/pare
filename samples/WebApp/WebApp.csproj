@@ -9,10 +9,10 @@
     <StartupHookSupport Condition="'$(Configuration)' == 'Debug'">true</StartupHookSupport>
   </PropertyGroup>
   <ItemGroup>
-    <!-- 0.6.1-*: the newest build that scripts/pack-local.sh put in tmp/feed. A consumer pins a
+    <!-- 0.6.2-*: the newest build that scripts/pack-local.sh put in tmp/feed. A consumer pins a
          release version instead. -->
-    <PackageReference Include="Extrode.Pare.Build" Version="0.6.1-*" PrivateAssets="all" />
-    <PackageReference Include="Extrode.Pare.AspNetCore" Version="0.6.1-*" />
+    <PackageReference Include="Extrode.Pare.Build" Version="0.6.2-*" PrivateAssets="all" />
+    <PackageReference Include="Extrode.Pare.AspNetCore" Version="0.6.2-*" />
   </ItemGroup>
   <ItemGroup>
     <!-- The Web SDK publishes root .config files; this one is a restore input only. The package
