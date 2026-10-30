@@ -43,7 +43,7 @@ ok=$(ssh wp1 '
     if (-not (Test-Path C:\Users\Sy\tmp\pare-0.6.2\.git)) { "gone"; return }
     $remote = git -C C:\Users\Sy\tmp\pare-0.6.2 remote get-url origin
     if ($remote -notlike "*pare-0.6.2.bundle") { "unexpected-origin"; return }
-    "ok"' 2>/dev/null | tail -1)
+    "ok"' 2>/dev/null | tail -1 | tr -d '\r')
 case "$ok" in
     ok)
         if [ "$act" = 1 ]; then
