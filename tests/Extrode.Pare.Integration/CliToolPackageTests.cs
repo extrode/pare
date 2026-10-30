@@ -44,6 +44,14 @@ public sealed class CliToolPackageTests : IDisposable
     }
 
     [Fact]
+    public void Release_workflow_packs_the_cli_with_the_flag()
+    {
+        string workflow = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "release.yml"));
+
+        Assert.Contains("dotnet pack src/Extrode.Pare.Cli -c Release -o dist/packages -p:PareCliFrameworkDependent=true", workflow);
+    }
+
+    [Fact]
     public void Installed_tool_strips_a_file()
     {
         string feed = Pack();
