@@ -343,8 +343,27 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
 
     private readonly ServedProject? _served;
 
-    // The sample pages load Alpine and htmx from jsDelivr: a slow CDN on a CI runner is not a Pare failure.
     private const float PageLoadTimeout = 90_000;
+
+    // The sample pages import Alpine and htmx from jsDelivr. The browser gets them from
+    // fixtures/cdn (same versions; the htmx copy matches the page's SRI hash), so a slow or
+    // unreachable CDN cannot fail a test. Any other CDN URL is aborted and fails the test.
+    private static readonly Dictionary<string, string> CdnFixtures = new()
+    {
+        ["https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"] = "htmx.min.js",
+        ["https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/module.esm.js"] = "alpine-module.esm.js",
+    };
+
+    private static Task RouteCdn(Microsoft.Playwright.IPage page) =>
+        page.RouteAsync("https://cdn.jsdelivr.net/**", route =>
+            CdnFixtures.TryGetValue(route.Request.Url, out string? file)
+                ? route.FulfillAsync(new()
+                {
+                    Path = Path.Combine(AppContext.BaseDirectory, "fixtures", "cdn", file),
+                    ContentType = "text/javascript",
+                    Headers = new Dictionary<string, string> { ["access-control-allow-origin"] = "*" },
+                })
+                : route.AbortAsync());
 
     static BuildIntegrationTests() => Microsoft.Playwright.Assertions.SetDefaultExpectTimeout(30_000);
 
@@ -1383,11 +1402,12 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
     /// <summary>Clicks through the page in one browser engine; fails on any console or page error.</summary>
     private static async Task ClickThrough(string engine, Uri site)
     {
-        // Downloads the browser on first run; Alpine and htmx come from jsDelivr.
+        // Downloads the browser on first run; Alpine and htmx come from fixtures/cdn (RouteCdn).
         Assert.Equal(0, Microsoft.Playwright.Program.Main(engine == "chromium" ? ["install", "chromium", "--only-shell"] : ["install", engine]));
         using var playwright = await Microsoft.Playwright.Playwright.CreateAsync();
         await using var browser = await playwright[engine].LaunchAsync();
         var page = await browser.NewPageAsync();
+        await RouteCdn(page);
         var errors = new List<string>();
         page.Console += (_, m) => { if (m.Type == "error") errors.Add(m.Text); };
         page.PageError += (_, e) => errors.Add(e);
@@ -1479,6 +1499,7 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
             using var playwright = await Microsoft.Playwright.Playwright.CreateAsync();
             await using var browser = await playwright.Chromium.LaunchAsync();
             var page = await browser.NewPageAsync();
+            await RouteCdn(page);
             // An edit before the refresh socket opens never reaches the page, and the refresh script
             // connects 500 ms after load without saying so.
             await page.AddInitScriptAsync("""
