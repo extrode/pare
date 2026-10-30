@@ -8,7 +8,8 @@ namespace Extrode.Pare.Integration;
 [Collection("cli-pack")]
 public sealed class CliToolPackageTests : IDisposable
 {
-    private const string Version = "0.0.1";
+    // The repo version, not an override: a different Version restamps the Extrode.Pare build other tests share.
+    private static readonly string Version = typeof(CliToolPackageTests).Assembly.GetName().Version!.ToString(3);
 
     private static readonly string RepoRoot = FindRepoRoot();
 
@@ -21,7 +22,7 @@ public sealed class CliToolPackageTests : IDisposable
     private string Pack()
     {
         var (exit, output) = Exec(RepoRoot, "dotnet", "pack", Path.Combine(RepoRoot, "src", "Extrode.Pare.Cli"),
-            "-c", "Release", "-o", P("feed"), "-p:PareCliFrameworkDependent=true", $"-p:Version={Version}",
+            "-c", "Release", "-o", P("feed"), "-p:PareCliFrameworkDependent=true",
             "-nologo", "-nodeReuse:false", "--disable-build-servers", "-clp:NoSummary");
         Assert.True(exit == 0, output);
         return P("feed");
@@ -71,8 +72,11 @@ public sealed class CliToolPackageTests : IDisposable
     {
         string feed = Pack();
         string tools = P("tools");
+        // Only the local feed: a published Extrode.Pare.Cli of the same version must not win.
+        File.WriteAllText(P("nuget.config"),
+            $"""<configuration><packageSources><clear /><add key="local" value="{feed}" /></packageSources></configuration>""");
         var (installExit, installOutput) = Exec(_dir.FullName, "dotnet", "tool", "install", "Extrode.Pare.Cli",
-            "--tool-path", tools, "--add-source", feed, "--version", Version, "--ignore-failed-sources");
+            "--tool-path", tools, "--configfile", P("nuget.config"), "--version", Version);
         Assert.True(installExit == 0, installOutput);
 
         string pare = Path.Combine(tools, OperatingSystem.IsWindows() ? "pare.exe" : "pare");
