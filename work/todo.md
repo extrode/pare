@@ -31,8 +31,10 @@ Small, clear, and could be picked up without a design decision.
 
 - A new `.ts` outside `wwwroot` that a `PareServeAt` glob would match is not stripped by
   `AddPareDevelopment` until the next build (the development map lists only built sources).
-- README `## CLI` install line assumes nuget.org; until then it needs `--add-source` (as
-  docs/cli-quickstart.md says).
+- `Extrode.Pare.Cli` is not on nuget.org and release.yml attaches only the three nupkgs, so the
+  CLI and libpare archives are uploaded by hand (`scripts/pack-cli.sh`, `gh release upload`). The
+  docs point at the archives; decide whether the workflow publishes them. Tool install with
+  `--add-source`: docs/03-guides/offline-restore.md.
 - PARE203 stops at the first bad `PareServeAt` (MSBuild ends a batched `Error` at its first
   batch), so its 9 test cases need 9 builds (~14 s). Reporting every bad item in one build would
   let them share one. The serving tests share one build since 2026-10-15 (subset 68 s to 42 s).
