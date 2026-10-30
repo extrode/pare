@@ -1,7 +1,7 @@
 # CliSite
 
 A static page whose scripts are written in TypeScript and stripped by the `pare` CLI. No .NET
-project, no Node packages, no bundler. Walk-through: [docs/cli-quickstart.md](../../docs/cli-quickstart.md).
+project, no Node packages, no bundler. Walk-through: [docs/01-getting-started/first-static-site.md](../../docs/01-getting-started/first-static-site.md).
 
 From the repository root:
 

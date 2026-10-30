@@ -1,537 +1,193 @@
 # Pare
 
-A TypeScript type stripper in C# for .NET 10, NativeAOT-compatible. It overwrites type-only
-syntax with spaces, so the output is JavaScript with every remaining character at its original
-line and column. No source maps, no Node, no Bun, no Deno.
+Write TypeScript. Ship JavaScript. No Node.
 
-Pare does not type check. Use TypeScript 7's native `tsc --noEmit` (formerly `tsgo`) for that;
-`dotnet run scripts/get-tsc.cs` downloads it to `.tools/typescript/tsc` without npm.
+Pare is a TypeScript type stripper written in C# for .NET 10. It reads your `.ts` files and
+overwrites the types with spaces, so what is left is plain JavaScript with every character on the
+line and column it started on. There are no source maps to build and no npm to install, and it
+runs as a single native binary.
 
-Status: the library, the `pare` CLI and the MSBuild package work; `samples/WebApp` uses the package.
-On the TypeScript test corpus, output matches TypeScript 7 `tsc` emit (compared as syntax trees) for
-99.96% of the files Pare strips; the rest are triaged differences on tsc's side.
-See [work/progress.md](work/progress.md).
+[![CI](https://github.com/extrode/pare/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/extrode/pare/actions/workflows/ci.yml)
+[![License: ISL-P](https://img.shields.io/badge/license-ISL--P%201.2-blue)](LICENSE.md)
+[![NativeAOT](https://img.shields.io/badge/NativeAOT-yes-brightgreen)](#the-pare-command)
 
-## Build
+You write this:
+
+```ts
+function add(a: number, b: number): number {
+  return a + b;
+}
+```
+
+and get this:
+
+```js
+function add(a        , b        )         {
+  return a + b;
+}
+```
+
+When the browser reports an error at `app.js:2:10`, that is `app.ts:2:10`.
+
+## Contents
+
+- [Why Pare](#why-pare)
+- [Try it](#try-it)
+- [In an ASP.NET Core app](#in-an-aspnet-core-app)
+- [The pare command](#the-pare-command)
+- [From other languages](#from-other-languages)
+- [What Pare does not do](#what-pare-does-not-do)
+- [How fast is it](#how-fast-is-it)
+- [Documentation](#documentation)
+- [Building from source](#building-from-source)
+- [License](#license)
+
+## Why Pare
+
+If you build a .NET app and want TypeScript in the browser, the usual answer is "install Node and
+a bundler". That puts a second toolchain on every dev laptop, CI runner and build server. Pare
+removes it. `dotnet build` strips your `.ts` files, `dotnet watch` reloads the page when you save
+one, and `dotnet publish` ships the result, compressed. Nothing else needs to be installed.
+
+Because it only erases, it is also quick: about 330 MB/s, and zero allocations while it parses.
+
+## Try it
+
+You need the .NET 10 SDK.
+
+```sh
+dotnet tool install -g Extrode.Pare.Cli
+echo 'const n: number = 1;' | pare --stdin
+```
+
+```
+const n         = 1;
+```
+
+No .NET? Download a `pare-<version>-<rid>.tar.gz` (or `.zip`) from the
+[releases page](https://github.com/extrode/pare/releases). It is a native binary and needs
+nothing else.
+
+## In an ASP.NET Core app
+
+Add two packages:
+
+```sh
+dotnet add package Extrode.Pare.Build
+dotnet add package Extrode.Pare.AspNetCore
+```
+
+Mark the first one `PrivateAssets="all"` in your project file, and add one line to `Program.cs`:
+
+```csharp
+builder.AddPareDevelopment();   // re-strips on save; does nothing outside Development
+```
+
+Now every `wwwroot/**/*.ts` is turned into JavaScript by `dotnet build`:
+
+| You do | What happens |
+|---|---|
+| `dotnet build` | `wwwroot/js/app.ts` becomes `obj/.../pare/js/app.js`, served as `/js/app.js` |
+| save a `.ts` under `dotnet watch` | it is stripped again and the page reloads |
+| `dotnet publish` | the site ships `app.js` with `.br` and `.gz` copies, and no `.ts` |
+| write an `enum` | the build fails: `app.ts(3,1): error PARE100: ...`, like a C# error |
+
+The output lives under `obj/`, never in your source tree, so there is nothing to gitignore.
+
+Step by step, with a working project at the end:
+[Your first web app](docs/01-getting-started/first-web-app.md).
+
+Scripts outside `wwwroot`, Razor class libraries, Blazor components, embedding the output in a
+console app: [guides](docs/03-guides/README.md).
+
+## The pare command
+
+```sh
+pare src                        # src/**/*.ts become .js next to each source
+pare src --outdir dist          # mirror into dist/
+pare "src/**/*.ts" --check-only # report errors, write nothing (good for CI)
+pare --stdin < in.ts > out.js   # one file, stdin to stdout
+```
+
+`.ts`, `.mts` and `.cts` become `.js`, `.mjs` and `.cjs`, and relative imports like `./util.ts` are
+rewritten to `./util.js`. Exit code 0 means every file stripped, 1 means a file used syntax that
+cannot be erased, 2 means an I/O or usage error.
+
+A walk-through with a static site: [Your first static site](docs/01-getting-started/first-static-site.md).
+All options: [The pare command](docs/03-guides/cli.md).
+
+## From other languages
+
+`libpare` is the same stripper as a C shared library, so Rust, Go, Python, Ruby, PHP, Node and
+Deno can call it in-process, with no .NET installed.
+
+```c
+pare_result r;
+if (pare_strip(ts, strlen(ts), 0, &r) == PARE_OK)
+    fputs(r.output, stdout);
+pare_free(&r);
+```
+
+[Using libpare](docs/03-guides/c-library.md) has the full program and link lines.
+From C# there is also a library, `Extrode.Pare`: [Using the library](docs/03-guides/library.md).
+
+## What Pare does not do
+
+- **It does not check types.** Run `tsc --noEmit` (TypeScript 7 ships a native one). The build can
+  run it for you with `PareTypeCheck=true`.
+- **It does not generate code.** `enum`, namespaces with values, `constructor(private x)`,
+  `import x = require()`, `export =`, `<T>x` and parameter decorators are refused, and the error
+  says what to write instead. These are the cases `erasableSyntaxOnly` in `tsconfig.json`
+  reports, so your editor can warn you first.
+- **It does not bundle, minify or handle JSX.**
+
+More in [What Pare does not do](docs/00-overview/what-pare-does-not-do.md).
+
+## How fast is it
+
+The same 2,392 real-world files (19.5 MB) through each tool, on an Apple M1 Max:
+
+| Tool | Throughput | Pare is |
+|---|---:|---:|
+| Pare | 279 MB/s | - |
+| oxc-transform | 87 MB/s | 3.2x faster |
+| Node `stripTypeScriptTypes` | 40 MB/s | 7.0x faster |
+| ts-blank-space | 28 MB/s | 10.0x faster |
+| esbuild | 12 MB/s | 23.4x faster |
+
+Pare's output matches TypeScript 7 `tsc` for 99.96% of the TypeScript test corpus files it strips.
+Deno's standard library tests give the same results on Pare's output for 38 of 42 packages. Methods, caveats and how to
+reproduce: [Benchmarks](docs/06-reference/benchmarks.md).
+
+## Documentation
+
+| Section | |
+|---|---|
+| [Overview](docs/00-overview/README.md) | what Pare is, how it works, how it compares |
+| [Getting started](docs/01-getting-started/README.md) | install and first project |
+| [Guides](docs/03-guides/README.md) | task by task |
+| [Reference](docs/06-reference/README.md) | error codes, MSBuild properties, syntax, C API |
+
+The docs are built into a static site with `scripts/build-docs.sh`.
+
+## Building from source
 
 ```sh
 dotnet build Pare.slnx
 dotnet test --solution Pare.slnx
 dotnet publish src/Extrode.Pare.Cli -c Release -r osx-arm64 -o tmp/aot   # NativeAOT CLI
-dotnet pack src/Extrode.Pare.Build -c Release -o tmp/pack                # MSBuild package
+scripts/pack-local.sh                                                    # packages into tmp/feed
+dotnet run --project samples/WebApp                                      # the sample site
 ```
 
-## CLI
-
-```sh
-dotnet tool install -g Extrode.Pare.Cli
-```
-
-Quickstart with a static-site sample, watch recipes and exit codes: [docs/cli-quickstart.md](docs/cli-quickstart.md).
-
-The tool package installs the NativeAOT binary for osx-arm64, osx-x64, linux-arm64, linux-x64,
-linux-musl-arm64, linux-musl-x64, win-x64 and win-arm64, and a framework-dependent build (needs
-the .NET 10 runtime) on any other platform. The same binaries come as `pare-<version>-<rid>.tar.gz`
-archives (`.zip` on Windows) with no .NET needed. `scripts/pack-cli.sh` writes them to `tmp/dist`:
-macOS natively, Linux in Docker (`mcr.microsoft.com/dotnet/sdk:10.0` and `-alpine`), then runs
-each Linux build 20 times and installs the tool on its own platform. Windows NativeAOT needs a
-Windows machine with Visual Studio's C++ tools: `pwsh scripts/pack-cli.ps1` packs win-x64, and
-win-arm64 when the ARM64 C++ tools are installed, and checks the host's build the same way
-(win-arm64 is cross-compiled on x64 and checked on a Windows 11 ARM64 machine).
-`-SkipPack` runs only that check, on archives already in `tmp/dist`, for a machine without Visual
-Studio.
-
-```
-pare src                      # src/**/*.ts -> .js next to each source
-pare src --outdir dist        # mirror into dist/
-pare "src/**/*.ts" --check-only
-pare --stdin < in.ts > out.js
-```
-
-Inputs are files, directories (searched recursively) or globs (`*`, `?`, `**`, for shells that
-do not expand them). `.ts`, `.mts`, `.cts` become `.js`, `.mjs`, `.cjs`. `.d.ts` files and
-`node_modules` are skipped. Exit codes: 0 ok, 1 rejected syntax ([error codes](docs/error-codes.md)),
-2 I/O or usage error.
-An existing `foo.js` next to `foo.ts` is replaced, like `tsc` and `esbuild` do: keep hand-written
-JavaScript out of the source folders, or use `--outdir`.
-
-## MSBuild
-
-```xml
-<PackageReference Include="Extrode.Pare.Build" Version="0.6.1" PrivateAssets="all" />
-```
-
-Before `Build`, every `wwwroot/**/*.ts` and `*.mts` (not `.d.ts`, not `node_modules`) is stripped.
-The step is incremental, runs in-process and needs no Node. Rejections fail the build as
-`file(line,col): error PARE100: ...` ([what each code means](docs/error-codes.md)). Runs under
-`dotnet build` (CLI, CI, Rider, VS Code) and Visual Studio 2026 (MSBuild 18), where the task runs in
-MSBuild's .NET task host, a separate process. Visual Studio 2022 cannot build `net10.0` projects.
-
-In a web project (the Web SDK's static web assets), `wwwroot/js/app.ts` becomes
-`obj/<configuration>/<tfm>/pare/js/app.js`, registered as the static web asset `js/app.js`: served
-from the first build on, compressed and published like a file in `wwwroot`, and never in the source
-tree, so nothing needs gitignoring. The build deletes the output of a deleted source. Elsewhere, and
-for sources outside `wwwroot` without `PareServeAt` ([below](#typescript-outside-wwwroot)), the
-`.js` goes next to its source.
-
-- A `foo.js` next to `foo.ts` in `wwwroot` (left by Pare 0.2, or hand-written) is not served:
-  `warning PARE200` names it, and the build serves the stripped `foo.ts`. Delete it.
-- `.ts` and `.d.ts` files are removed from `Content`, so they are not static web assets and are not
-  published; `PareKeepSources=true` keeps them. (In Development, `MapStaticAssets` still serves any
-  file on disk, with a warning; `UseStaticFiles` serves everything under `wwwroot`.)
-- Outside `obj/`, an existing `foo.js` next to `foo.ts` is replaced on the next build that strips
-  `foo.ts`.
-- `.cts` sources are not in the default glob, since CommonJS does not run in a browser; an explicit
-  `<TypeScriptSource Include="x.cts" />` produces `x.cjs`.
-
-Dev loop: in its default hot reload mode `dotnet watch` runs no build on a `.ts` save, so the
-`.js` would go stale. `Extrode.Pare.AspNetCore` re-strips in the running app instead:
-
-```xml
-<PackageReference Include="Extrode.Pare.AspNetCore" Version="0.6.1" />
-```
-
-```csharp
-builder.AddPareDevelopment();   // before builder.Build(); does nothing outside Development
-```
-
-In Development it strips stale sources when the app starts, then each `.ts`/`.mts` as it is
-saved, to where the build writes (it reads `Extrode.Pare.development.json`, which the build puts
-next to the app and never publishes); `dotnet watch` sees the new `.js` and reloads the page.
-That covers sources served with `PareServeAt` and those of a Razor class library the app
-references as a project.
-Rejections are logged in the `file:line:col: error PARE...` form and the old `.js` stays. Deleting
-a source deletes its output under `obj/`. Pass `o => o.OutDir = "..."` when the project sets
-`PareOutDir`. It also applies `dotnet watch`'s browser refresh to
-`WebApplication.CreateSlimBuilder` apps, which never run the hosting startup that adds it.
-
-- A `.ts` file added while `dotnet watch` runs is stripped, but the page gets 404 for it until the
-  next build: static web assets are fixed at build time. The log says so; press Ctrl+R in
-  `dotnet watch` to rebuild.
-- A request for a deleted source's output answers 500 in Development until the next build.
-
-- A `PublishAot` project needs `<StartupHookSupport Condition="'$(Configuration)' == 'Debug'">true</StartupHookSupport>`;
-  without it `dotnet watch` says "Project does not support Hot Reload".
-- Run `dotnet watch` from the project directory. With `--project` from elsewhere, .NET SDK
-  10.0.401 on macOS fails to read `obj\Debug/.../staticwebassets.development.json` and never
-  refreshes the page.
-- Without the package, `dotnet watch --no-hot-reload` rebuilds and restarts on each save
-  (about 3 s on the sample); reload the page yourself.
-
-| Property | Default | |
-|---|---|---|
-| `EnablePareDefaultItems` | `true` | `false` drops the default glob; add `<TypeScriptSource Include="..." />` yourself |
-| `PareOutDir` | empty | write under this directory, keeping relative paths, instead of `obj/` or next to each source; not served, `.razor.js` and `.cshtml.js` included |
-| `PareTypeCheck` | `false` | `true` runs `tsc --noEmit -p $(PareTsconfig)` first (TypeScript 7's native `tsc`) |
-| `PareTscPath` | `tsc` | e.g. `$(MSBuildThisFileDirectory).tools/typescript/tsc` |
-| `PareTsconfig` | `tsconfig.json` in the project | never copied to the build or publish output |
-| `PareKeepSources` | `false` | `true` serves and publishes the `.ts` sources next to the output |
-| `PareEmbed` | `false` | `true` embeds every output in the assembly instead ([below](#non-web-projects)) |
-| `PareEmbedPrefix` | empty | prepended to each embedded resource's name, e.g. `web/` |
-
-After `PareStripTypeScript`, the item `@(PareOutput)` lists every output. `%(PareSource)` is the
-source's full path. `%(PareRelativePath)` uses `/`: the URL path for a static web asset
-(`js/app.js`), the resource name without the prefix under `PareEmbed`, and otherwise the output's
-path below the project (or below `PareOutDir`). A target with
-`AfterTargets="PareStripTypeScript"` sees it on every build, including builds that skip the strip
-as up to date.
-
-### Restoring without nuget.org
-
-The packages are not on nuget.org yet. Each GitHub release carries the `.nupkg` files; a repo that
-builds on several machines vendors them and restores offline on macOS, Windows and Linux:
-
-```
-packages/Extrode.Pare.0.6.1.nupkg
-packages/Extrode.Pare.Build.0.6.1.nupkg
-```
-
-```xml
-<!-- nuget.config next to the solution; the path is relative to this file -->
-<configuration>
-  <packageSources>
-    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-    <add key="vendored" value="packages" />
-  </packageSources>
-  <packageSourceMapping>
-    <packageSource key="nuget.org"><package pattern="*" /></packageSource>
-    <packageSource key="vendored"><package pattern="Extrode.Pare*" /></packageSource>
-  </packageSourceMapping>
-</configuration>
-```
-
-Pin an exact release (`Version="0.6.1"`), not a `-dev` or `-*` version.
-
-### TypeScript outside wwwroot
-
-Give the item a `PareServeAt`: the URL folder to serve it under. The file's name and extension
-come from the source, and the folders matched by `**` are kept:
-
-```xml
-<TypeScriptSource Include="Scripts/**/*.ts;Scripts/**/*.mts" PareServeAt="js" />
-```
-
-| Source | Served at |
-|---|---|
-| `Scripts/app.ts` | `/js/app.js` |
-| `Scripts/lib/fmt.ts` | `/js/lib/fmt.js` |
-| `Scripts/worker.mts` | `/js/worker.mjs` |
-
-Output goes under `obj/` like a `wwwroot` source's: served from the first build, compressed and
-published. A Blazor component's script, served beside the component as the SDK serves a
-hand-written `Counter.razor.js`:
-
-```xml
-<TypeScriptSource Include="**/*.razor.ts" Exclude="bin/**;obj/**;node_modules/**" PareServeAt="/" />
-```
-
-`Components/Pages/Counter.razor.ts` is served at `/Components/Pages/Counter.razor.js`.
-
-- `/` is the root. Leading and trailing slashes are ignored, and `\` counts as `/`.
-- The URL is the folder, then the part of the path matched by `**` in the `Include` that created
-  the item, then the file name. Without `**` (`Scripts/*.ts`) there is no subfolder.
-- In a Razor class library the folder is below `/_content/<Library>/`, like `wwwroot`.
-- A `wwwroot` source with `PareServeAt` is served there instead of at its `wwwroot` path.
-- Not a folder (`..`, `:`, `//`, or a file name such as `js/app.js`): `error PARE203`. Two sources
-  at one URL: `error PARE201`.
-- A source outside `wwwroot` without `PareServeAt` is not served: `warning PARE202`. Add
-  `PARE202` to `NoWarn` if its `.js` is meant to stay next to it. Not reported for a `.razor.ts`
-  or `.cshtml.ts`, whose `.js` beside the component the SDK serves.
-- `AddPareDevelopment` re-strips these on save. A new file outside `wwwroot` is stripped and
-  served after the next build (Ctrl+R in `dotnet watch`).
-
-### Razor class libraries
-
-Reference `Extrode.Pare.Build` from the library; apps that use it need nothing. The library's
-`wwwroot/js/widget.ts` is served to those apps as `/_content/<Library>/js/widget.js`, published
-with compressed copies, and packed by `dotnet pack` as the stripped `.js` only, with no dependency on
-Pare. When the app references the library as a project, `AddPareDevelopment` in the app
-re-strips the library's sources on save too: each library's build output carries an
-`Extrode.Pare.development.<Library>.json` that reaches the app's.
-
-### Non-web projects
-
-A project that is not a web project (a console app, a NativeAOT binary that serves its own UI)
-can embed the output instead:
-
-```xml
-<PropertyGroup>
-  <PareEmbed>true</PareEmbed>
-  <PareEmbedPrefix>ui/</PareEmbedPrefix>
-  <EnablePareDefaultItems>false</EnablePareDefaultItems>
-</PropertyGroup>
-<ItemGroup>
-  <PackageReference Include="Extrode.Pare.Build" Version="0.6.1" PrivateAssets="all" />
-  <TypeScriptSource Include="web/**/*.ts" />
-</ItemGroup>
-```
-
-`web/lib/util.ts` is written to `obj/<configuration>/<tfm>/pare/web/lib/util.js`, never into the
-source tree, and embedded as `ui/web/lib/util.js`:
-
-```csharp
-using var stream = typeof(Program).Assembly.GetManifestResourceStream("ui/web/lib/util.js");
-```
-
-- The resource name is the prefix plus the path below the project. `PareServeAt` changes the path:
-  `<TypeScriptSource Include="web/**/*.ts" PareServeAt="/" />` gives `ui/lib/util.js`.
-- Outputs are not `Content`, not static web assets, and not copied to the build or publish output.
-- A name such as `strings.de.ts` stays in the main assembly (no satellite assembly for `de`).
-- Incremental: a `.ts` edit rewrites its `.js` and recompiles; a deleted `.ts` drops its resource and
-  its `.js` on the next build.
-
-To embed or copy the files your own way, leave `PareEmbed` off and use `@(PareOutput)`:
-
-```xml
-<PropertyGroup>
-  <PareOutDir>$(BaseIntermediateOutputPath)pare/</PareOutDir>
-</PropertyGroup>
-<Target Name="EmbedPare" AfterTargets="PareStripTypeScript">
-  <ItemGroup>
-    <EmbeddedResource Include="@(PareOutput)" LogicalName="ui/%(PareOutput.PareRelativePath)" />
-  </ItemGroup>
-</Target>
-```
-
-`$(IntermediateOutputPath)` is still empty where a project file sets its properties, so
-`PareOutDir` cannot use it; `$(BaseIntermediateOutputPath)` (`obj/`) is set by then.
-
-### Other compilers
-
-Another package that compiles a language to JavaScript (Husk, for `.svelte`) can hand its sources
-to Pare and get the same treatment as a `.ts`: output under `obj/`, a static web asset at the same
-URL rules (`wwwroot` path or `PareServeAt`), compressed and published, embedded under `PareEmbed`,
-deleted with its source, re-run on save by `AddPareDevelopment`. It declares the sources and its
-own target, usually in its package's `.props` and `.targets`:
-
-```xml
-<ItemGroup>
-  <PareCompileSource Include="Components/**/*.svelte" PareCompiler="husk"
-                     PareOutputExtension=".svelte.js" PareServeAt="/" />
-</ItemGroup>
-<PropertyGroup>
-  <PareCompileDependsOn>$(PareCompileDependsOn);HuskCompile</PareCompileDependsOn>
-</PropertyGroup>
-<Target Name="HuskCompile" Inputs="@(PareCompileSource)" Outputs="@(PareCompileSource->'%(PareOutputPath)')">
-  <!-- write each source's output to %(PareOutputPath) -->
-</Target>
-```
-
-| Metadata | |
-|---|---|
-| `PareCompiler` | required: the compiler's name, the same as its `IPareCompiler.Name` |
-| `PareOutputExtension` | required: the output's name is the source's name without its extension, plus this (`App.svelte` + `.svelte.js` = `App.svelte.js`) |
-| `PareServeAt` | as for `TypeScriptSource` |
-
-- Targets in `PareCompileDependsOn` run inside `PareStripTypeScript`, after the strip and before
-  the outputs are registered. There each `@(PareCompileSource)` has `PareOutputPath` (where to
-  write; relative paths are below the project) and `PareRelativePath` (its URL or resource name).
-  Skipping up-to-date sources is the target's job (`Inputs`/`Outputs`).
-- Two outputs from one source (a component's `.js` and `.css`) are two items with the same
-  `Include` and different extensions. Every file the target writes under `obj/` must be one of
-  these outputs: the build deletes any other file there as a deleted source's output (a
-  `.js.map` it was not told about, say).
-- The sources leave `Content`, so a `.svelte` under `wwwroot` is not published. They are `Watch`
-  items. `@(PareOutput)` lists their outputs with `%(PareCompiler)`.
-- `error PARE204` for a missing `PareCompiler` (letters, digits, `.`, `_`, `-`) or `PareOutputExtension`. PARE201, PARE202 and
-  PARE203 apply as for TypeScript, across both kinds of source.
-
-On save in Development, `AddPareDevelopment` hands each such source to the `IPareCompiler` with
-its name, registered in DI:
-
-```csharp
-builder.Services.AddSingleton<IPareCompiler, SvelteCompiler>();
-builder.AddPareDevelopment();   // a second call, from another package's setup, adds no watcher; its options apply too
-```
-
-`CompileAsync(sourcePath, source, outputPaths, logger, cancellationToken)` returns the text of each
-output, keyed by path, or null after logging its errors (the old outputs stay). Pare calls each
-compiler one source at a time, writes what changed and deletes the outputs of a deleted source;
-sources out of date at start are compiled before the app serves. A source whose compiler is not
-registered gets a warning at start and is not compiled.
-
-### Type checking in CI without npm
-
-`PareTypeCheck=true` runs TypeScript 7's native `tsc --noEmit -p tsconfig.json` before the strip;
-a type error fails the build. `scripts/get-tsc.cs` fetches `tsc` from the npm registry (checking its
-sha512) without npm or Node. Copy it into your repo, outside any project directory (a project
-compiles every `.cs` below it), and run it on each machine and in CI before the build:
-
-```sh
-dotnet run scripts/get-tsc.cs --dest .tools/typescript   # add .tools/ to .gitignore
-```
-
-```xml
-<PareTypeCheck>true</PareTypeCheck>
-<PareTscPath>$(MSBuildThisFileDirectory).tools/typescript/tsc</PareTscPath>
-<PareTscPath Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(PareTscPath).exe</PareTscPath>
-```
-
-The binary is per OS and CPU (`@typescript/typescript-<os>-<cpu>`: `darwin-arm64`, `win32-x64`,
-`linux-x64`, and the other arm64/x64 pairs), so fetch it on each machine rather than committing it.
-On Windows it is `tsc.exe`. Re-running with the same
-version does nothing; `--version <x.y.z>` picks another. The script refuses a `--dest` that is not
-empty and that it did not fill itself.
-
-## Sample
-
-`samples/WebApp`: ASP.NET Core NativeAOT, an Alpine component and modules written in TypeScript,
-an htmx call to a minimal API. It references the package from a local feed, as a consumer would:
-
-```sh
-scripts/pack-local.sh               # pack into tmp/feed as 0.6.1-dev.<time>, re-restore the sample
-dotnet run --project samples/WebApp   # http://localhost:5180, Development
-dotnet watch            # from samples/WebApp: a .ts save re-strips and reloads the page
-dotnet publish samples/WebApp -c Release -r osx-arm64 -o tmp/sample-aot
-```
-
-The package keeps `$(PareTsconfig)` out of the build and publish output; the sample marks its
-`nuget.config` `CopyToPublishDirectory="Never"` by hand.
-The launch profile avoids port 5000, which macOS AirPlay Receiver also listens on.
-
-`tests/Extrode.Pare.Integration` checks the sample end to end, packing the package into a private
-feed first:
-
-- the Development build, the Release publish and the NativeAOT publish each served and clicked
-  through in Chromium, Firefox and WebKit (Playwright). The counter and the htmx call must work,
-  with no console error and no failed request, and the modules the browser loads must be Pare's
-  output at the TypeScript positions.
-- published output holds only `.js` with `.br`/`.gz` copies; `.ts`, `.d.ts` and `tsconfig.json`
-  answer 404, and `counter.js` comes back brotli-compressed as `text/javascript`.
-- the stripped `counter.js` imported and run in Node and in Deno.
-- `dotnet watch` on the sample: a `.ts` edit is re-stripped and Chromium reloads to the new text
-  with no restart.
-
-The first run downloads the three browsers (about 250 MB) into Playwright's cache. Alpine and
-htmx load from jsDelivr, so the tests need network.
-
-## Library
-
-```csharp
-bool ok = TypeStripper.Strip(source, output, diagnostics);
-bool ok = TypeStripper.Strip(source, output, diagnostics, StripOptions.RewriteRelativeImportExtensions);
-```
-
-`source` is `ReadOnlySpan<char>`, `output` an `IBufferWriter<char>`, `diagnostics` an
-`IDiagnosticSink`. Where allocation does not matter (tests, tools):
-
-```csharp
-string? js = TypeStripper.Strip(source, out IReadOnlyList<Diagnostic> diagnostics);   // null if rejected
-foreach (var d in diagnostics)
-    Console.Error.WriteLine(DiagnosticFormatter.Format("app.ts", source, d));
-```
-
-These overloads, `Diagnostic`, `DiagnosticCode`, `IDiagnosticSink`, `DiagnosticFormatter` and
-`StripOptions` are stable for 0.x: later 0.x releases add, never change or remove. `DiagnosticCode`
-values are fixed. `Extrode.Pare` is the library alone, no MSBuild.
-
-Testing TypeScript modules in a .NET JavaScript engine, with no build output and no Node:
-[tests/Extrode.Pare.Integration/JintModuleTests.cs](tests/Extrode.Pare.Integration/JintModuleTests.cs)
-is a 25-line Jint module loader that strips each `.ts` as it is imported (`./x.js` loads `x.ts`) and
-reports rejections as `file:line:col: error PARE...`. Deep nesting fails with a diagnostic, not a stack overflow; on linux-musl-arm64
-NativeAOT call `Strip` from a thread you created, since .NET misreads the main thread's stack size
-there and the check fails at once. Why UTF-16: [docs/decisions/2026-10-14-001-utf16-input.md](docs/decisions/2026-10-14-001-utf16-input.md).
-
-## C library
-
-`libpare` is the same stripper as a C shared library, for Rust, Go (cgo), Python (ctypes), Ruby,
-PHP, Node or Deno FFI: no .NET runtime needed. `libpare-<version>-<rid>.tar.gz` (`.zip` on
-Windows) holds `libpare.dylib`, `libpare.so` or `pare.dll` + `pare.lib`, and
-[`pare.h`](src/Extrode.Pare.Native/include/pare.h); `scripts/pack-cli.sh` and `pack-cli.ps1`
-build them for the CLI's RIDs, or `dotnet publish src/Extrode.Pare.Native -r <rid>`.
-
-```c
-#include <stdio.h>
-#include <string.h>
-#include "pare.h"
-
-int main(void) {
-    const char *ts = "let a: number = 1;\n";
-    pare_result r;
-    if (pare_strip(ts, strlen(ts), 0, &r) == PARE_OK)
-        fputs(r.output, stdout);                       /* "let a         = 1;\n" */
-    else
-        for (size_t i = 0; i < r.diagnostic_count; i++)
-            fprintf(stderr, "app.ts:%d:%d: error PARE%03d: %s\n", r.diagnostics[i].line,
-                    r.diagnostics[i].column, r.diagnostics[i].code, pare_message(r.diagnostics[i].code));
-    pare_free(&r);
-}
-```
-
-```sh
-cc app.c -I<dir> -L<dir> -lpare -Wl,-rpath,<dir>    # macOS, Linux
-cl app.c /I<dir> <dir>\pare.lib                      # Windows; pare.dll next to app.exe
-```
-
-- UTF-8 in and out. A leading BOM is dropped, as the CLI does; invalid UTF-8 returns
-  `PARE_INVALID`. Lines and UTF-16 columns are kept, so the output's `line:column` is the
-  source's; byte offsets shift when a blanked type holds non-ASCII text.
-- Diagnostics carry the code, line, UTF-16 column (what browsers report), and byte offset and
-  length into the source.
-- Thread-safe. The library allocates, `pare_free` frees and zeroes. It cannot be unloaded.
-- `pare_abi_version()` against `PARE_ABI_VERSION` catches a header and library from different
-  builds.
-- On linux-musl-arm64, call it from a thread you created (see [Library](#library)).
-
-## Non-whitespace changes
-
-The output differs from the input only by spaces, except for:
-
-- relative module specifiers `./x.ts` rewritten to `./x.js` (`.mts`/`.cts` likewise) in
-  `import`, `export ... from` and `import("...")`: on in the CLI and MSBuild, opt-in in the library
-- ASI fixes: a `)` moved to the end of an erased multi-line return type, a `(` moved to the
-  start of erased type parameters followed by a line break, and a `;` written at the start of
-  an erased statement or class member when the previous line could otherwise merge with the next,
-  at the end of an erased `as`/`satisfies` type when the next line starts with `(`, `[` or a
-  template, and at the end of the erased type of a field named `get`, `set` or `static`
-
-## Real-world check
-
-`scripts/run-std-tests.cs` runs Deno's standard library test suite on Pare's output. It strips a
-copy of [denoland/std](https://github.com/denoland/std) (pinned commit, 1,600+ files) with the
-`pare` CLI in about 0.5 s, points the `@std/*` imports at the `.js` files, and runs `deno test` on
-each package's original `*_test.ts` and stripped `*_test.js`:
-
-- 38 of 42 packages give the same result (4,997 passing tests); 5,521 tests pass on Pare's output in all.
-- csv: one test compares `Function.prototype.toString()` with Deno's reprinted `(n)=>n`; a
-  blanking stripper keeps `(n        ) => n`.
-- testing: snapshot tests look for a snapshot file named after the `.ts` test file.
-- http: one test passes only on the `.js` copy, because the TypeScript copy sits under a dot
-  directory (`.corpus`) that `serveDir()` refuses.
-- expect: not run. Pare rejects three of its files (parameter properties and a `<T>x` assertion,
-  which generate runtime code), so `expect.js` is missing.
-
-Failures common to both runs (cli, encoding, fmt, fs and others) come from the environment.
-
-```sh
-dotnet run scripts/get-bench-corpus.cs
-dotnet publish src/Extrode.Pare.Cli -c Release -r osx-arm64 -o tmp/aot
-dotnet run scripts/run-std-tests.cs            # or name packages: ... -- yaml semver
-```
-
-## Performance
-
-Measured on an Apple M1 Max (osx-arm64), .NET 10.0, Release build.
-
-BenchmarkDotNet 0.15.8, one `TypeStripper.Strip` call per source, output to a reused buffer:
-
-| Input | Mean | MB/s | Allocated |
-|---|---:|---:|---:|
-| TypeScript 5.9.3 `checker.ts` (3.1 MB) | 9.3 ms | 335 | 0 B |
-| Real-world corpus, 2,392 files (19.5 MB) | 60.2 ms | 272 | 0 B |
-| `(a = ` nested 1,000 deep | 32.3 ms | 0.2 | 0 B |
-
-Deep nesting is quadratic, as in TypeScript's own parser; real code never reaches it.
-
-The same 2,392 files (TypeScript's compiler, Vue, Hono, Deno std, Svelte, Zod at pinned
-commits) through other tools. Each tool's output is compared with Pare's byte for byte, then as
-an Acornima syntax tree without locations. Printers (esbuild, oxc, Deno) reprint literals, so the
-tree comparison ignores literal spelling, `{ a: a }` versus `{ a }` and `void 0` versus `undefined`.
-For printers, a looser comparison also ignores imports (they drop unused ones) and a numeric suffix
-on names (they rename a shadowed `x` to `x1`). Deno is Deno's own transpiler (swc, as `deno run`
-uses it), read from its cache after `deno cache --no-check`.
-
-| Tool | Same bytes | Same tree | Same but imports dropped or names renamed | Differ | Throughput | Pare is |
-|---|---:|---:|---:|---:|---:|---:|
-| Pare 0.5.0 | - | - | - | - | 279 MB/s | - |
-| Node 24.16 `stripTypeScriptTypes` | 1,898 | 490 | - | 0 | 40 MB/s | 7.0x faster |
-| oxc-transform 0.154.0 | 13 | 2,375 | 0 | 0 | 87 MB/s | 3.2x faster |
-| ts-blank-space 0.9.0 | 1,967 | 420 | - | 1 | 28 MB/s | 10.0x faster |
-| esbuild 0.28.2 | 11 | 1,961 | 296 | 120 | 12 MB/s | 23.4x faster |
-| Deno 2.9.7 (swc) | 11 | 2,326 | 51 | 0 | - | - |
-
-- Same tree but not same bytes: Node and ts-blank-space keep tabs and write UTF-8-width spaces for
-  non-ASCII comment text, and Pare writes its ASI `;` in a few places they leave blank.
-- ts-blank-space's one difference is a bug on its side: `get!: T` followed by another field on the
-  next line becomes a getter, and its output does not parse. Pare had the same bug until this
-  comparison found it.
-- Deno's 51: it drops imports whose names are unused, including `import {} from "m"`, which still
-  loads `m` (Pare keeps it, as `verbatimModuleSyntax` requires), and renames shadowed bindings.
-- esbuild's 120 left: it turns strings with line breaks into template literals and folds some
-  expressions; none is a Pare error.
-- Four files are left out: their output does not parse for any stripper, because they import or
-  re-export a type without `type`, which needs type information to remove.
-- Whole process over all files: `pare` CLI (NativeAOT) 0.95 s, `deno cache --no-check` from a
-  cold cache 1.1 s, one run each.
-
-Throughput is the best of 5 passes in one run on a laptop and moves by 10-20% between runs;
-BenchmarkDotNet's numbers above are the steady ones. To reproduce:
-
-```sh
-dotnet run scripts/get-bench-corpus.cs                       # ~25 MB into .corpus/realworld
-npm --prefix tests/Extrode.Pare.Bench/compare ci --ignore-scripts
-dotnet publish src/Extrode.Pare.Cli -c Release -r osx-arm64 -o tmp/aot
-dotnet run -c Release --project tests/Extrode.Pare.Bench -- compare --passes 5
-dotnet run -c Release --project tests/Extrode.Pare.Bench -- --filter '*'
-```
-
-`compare` writes every tool's output under `tmp/compare/` and the differences to
-`tmp/compare/differences.tsv`.
+The slower integration tests drive Chromium, Firefox and WebKit through Playwright and need
+network. Release packaging is described in [AGENTS.md](AGENTS.md#build-and-test). Project history
+and decisions are in [work/progress.md](work/progress.md) and [docs/decisions](docs/decisions).
 
 ## License
 
-Pare is licensed under the Islamic Software License - Permissive (ISL-P) v1.2 WITH the Output
-Exception (ISL-OE) v1.2: a source-available, ethically restricted license rooted in Islamic
-principles. It is not an OSI-approved open-source license. The Output Exception lets you ship the
-JavaScript Pare generates as part of your own work. See [LICENSE.md](LICENSE.md), including the
-ethical use restrictions in Sections 4 and 5, and [NOTICE.md](NOTICE.md).
+Pare is under the Islamic Software License - Permissive (ISL-P) v1.2 with the Output Exception
+(ISL-OE) v1.2. It is source-available with ethical use restrictions, and it is **not an OSI-approved
+open-source license**. The Output Exception lets you ship the JavaScript Pare generates as part of
+your own work. See [LICENSE.md](LICENSE.md) (Sections 4 and 5 hold the restrictions) and
+[NOTICE.md](NOTICE.md).
