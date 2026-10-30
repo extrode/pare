@@ -13,7 +13,9 @@ if [ ! -d "$tool" ]; then
   echo "build-docs.sh: the shared Docs tool is not part of this repository; expected a sibling checkout at $tool" >&2
   exit 1
 fi
-rm -rf tmp/docs-src
+rm -rf tmp/docs-src dist/docs-site
 mkdir -p tmp/docs-src
 cp -R docs/[0-9][0-9]-* docs/assets tmp/docs-src/
 dotnet run --project "$tool" -- tmp/docs-src dist/docs-site --site-name pare
+# GitHub Pages serves the site at this domain; the file must be in the artifact.
+printf 'pare.extrode.com\n' > dist/docs-site/CNAME

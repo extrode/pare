@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en" class="jt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supported syntax — pare docs</title>
+<link rel="stylesheet" href="site.css">
+<script>
+/* Inline, in the head, and before anything paints. A saved preference applied
+   from nav.js would arrive after the first frame, and the reader would watch
+   the page flash the wrong theme on every navigation. */
+(function () {
+  var d = document.documentElement;
+  var KEYS = ['theme', 'fs', 'nav-w', 'toc', 'nav'];
+  /* Over file:// Firefox gives every page its own empty localStorage, so the link
+     that brought the reader here carries the preferences too: ?dg=nav-w:336,ts:…
+     The newer of the two wins, by the ts each side records at its last change, so
+     a reload after a change keeps the change and a stale bookmark loses to storage. */
+  var fromLink = {};
+  var m = /[?&]dg=([^&#]*)/.exec(location.search);
+  if (m) decodeURIComponent(m[1]).split(',').forEach(function (kv) {
+    var i = kv.indexOf(':');
+    if (i > 0) fromLink[kv.slice(0, i)] = kv.slice(i + 1);
+  });
+  var pref = {};
+  try {
+    var stored = parseInt(localStorage.getItem('dg-ts'), 10) || 0;
+    var linked = parseInt(fromLink.ts, 10) || 0;
+    if (m && linked >= stored) {
+      KEYS.forEach(function (k) {
+        pref[k] = fromLink[k] || null;
+        if (pref[k]) localStorage.setItem('dg-' + k, pref[k]); else localStorage.removeItem('dg-' + k);
+      });
+      localStorage.setItem('dg-ts', String(linked));
+    } else {
+      KEYS.forEach(function (k) { pref[k] = localStorage.getItem('dg-' + k); });
+    }
+  } catch (e) { /* private mode, file:// with storage denied -- the link still counts */
+    KEYS.forEach(function (k) { pref[k] = fromLink[k] || null; });
+  }
+  if (pref.theme === 'light' || pref.theme === 'dark') d.setAttribute('data-theme', pref.theme);
+  var s = parseFloat(pref.fs);
+  if (s >= 0.75 && s <= 1.75) d.style.setProperty('--fs-scale', String(s));
+  var w = parseInt(pref['nav-w'], 10);
+  if (w >= 180 && w <= 480) d.style.setProperty('--nav-w', w + 'px');
+  if (pref.toc === 'hidden') d.setAttribute('data-toc', 'hidden');
+  if (pref.nav === 'hidden') d.setAttribute('data-nav', 'hidden');
+})();
+</script>
+</head>
+<body class="jt">
+<div class="jt-shell">
+
+  <!-- ===== header ===== -->
+  <header class="jt-header">
+    <button class="hamburger" aria-label="Toggle navigation" onclick="toggleNav()">&#9776;</button>
+    <div class="header-brand">
+      <span class="brand-name">pare</span>
+      <span class="brand-crumb">Reference &#8250; Supported syntax</span>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-tools">
+      <button class="tool-btn search-btn" type="button" onclick="openSearch()" title="Search (/)">
+        <span class="search-word">search</span><kbd>/</kbd>
+      </button>
+      <div class="fs-group" role="group" aria-label="Text size">
+        <button class="tool-btn" onclick="fontSize(-1)" title="Smaller text">A&#8722;</button>
+        <button class="tool-btn" onclick="fontSize(0)" title="Reset text size">A</button>
+        <button class="tool-btn" onclick="fontSize(1)" title="Larger text">A+</button>
+      </div>
+      <button class="tool-btn theme-btn" id="theme-btn" onclick="cycleTheme()"
+              title="Colour scheme" aria-live="polite">auto</button>
+    </div>
+  </header>
+
+  <!-- ===== body ===== -->
+  <div class="jt-body">
+
+    <!-- sidebar backdrop (mobile) -->
+    <div class="nav-backdrop" id="nav-backdrop" onclick="toggleNav()"></div>
+
+    <!-- sidebar -->
+    <nav class="jt-sidebar" id="jt-sidebar" aria-label="Documentation navigation">
+      <div class="sidebar-filter">
+        <span class="filter-icon">/</span>
+        <input type="text" id="nav-filter" placeholder="filter nav" oninput="filterNav(this.value)" autocomplete="off">
+      </div>
+      <div class="sidebar-scroll" id="sidebar-scroll">
+        <div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Overview</span>
+  </div>
+  <div class="nav-group-items">  <a href="00-overview-readme.html">Pare documentation</a>  <a href="00-overview-comparison.html">Pare and the alternatives</a>  <a href="00-overview-how-it-works.html">How Pare works</a>  <a href="00-overview-what-pare-does-not-do.html">What Pare does not do</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Getting started</span>
+  </div>
+  <div class="nav-group-items">  <a href="01-getting-started-readme.html">Getting started</a>  <a href="01-getting-started-first-static-site.html">Your first static site</a>  <a href="01-getting-started-first-web-app.html">Your first web app</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Guides</span>
+  </div>
+  <div class="nav-group-items">  <a href="03-guides-readme.html">Guides</a>  <a href="03-guides-c-library.html">Using libpare from C and other languages</a>  <a href="03-guides-cli.html">The pare command</a>  <a href="03-guides-compile-other-languages.html">Compiling other languages</a>  <a href="03-guides-hot-reload.html">Hot reload</a>  <a href="03-guides-library.html">Using the library</a>  <a href="03-guides-non-web-projects.html">Non-web projects</a>  <a href="03-guides-offline-restore.html">Offline and vendored packages</a>  <a href="03-guides-razor-class-libraries.html">Razor class libraries</a>  <a href="03-guides-type-checking.html">Type checking in CI</a>  <a href="03-guides-typescript-outside-wwwroot.html">TypeScript outside wwwroot</a>  </div>
+</div>
+<div class="nav-group" data-group data-open="true">
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Reference</span>
+  </div>
+  <div class="nav-group-items">  <a href="06-reference-readme.html">Reference</a>  <a href="06-reference-benchmarks.html">Benchmarks</a>  <a href="06-reference-c-api.html">C API</a>  <a href="06-reference-error-codes.html">Error codes</a>  <a href="06-reference-license.html">License</a>  <a href="06-reference-msbuild-properties.html">MSBuild properties</a>  <a href="06-reference-output-changes.html">Output changes</a>  <a href="06-reference-supported-syntax.html" class="active" aria-current="page">Supported syntax</a>  <a href="06-reference-troubleshooting.html">Troubleshooting</a>  </div>
+</div>
+
+      </div>
+      <div class="nav-resizer" id="nav-resizer" title="Drag to resize, double-click to reset"></div>
+    </nav>
+
+    <!-- content -->
+    <main class="jt-content has-toc" id="jt-content">
+      <nav class="toc" aria-label="On this page"><button class="toc-tab" type="button" onclick="toggleToc()" title="Show on this page (o)">On this page</button><div class="toc-title"><span>On this page</span><button class="toc-toggle" type="button" onclick="toggleToc()" title="Hide or show (o)"></button></div><a class="toc-l2" href="#erased">Erased</a><a class="toc-l2" href="#kept-as-written">Kept as written</a><a class="toc-l2" href="#refused">Refused</a><a class="toc-l2" href="#not-supported">Not supported</a><a class="toc-l2" href="#the-reference">The reference</a></nav>
+      <div class="content-inner">
+        <nav class="breadcrumb" aria-label="Breadcrumb">Reference &#8250; Supported syntax</nav>
+        <article>
+<h1 id="supported-syntax">Supported syntax</h1>
+<p>What Pare erases, and what it refuses. Erasing means replacing every character with a space,
+except line terminators (<code>\n</code>, <code>\r</code>, <code> </code>, <code> </code>), which are kept.</p>
+<h2 id="erased">Erased</h2>
+<table>
+<thead>
+<tr>
+<th>Construct</th>
+<th>Example</th>
+<th>Erased part</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Variable, parameter, return annotations</td>
+<td><code>let x: number</code>, <code>f(a: T): U {}</code></td>
+<td><code>: number</code>, <code>: T</code>, <code>: U</code></td>
+</tr>
+<tr>
+<td>Optional markers</td>
+<td><code>f(a?: T)</code>, <code>{ x?: T }</code> in classes</td>
+<td><code>?</code> and the annotation</td>
+</tr>
+<tr>
+<td>Definite assignment</td>
+<td><code>let x!: T</code>, <code>x!: T;</code> in a class</td>
+<td><code>!: T</code></td>
+</tr>
+<tr>
+<td>Non-null assertion</td>
+<td><code>obj!.x</code>, <code>fn()!</code></td>
+<td><code>!</code></td>
+</tr>
+<tr>
+<td><code>as</code> and <code>satisfies</code></td>
+<td><code>x as T</code>, <code>x satisfies T</code></td>
+<td><code> as T</code>, <code> satisfies T</code></td>
+</tr>
+<tr>
+<td>Generic parameters</td>
+<td><code>function f&lt;T&gt;()</code>, <code>class C&lt;T&gt;</code>, <code>&lt;T&gt;(x) =&gt; x</code></td>
+<td><code>&lt;T&gt;</code></td>
+</tr>
+<tr>
+<td>Generic arguments</td>
+<td><code>f&lt;T&gt;(x)</code>, <code>new Map&lt;K, V&gt;()</code>, <code>tag&lt;T&gt;`...`</code></td>
+<td><code>&lt;T&gt;</code>, <code>&lt;K, V&gt;</code></td>
+</tr>
+<tr>
+<td><code>interface</code> declarations</td>
+<td><code>interface A { }</code></td>
+<td>the whole declaration</td>
+</tr>
+<tr>
+<td><code>type</code> aliases</td>
+<td><code>type A = B;</code></td>
+<td>the whole declaration</td>
+</tr>
+<tr>
+<td><code>declare</code> anything</td>
+<td><code>declare const x: T;</code>, <code>declare global {}</code>, <code>declare module &quot;x&quot; {}</code></td>
+<td>the whole declaration</td>
+</tr>
+<tr>
+<td>Type-only namespaces</td>
+<td><code>namespace N { type X = 1 }</code></td>
+<td>the whole declaration</td>
+</tr>
+<tr>
+<td><code>import type</code>, <code>export type</code></td>
+<td><code>import type { A } from &quot;x&quot;</code></td>
+<td>the whole statement</td>
+</tr>
+<tr>
+<td>Inline type specifiers</td>
+<td><code>import { type A, b } from &quot;x&quot;</code></td>
+<td><code>type A,</code></td>
+</tr>
+<tr>
+<td>Class modifiers</td>
+<td><code>public</code>, <code>private</code>, <code>protected</code>, <code>readonly</code>, <code>override</code></td>
+<td>the keyword</td>
+</tr>
+<tr>
+<td><code>abstract</code> classes and members</td>
+<td><code>abstract class C</code>, <code>abstract m(): void;</code></td>
+<td><code>abstract</code>, plus the whole abstract member</td>
+</tr>
+<tr>
+<td><code>implements</code> clause</td>
+<td><code>class C implements I, J</code></td>
+<td><code> implements I, J</code></td>
+</tr>
+<tr>
+<td><code>this</code> parameter</td>
+<td><code>function f(this: Window, a)</code></td>
+<td><code>this: Window,</code></td>
+</tr>
+<tr>
+<td>Overload signatures</td>
+<td><code>function f(a: string): void;</code> with no body</td>
+<td>the whole signature</td>
+</tr>
+<tr>
+<td>Class index signatures</td>
+<td><code>[key: string]: any;</code></td>
+<td>the whole member</td>
+</tr>
+<tr>
+<td>Bodiless class members</td>
+<td><code>m(): void;</code> in a class</td>
+<td>the whole member</td>
+</tr>
+<tr>
+<td><code>declare</code> class fields</td>
+<td><code>declare x: T;</code></td>
+<td>the whole member</td>
+</tr>
+<tr>
+<td><code>export</code> of erased declarations</td>
+<td><code>export interface A {}</code>, <code>export type A = B</code></td>
+<td>the whole statement, <code>export</code> included</td>
+</tr>
+<tr>
+<td><code>export { type A }</code></td>
+<td></td>
+<td><code>type A</code> and the trailing comma</td>
+</tr>
+<tr>
+<td><code>export type * from &quot;x&quot;</code></td>
+<td></td>
+<td>the whole statement</td>
+</tr>
+<tr>
+<td><code>unique symbol</code>, <code>asserts x is T</code>, <code>infer</code>, mapped and conditional types</td>
+<td>inside types</td>
+<td>covered by &quot;the type&quot;</td>
+</tr>
+</tbody>
+</table>
+<h2 id="kept-as-written">Kept as written</h2>
+<ul>
+<li>Standard (TC39) decorators on classes and members. The runtime has to support them.</li>
+<li><code>declare enum</code>, which emits nothing, is erased. <code>declare</code> namespaces and namespaces that hold
+only types are erased.</li>
+</ul>
+<h2 id="refused">Refused</h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Construct</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PARE100</td>
+<td><code>enum</code>, <code>const enum</code></td>
+<td>generates runtime code</td>
+</tr>
+<tr>
+<td>PARE101</td>
+<td><code>namespace</code> or <code>module</code> containing values</td>
+<td>generates runtime code</td>
+</tr>
+<tr>
+<td>PARE102</td>
+<td>parameter properties: <code>constructor(private x)</code></td>
+<td>generates <code>this.x = x</code></td>
+</tr>
+<tr>
+<td>PARE103</td>
+<td><code>import x = require(&quot;y&quot;)</code>, <code>import x = N.y</code></td>
+<td>generates code</td>
+</tr>
+<tr>
+<td>PARE104</td>
+<td><code>export = x</code></td>
+<td>CommonJS-only emit</td>
+</tr>
+<tr>
+<td>PARE105</td>
+<td>angle-bracket assertion <code>&lt;T&gt;expr</code></td>
+<td>ambiguous, and not allowed in <code>.tsx</code>; use <code>as</code></td>
+</tr>
+<tr>
+<td>PARE106</td>
+<td>parameter decorators</td>
+<td>need legacy <code>experimentalDecorators</code></td>
+</tr>
+<tr>
+<td>PARE107</td>
+<td><code>import type A, { B } from &quot;m&quot;</code></td>
+<td>TypeScript rejects it too (TS1363)</td>
+</tr>
+</tbody>
+</table>
+<p>Each has an example and the plain JavaScript to write in <a href="06-reference-error-codes.html">Error codes</a>.</p>
+<h2 id="not-supported">Not supported</h2>
+<ul>
+<li><code>.tsx</code> and JSX.</li>
+<li>Syntax that needs type information to decide. For example, importing or re-exporting a type
+without the <code>type</code> keyword (<code>import { Foo } from &quot;m&quot;</code> where <code>Foo</code> is only a type) leaves a
+runtime import of a name that does not exist. Pare cannot know. Turn on <code>verbatimModuleSyntax</code>
+in <code>tsconfig.json</code> and <code>tsc</code> will make you write <code>import type</code>.</li>
+</ul>
+<h2 id="the-reference">The reference</h2>
+<p>When there is a grammar question, TypeScript's <code>parser.ts</code> is the reference. On the TypeScript
+test corpus, Pare's output matches TypeScript 7 <code>tsc</code> emit (compared as syntax trees) for 99.96% of
+the files Pare strips. The rest are triaged differences on <code>tsc</code>'s side.</p>
+
+        </article>
+        <div class="page-nav" id="page-nav">
+          <div class="prev-next"><a class="pn-prev" href="06-reference-output-changes.html">
+  <span class="pn-label">&#8592; prev</span>
+  <span class="pn-title">Output changes</span>
+</a><a class="pn-next" href="06-reference-troubleshooting.html">
+  <span class="pn-label">next &#8594;</span>
+  <span class="pn-title">Troubleshooting</span>
+</a></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===== status bar ===== -->
+  <footer class="jt-statusbar">
+    <span class="status-dot">&#9679; pare docs</span>
+    <span class="status-spacer"></span>
+    <button class="status-kbd" type="button" onclick="toggleHelp()"><kbd>?</kbd> shortcuts</button>
+  </footer>
+</div>
+
+<!-- ===== search (opened with / or Ctrl+K; the index loads on first use) ===== -->
+<div class="search-overlay" id="search-overlay" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <input type="search" id="search-input" placeholder="search the docs" autocomplete="off"
+           spellcheck="false" oninput="runSearch(this.value)">
+    <div class="search-results" id="search-results" role="listbox"></div>
+    <div class="search-foot"><kbd>&#8593;</kbd><kbd>&#8595;</kbd> move <kbd>Enter</kbd> open <kbd>Esc</kbd> close</div>
+  </div>
+</div>
+
+<!-- ===== keyboard shortcuts ===== -->
+<div class="kbd-help" id="kbd-help" hidden>
+  <div class="kbd-box" role="dialog" aria-label="Keyboard shortcuts">
+    <div class="kbd-title">Keyboard shortcuts</div>
+    <table>
+      <tr><td><kbd>/</kbd> <kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>search</td></tr>
+      <tr><td><kbd>f</kbd></td><td>filter the sidebar; <kbd>Enter</kbd> opens the first match, <kbd>Esc</kbd> clears</td></tr>
+      <tr><td><kbd>h</kbd></td><td>home</td></tr>
+      <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>previous / next page</td></tr>
+      <tr><td><kbd>j</kbd> <kbd>k</kbd></td><td>next / previous heading</td></tr>
+      <tr><td><kbd>b</kbd></td><td>toggle the sidebar</td></tr>
+      <tr><td><kbd>w</kbd></td><td>reset the sidebar width</td></tr>
+      <tr><td><kbd>o</kbd></td><td>toggle "on this page"</td></tr>
+      <tr><td><kbd>t</kbd></td><td>colour scheme: auto, light, dark</td></tr>
+      <tr><td><kbd>-</kbd> <kbd>=</kbd> <kbd>0</kbd></td><td>text smaller / larger / reset</td></tr>
+      <tr><td><kbd>?</kbd></td><td>this panel</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>close</td></tr>
+    </table>
+  </div>
+</div>
+<script src="nav.js"></script>
+</body>
+</html>

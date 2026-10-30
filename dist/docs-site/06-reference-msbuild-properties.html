@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en" class="jt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MSBuild properties — pare docs</title>
+<link rel="stylesheet" href="site.css">
+<script>
+/* Inline, in the head, and before anything paints. A saved preference applied
+   from nav.js would arrive after the first frame, and the reader would watch
+   the page flash the wrong theme on every navigation. */
+(function () {
+  var d = document.documentElement;
+  var KEYS = ['theme', 'fs', 'nav-w', 'toc', 'nav'];
+  /* Over file:// Firefox gives every page its own empty localStorage, so the link
+     that brought the reader here carries the preferences too: ?dg=nav-w:336,ts:…
+     The newer of the two wins, by the ts each side records at its last change, so
+     a reload after a change keeps the change and a stale bookmark loses to storage. */
+  var fromLink = {};
+  var m = /[?&]dg=([^&#]*)/.exec(location.search);
+  if (m) decodeURIComponent(m[1]).split(',').forEach(function (kv) {
+    var i = kv.indexOf(':');
+    if (i > 0) fromLink[kv.slice(0, i)] = kv.slice(i + 1);
+  });
+  var pref = {};
+  try {
+    var stored = parseInt(localStorage.getItem('dg-ts'), 10) || 0;
+    var linked = parseInt(fromLink.ts, 10) || 0;
+    if (m && linked >= stored) {
+      KEYS.forEach(function (k) {
+        pref[k] = fromLink[k] || null;
+        if (pref[k]) localStorage.setItem('dg-' + k, pref[k]); else localStorage.removeItem('dg-' + k);
+      });
+      localStorage.setItem('dg-ts', String(linked));
+    } else {
+      KEYS.forEach(function (k) { pref[k] = localStorage.getItem('dg-' + k); });
+    }
+  } catch (e) { /* private mode, file:// with storage denied -- the link still counts */
+    KEYS.forEach(function (k) { pref[k] = fromLink[k] || null; });
+  }
+  if (pref.theme === 'light' || pref.theme === 'dark') d.setAttribute('data-theme', pref.theme);
+  var s = parseFloat(pref.fs);
+  if (s >= 0.75 && s <= 1.75) d.style.setProperty('--fs-scale', String(s));
+  var w = parseInt(pref['nav-w'], 10);
+  if (w >= 180 && w <= 480) d.style.setProperty('--nav-w', w + 'px');
+  if (pref.toc === 'hidden') d.setAttribute('data-toc', 'hidden');
+  if (pref.nav === 'hidden') d.setAttribute('data-nav', 'hidden');
+})();
+</script>
+</head>
+<body class="jt">
+<div class="jt-shell">
+
+  <!-- ===== header ===== -->
+  <header class="jt-header">
+    <button class="hamburger" aria-label="Toggle navigation" onclick="toggleNav()">&#9776;</button>
+    <div class="header-brand">
+      <span class="brand-name">pare</span>
+      <span class="brand-crumb">Reference &#8250; MSBuild properties</span>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-tools">
+      <button class="tool-btn search-btn" type="button" onclick="openSearch()" title="Search (/)">
+        <span class="search-word">search</span><kbd>/</kbd>
+      </button>
+      <div class="fs-group" role="group" aria-label="Text size">
+        <button class="tool-btn" onclick="fontSize(-1)" title="Smaller text">A&#8722;</button>
+        <button class="tool-btn" onclick="fontSize(0)" title="Reset text size">A</button>
+        <button class="tool-btn" onclick="fontSize(1)" title="Larger text">A+</button>
+      </div>
+      <button class="tool-btn theme-btn" id="theme-btn" onclick="cycleTheme()"
+              title="Colour scheme" aria-live="polite">auto</button>
+    </div>
+  </header>
+
+  <!-- ===== body ===== -->
+  <div class="jt-body">
+
+    <!-- sidebar backdrop (mobile) -->
+    <div class="nav-backdrop" id="nav-backdrop" onclick="toggleNav()"></div>
+
+    <!-- sidebar -->
+    <nav class="jt-sidebar" id="jt-sidebar" aria-label="Documentation navigation">
+      <div class="sidebar-filter">
+        <span class="filter-icon">/</span>
+        <input type="text" id="nav-filter" placeholder="filter nav" oninput="filterNav(this.value)" autocomplete="off">
+      </div>
+      <div class="sidebar-scroll" id="sidebar-scroll">
+        <div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Overview</span>
+  </div>
+  <div class="nav-group-items">  <a href="00-overview-readme.html">Pare documentation</a>  <a href="00-overview-comparison.html">Pare and the alternatives</a>  <a href="00-overview-how-it-works.html">How Pare works</a>  <a href="00-overview-what-pare-does-not-do.html">What Pare does not do</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Getting started</span>
+  </div>
+  <div class="nav-group-items">  <a href="01-getting-started-readme.html">Getting started</a>  <a href="01-getting-started-first-static-site.html">Your first static site</a>  <a href="01-getting-started-first-web-app.html">Your first web app</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Guides</span>
+  </div>
+  <div class="nav-group-items">  <a href="03-guides-readme.html">Guides</a>  <a href="03-guides-c-library.html">Using libpare from C and other languages</a>  <a href="03-guides-cli.html">The pare command</a>  <a href="03-guides-compile-other-languages.html">Compiling other languages</a>  <a href="03-guides-hot-reload.html">Hot reload</a>  <a href="03-guides-library.html">Using the library</a>  <a href="03-guides-non-web-projects.html">Non-web projects</a>  <a href="03-guides-offline-restore.html">Offline and vendored packages</a>  <a href="03-guides-razor-class-libraries.html">Razor class libraries</a>  <a href="03-guides-type-checking.html">Type checking in CI</a>  <a href="03-guides-typescript-outside-wwwroot.html">TypeScript outside wwwroot</a>  </div>
+</div>
+<div class="nav-group" data-group data-open="true">
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Reference</span>
+  </div>
+  <div class="nav-group-items">  <a href="06-reference-readme.html">Reference</a>  <a href="06-reference-benchmarks.html">Benchmarks</a>  <a href="06-reference-c-api.html">C API</a>  <a href="06-reference-error-codes.html">Error codes</a>  <a href="06-reference-license.html">License</a>  <a href="06-reference-msbuild-properties.html" class="active" aria-current="page">MSBuild properties</a>  <a href="06-reference-output-changes.html">Output changes</a>  <a href="06-reference-supported-syntax.html">Supported syntax</a>  <a href="06-reference-troubleshooting.html">Troubleshooting</a>  </div>
+</div>
+
+      </div>
+      <div class="nav-resizer" id="nav-resizer" title="Drag to resize, double-click to reset"></div>
+    </nav>
+
+    <!-- content -->
+    <main class="jt-content has-toc" id="jt-content">
+      <nav class="toc" aria-label="On this page"><button class="toc-tab" type="button" onclick="toggleToc()" title="Show on this page (o)">On this page</button><div class="toc-title"><span>On this page</span><button class="toc-toggle" type="button" onclick="toggleToc()" title="Hide or show (o)"></button></div><a class="toc-l2" href="#properties">Properties</a><a class="toc-l2" href="#item-metadata">Item metadata</a><a class="toc-l2" href="#items-you-can-read">Items you can read</a><a class="toc-l2" href="#what-gets-stripped">What gets stripped</a><a class="toc-l2" href="#where-the-output-goes">Where the output goes</a></nav>
+      <div class="content-inner">
+        <nav class="breadcrumb" aria-label="Breadcrumb">Reference &#8250; MSBuild properties</nav>
+        <article>
+<h1 id="msbuild-properties">MSBuild properties</h1>
+<p>Set these in the project file. The package is <code>Extrode.Pare.Build</code>. The task runs in-process under
+<code>dotnet build</code>, and in MSBuild's .NET task host (a separate process) under Visual Studio 2026.</p>
+<h2 id="properties">Properties</h2>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EnablePareDefaultItems</code></td>
+<td><code>true</code></td>
+<td><code>false</code> drops the default glob; add <code>&lt;TypeScriptSource Include=&quot;...&quot; /&gt;</code> yourself</td>
+</tr>
+<tr>
+<td><code>PareOutDir</code></td>
+<td>empty</td>
+<td>write under this directory, keeping relative paths, instead of <code>obj/</code> or next to each source; not served, <code>.razor.js</code> and <code>.cshtml.js</code> included</td>
+</tr>
+<tr>
+<td><code>PareTypeCheck</code></td>
+<td><code>false</code></td>
+<td><code>true</code> runs <code>tsc --noEmit -p $(PareTsconfig)</code> first (TypeScript 7's native <code>tsc</code>)</td>
+</tr>
+<tr>
+<td><code>PareTscPath</code></td>
+<td><code>tsc</code></td>
+<td>for example <code>$(MSBuildThisFileDirectory).tools/typescript/tsc</code></td>
+</tr>
+<tr>
+<td><code>PareTsconfig</code></td>
+<td><code>tsconfig.json</code> in the project</td>
+<td>never copied to the build or publish output</td>
+</tr>
+<tr>
+<td><code>PareKeepSources</code></td>
+<td><code>false</code></td>
+<td><code>true</code> serves and publishes the <code>.ts</code> sources next to the output</td>
+</tr>
+<tr>
+<td><code>PareEmbed</code></td>
+<td><code>false</code></td>
+<td><code>true</code> embeds every output in the assembly instead; see <a href="03-guides-non-web-projects.html">Non-web projects</a></td>
+</tr>
+<tr>
+<td><code>PareEmbedPrefix</code></td>
+<td>empty</td>
+<td>prepended to each embedded resource's name, for example <code>web/</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="item-metadata">Item metadata</h2>
+<p>On <code>TypeScriptSource</code> and <code>PareCompileSource</code> items:</p>
+<table>
+<thead>
+<tr>
+<th>Metadata</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PareServeAt</code></td>
+<td>the URL folder to serve this source under; see <a href="03-guides-typescript-outside-wwwroot.html">TypeScript outside wwwroot</a></td>
+</tr>
+<tr>
+<td><code>PareCompiler</code></td>
+<td><code>PareCompileSource</code> only: the compiler's name</td>
+</tr>
+<tr>
+<td><code>PareOutputExtension</code></td>
+<td><code>PareCompileSource</code> only: the output's extension, such as <code>.svelte.js</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="items-you-can-read">Items you can read</h2>
+<p>After the <code>PareStripTypeScript</code> target, <code>@(PareOutput)</code> lists every output. Each has
+<code>%(PareSource)</code> (the source's full path) and <code>%(PareRelativePath)</code>, written with <code>/</code>:</p>
+<ul>
+<li>the URL path for a static web asset (<code>js/app.js</code>),</li>
+<li>the resource name without the prefix under <code>PareEmbed</code>,</li>
+<li>otherwise the output's path below the project (or below <code>PareOutDir</code>).</li>
+</ul>
+<p>A target with <code>AfterTargets=&quot;PareStripTypeScript&quot;</code> sees it on every build, including builds that
+skip the strip as up to date.</p>
+<h2 id="what-gets-stripped">What gets stripped</h2>
+<p>Before <code>Build</code>, every <code>wwwroot/**/*.ts</code> and <code>*.mts</code> (not <code>.d.ts</code>, not <code>node_modules</code>) is stripped.
+<code>.cts</code> is not in the default glob, since CommonJS does not run in a browser. An explicit
+<code>&lt;TypeScriptSource Include=&quot;x.cts&quot; /&gt;</code> produces <code>x.cjs</code>.</p>
+<h2 id="where-the-output-goes">Where the output goes</h2>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Output</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>web project, source in <code>wwwroot</code></td>
+<td><code>obj/&lt;configuration&gt;/&lt;tfm&gt;/pare/js/app.js</code>, registered as the static web asset <code>js/app.js</code></td>
+</tr>
+<tr>
+<td>web project, source elsewhere, with <code>PareServeAt</code></td>
+<td>the same place under <code>obj/</code>, served at the URL you chose</td>
+</tr>
+<tr>
+<td>source elsewhere, no <code>PareServeAt</code></td>
+<td>the <code>.js</code> next to its source (<code>warning PARE202</code>)</td>
+</tr>
+<tr>
+<td><code>PareOutDir</code> set</td>
+<td>below <code>PareOutDir</code>, not served</td>
+</tr>
+<tr>
+<td><code>PareEmbed</code> true</td>
+<td>below <code>obj/</code>, embedded in the assembly</td>
+</tr>
+</tbody>
+</table>
+<p>Other details:</p>
+<ul>
+<li><code>.ts</code> and <code>.d.ts</code> files are removed from <code>Content</code>, so they are not static web assets and are not
+published. <code>PareKeepSources=true</code> keeps them.</li>
+<li>The build deletes the output of a deleted source.</li>
+<li>A <code>foo.js</code> next to <code>foo.ts</code> in <code>wwwroot</code> (left by Pare 0.2, or hand-written) is not served;
+<code>warning PARE200</code> names it. Delete it.</li>
+<li>Outside <code>obj/</code>, an existing <code>foo.js</code> next to <code>foo.ts</code> is replaced on the next build that strips
+<code>foo.ts</code>.</li>
+<li>Rejections fail the build as <code>file(line,col): error PARE100: ...</code>.</li>
+</ul>
+
+        </article>
+        <div class="page-nav" id="page-nav">
+          <div class="prev-next"><a class="pn-prev" href="06-reference-license.html">
+  <span class="pn-label">&#8592; prev</span>
+  <span class="pn-title">License</span>
+</a><a class="pn-next" href="06-reference-output-changes.html">
+  <span class="pn-label">next &#8594;</span>
+  <span class="pn-title">Output changes</span>
+</a></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===== status bar ===== -->
+  <footer class="jt-statusbar">
+    <span class="status-dot">&#9679; pare docs</span>
+    <span class="status-spacer"></span>
+    <button class="status-kbd" type="button" onclick="toggleHelp()"><kbd>?</kbd> shortcuts</button>
+  </footer>
+</div>
+
+<!-- ===== search (opened with / or Ctrl+K; the index loads on first use) ===== -->
+<div class="search-overlay" id="search-overlay" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <input type="search" id="search-input" placeholder="search the docs" autocomplete="off"
+           spellcheck="false" oninput="runSearch(this.value)">
+    <div class="search-results" id="search-results" role="listbox"></div>
+    <div class="search-foot"><kbd>&#8593;</kbd><kbd>&#8595;</kbd> move <kbd>Enter</kbd> open <kbd>Esc</kbd> close</div>
+  </div>
+</div>
+
+<!-- ===== keyboard shortcuts ===== -->
+<div class="kbd-help" id="kbd-help" hidden>
+  <div class="kbd-box" role="dialog" aria-label="Keyboard shortcuts">
+    <div class="kbd-title">Keyboard shortcuts</div>
+    <table>
+      <tr><td><kbd>/</kbd> <kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>search</td></tr>
+      <tr><td><kbd>f</kbd></td><td>filter the sidebar; <kbd>Enter</kbd> opens the first match, <kbd>Esc</kbd> clears</td></tr>
+      <tr><td><kbd>h</kbd></td><td>home</td></tr>
+      <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>previous / next page</td></tr>
+      <tr><td><kbd>j</kbd> <kbd>k</kbd></td><td>next / previous heading</td></tr>
+      <tr><td><kbd>b</kbd></td><td>toggle the sidebar</td></tr>
+      <tr><td><kbd>w</kbd></td><td>reset the sidebar width</td></tr>
+      <tr><td><kbd>o</kbd></td><td>toggle "on this page"</td></tr>
+      <tr><td><kbd>t</kbd></td><td>colour scheme: auto, light, dark</td></tr>
+      <tr><td><kbd>-</kbd> <kbd>=</kbd> <kbd>0</kbd></td><td>text smaller / larger / reset</td></tr>
+      <tr><td><kbd>?</kbd></td><td>this panel</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>close</td></tr>
+    </table>
+  </div>
+</div>
+<script src="nav.js"></script>
+</body>
+</html>

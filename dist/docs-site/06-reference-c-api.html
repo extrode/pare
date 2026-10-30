@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en" class="jt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C API — pare docs</title>
+<link rel="stylesheet" href="site.css">
+<script>
+/* Inline, in the head, and before anything paints. A saved preference applied
+   from nav.js would arrive after the first frame, and the reader would watch
+   the page flash the wrong theme on every navigation. */
+(function () {
+  var d = document.documentElement;
+  var KEYS = ['theme', 'fs', 'nav-w', 'toc', 'nav'];
+  /* Over file:// Firefox gives every page its own empty localStorage, so the link
+     that brought the reader here carries the preferences too: ?dg=nav-w:336,ts:…
+     The newer of the two wins, by the ts each side records at its last change, so
+     a reload after a change keeps the change and a stale bookmark loses to storage. */
+  var fromLink = {};
+  var m = /[?&]dg=([^&#]*)/.exec(location.search);
+  if (m) decodeURIComponent(m[1]).split(',').forEach(function (kv) {
+    var i = kv.indexOf(':');
+    if (i > 0) fromLink[kv.slice(0, i)] = kv.slice(i + 1);
+  });
+  var pref = {};
+  try {
+    var stored = parseInt(localStorage.getItem('dg-ts'), 10) || 0;
+    var linked = parseInt(fromLink.ts, 10) || 0;
+    if (m && linked >= stored) {
+      KEYS.forEach(function (k) {
+        pref[k] = fromLink[k] || null;
+        if (pref[k]) localStorage.setItem('dg-' + k, pref[k]); else localStorage.removeItem('dg-' + k);
+      });
+      localStorage.setItem('dg-ts', String(linked));
+    } else {
+      KEYS.forEach(function (k) { pref[k] = localStorage.getItem('dg-' + k); });
+    }
+  } catch (e) { /* private mode, file:// with storage denied -- the link still counts */
+    KEYS.forEach(function (k) { pref[k] = fromLink[k] || null; });
+  }
+  if (pref.theme === 'light' || pref.theme === 'dark') d.setAttribute('data-theme', pref.theme);
+  var s = parseFloat(pref.fs);
+  if (s >= 0.75 && s <= 1.75) d.style.setProperty('--fs-scale', String(s));
+  var w = parseInt(pref['nav-w'], 10);
+  if (w >= 180 && w <= 480) d.style.setProperty('--nav-w', w + 'px');
+  if (pref.toc === 'hidden') d.setAttribute('data-toc', 'hidden');
+  if (pref.nav === 'hidden') d.setAttribute('data-nav', 'hidden');
+})();
+</script>
+</head>
+<body class="jt">
+<div class="jt-shell">
+
+  <!-- ===== header ===== -->
+  <header class="jt-header">
+    <button class="hamburger" aria-label="Toggle navigation" onclick="toggleNav()">&#9776;</button>
+    <div class="header-brand">
+      <span class="brand-name">pare</span>
+      <span class="brand-crumb">Reference &#8250; C API</span>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-tools">
+      <button class="tool-btn search-btn" type="button" onclick="openSearch()" title="Search (/)">
+        <span class="search-word">search</span><kbd>/</kbd>
+      </button>
+      <div class="fs-group" role="group" aria-label="Text size">
+        <button class="tool-btn" onclick="fontSize(-1)" title="Smaller text">A&#8722;</button>
+        <button class="tool-btn" onclick="fontSize(0)" title="Reset text size">A</button>
+        <button class="tool-btn" onclick="fontSize(1)" title="Larger text">A+</button>
+      </div>
+      <button class="tool-btn theme-btn" id="theme-btn" onclick="cycleTheme()"
+              title="Colour scheme" aria-live="polite">auto</button>
+    </div>
+  </header>
+
+  <!-- ===== body ===== -->
+  <div class="jt-body">
+
+    <!-- sidebar backdrop (mobile) -->
+    <div class="nav-backdrop" id="nav-backdrop" onclick="toggleNav()"></div>
+
+    <!-- sidebar -->
+    <nav class="jt-sidebar" id="jt-sidebar" aria-label="Documentation navigation">
+      <div class="sidebar-filter">
+        <span class="filter-icon">/</span>
+        <input type="text" id="nav-filter" placeholder="filter nav" oninput="filterNav(this.value)" autocomplete="off">
+      </div>
+      <div class="sidebar-scroll" id="sidebar-scroll">
+        <div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Overview</span>
+  </div>
+  <div class="nav-group-items">  <a href="00-overview-readme.html">Pare documentation</a>  <a href="00-overview-comparison.html">Pare and the alternatives</a>  <a href="00-overview-how-it-works.html">How Pare works</a>  <a href="00-overview-what-pare-does-not-do.html">What Pare does not do</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Getting started</span>
+  </div>
+  <div class="nav-group-items">  <a href="01-getting-started-readme.html">Getting started</a>  <a href="01-getting-started-first-static-site.html">Your first static site</a>  <a href="01-getting-started-first-web-app.html">Your first web app</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Guides</span>
+  </div>
+  <div class="nav-group-items">  <a href="03-guides-readme.html">Guides</a>  <a href="03-guides-c-library.html">Using libpare from C and other languages</a>  <a href="03-guides-cli.html">The pare command</a>  <a href="03-guides-compile-other-languages.html">Compiling other languages</a>  <a href="03-guides-hot-reload.html">Hot reload</a>  <a href="03-guides-library.html">Using the library</a>  <a href="03-guides-non-web-projects.html">Non-web projects</a>  <a href="03-guides-offline-restore.html">Offline and vendored packages</a>  <a href="03-guides-razor-class-libraries.html">Razor class libraries</a>  <a href="03-guides-type-checking.html">Type checking in CI</a>  <a href="03-guides-typescript-outside-wwwroot.html">TypeScript outside wwwroot</a>  </div>
+</div>
+<div class="nav-group" data-group data-open="true">
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Reference</span>
+  </div>
+  <div class="nav-group-items">  <a href="06-reference-readme.html">Reference</a>  <a href="06-reference-benchmarks.html">Benchmarks</a>  <a href="06-reference-c-api.html" class="active" aria-current="page">C API</a>  <a href="06-reference-error-codes.html">Error codes</a>  <a href="06-reference-license.html">License</a>  <a href="06-reference-msbuild-properties.html">MSBuild properties</a>  <a href="06-reference-output-changes.html">Output changes</a>  <a href="06-reference-supported-syntax.html">Supported syntax</a>  <a href="06-reference-troubleshooting.html">Troubleshooting</a>  </div>
+</div>
+
+      </div>
+      <div class="nav-resizer" id="nav-resizer" title="Drag to resize, double-click to reset"></div>
+    </nav>
+
+    <!-- content -->
+    <main class="jt-content has-toc" id="jt-content">
+      <nav class="toc" aria-label="On this page"><button class="toc-tab" type="button" onclick="toggleToc()" title="Show on this page (o)">On this page</button><div class="toc-title"><span>On this page</span><button class="toc-toggle" type="button" onclick="toggleToc()" title="Hide or show (o)"></button></div><a class="toc-l2" href="#functions">Functions</a><a class="toc-l2" href="#pare_strip">pare_strip</a><a class="toc-l3" href="#options">Options</a><a class="toc-l2" href="#types">Types</a><a class="toc-l2" href="#pare_free">pare_free</a><a class="toc-l2" href="#pare_message-pare_hint">pare_message, pare_hint</a><a class="toc-l2" href="#pare_version-pare_abi_version">pare_version, pare_abi_version</a><a class="toc-l2" href="#positions">Positions</a><a class="toc-l2" href="#threads-and-loading">Threads and loading</a></nav>
+      <div class="content-inner">
+        <nav class="breadcrumb" aria-label="Breadcrumb">Reference &#8250; C API</nav>
+        <article>
+<h1 id="c-api">C API</h1>
+<p>The header is <a href="https://github.com/extrode/pare/blob/dev/src/Extrode.Pare.Native/include/pare.h"><code>pare.h</code></a>.
+For a walkthrough see <a href="03-guides-c-library.html">Using libpare from C and other languages</a>.</p>
+<h2 id="functions">Functions</h2>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">c</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="c"><code class="language-c">int32_t     pare_strip(const char *source, size_t length, uint32_t options, pare_result *result);
+void        pare_free(pare_result *result);
+const char *pare_message(int32_t code);
+const char *pare_hint(int32_t code);
+const char *pare_version(void);
+uint32_t    pare_abi_version(void);
+</code></pre>
+</div>
+<h2 id="pare_strip">pare_strip</h2>
+<p>Strips <code>length</code> bytes of UTF-8 TypeScript at <code>source</code>. <code>NULL</code> with length 0 is the empty source.
+A leading BOM is dropped. Free <code>*result</code> with <code>pare_free</code> whatever the return value.</p>
+<table>
+<thead>
+<tr>
+<th>Return</th>
+<th>Name</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td><code>PARE_OK</code></td>
+<td>stripped; <code>result-&gt;output</code> holds the JavaScript</td>
+</tr>
+<tr>
+<td>1</td>
+<td><code>PARE_REJECTED</code></td>
+<td>syntax error or non-erasable syntax; see <code>result-&gt;diagnostics</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>PARE_INVALID</code></td>
+<td><code>NULL</code> result, <code>NULL</code> source with length &gt; 0, unknown option bits, invalid UTF-8, or length over 2,147,483,591 bytes; nothing allocated</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>PARE_INTERNAL</code></td>
+<td>a bug in Pare; nothing allocated</td>
+</tr>
+</tbody>
+</table>
+<h3 id="options">Options</h3>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PARE_REWRITE_RELATIVE_IMPORT_EXTENSIONS</code> (1)</td>
+<td>rewrites relative <code>./x.ts</code> imports to <code>./x.js</code> (<code>.mts</code> and <code>.cts</code> likewise), as TypeScript's <code>rewriteRelativeImportExtensions</code> does</td>
+</tr>
+</tbody>
+</table>
+<p>Pass 0 for no options. Unknown bits return <code>PARE_INVALID</code>.</p>
+<h2 id="types">Types</h2>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">c</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="c"><code class="language-c">typedef struct pare_diagnostic {
+    int32_t code;    /* 1 syntax error; 100-107 non-erasable syntax */
+    int32_t line;    /* 1-based */
+    int32_t column;  /* 1-based, in UTF-16 code units */
+    int32_t start;   /* byte offset into the source passed in */
+    int32_t length;  /* bytes */
+} pare_diagnostic;
+
+typedef struct pare_result {
+    char *output;                  /* UTF-8, NUL-terminated, no BOM; NULL unless PARE_OK */
+    size_t output_length;          /* bytes, without the NUL */
+    pare_diagnostic *diagnostics;  /* in source order; NULL when there are none */
+    size_t diagnostic_count;
+} pare_result;
+</code></pre>
+</div>
+<p><code>pare_diagnostic</code> is five <code>int32_t</code>, 20 bytes with no padding.
+<code>output_length</code> is never more than the source's length, and the output holds any NUL the source had.</p>
+<p>Diagnostic codes are the numbers in <a href="06-reference-error-codes.html">Error codes</a>: 1 is a syntax error and 100 to
+107 are non-erasable syntax.</p>
+<h2 id="pare_free">pare_free</h2>
+<p>Frees what <code>pare_strip</code> allocated and zeroes all four fields of <code>*result</code>. <code>NULL</code> or an already
+zeroed result is a no-op.</p>
+<h2 id="pare_message-pare_hint">pare_message, pare_hint</h2>
+<p>Static strings, never freed. An unknown code gives <code>&quot;unknown diagnostic&quot;</code> and <code>&quot;&quot;</code>.</p>
+<h2 id="pare_version-pare_abi_version">pare_version, pare_abi_version</h2>
+<p><code>pare_version()</code> returns the library version as a static string. <code>pare_abi_version()</code> returns the
+<code>PARE_ABI_VERSION</code> the library was built with. Compare it with the macro from your header to refuse
+a library built for another layout. It is currently 1.</p>
+<h2 id="positions">Positions</h2>
+<p>Lines and UTF-16 columns are kept, so the output's <code>line:column</code> is the source's. Byte offsets shift
+when a blanked type contains non-ASCII text, because Pare writes one space per UTF-16 code unit.</p>
+<h2 id="threads-and-loading">Threads and loading</h2>
+<p>Every function is thread-safe. The library cannot be unloaded once loaded. Several NativeAOT
+libraries in one process are fine. On linux-musl-arm64, call <code>pare_strip</code> from a thread you
+created: there the main thread's stack check can misreport.</p>
+
+        </article>
+        <div class="page-nav" id="page-nav">
+          <div class="prev-next"><a class="pn-prev" href="06-reference-benchmarks.html">
+  <span class="pn-label">&#8592; prev</span>
+  <span class="pn-title">Benchmarks</span>
+</a><a class="pn-next" href="06-reference-error-codes.html">
+  <span class="pn-label">next &#8594;</span>
+  <span class="pn-title">Error codes</span>
+</a></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===== status bar ===== -->
+  <footer class="jt-statusbar">
+    <span class="status-dot">&#9679; pare docs</span>
+    <span class="status-spacer"></span>
+    <button class="status-kbd" type="button" onclick="toggleHelp()"><kbd>?</kbd> shortcuts</button>
+  </footer>
+</div>
+
+<!-- ===== search (opened with / or Ctrl+K; the index loads on first use) ===== -->
+<div class="search-overlay" id="search-overlay" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <input type="search" id="search-input" placeholder="search the docs" autocomplete="off"
+           spellcheck="false" oninput="runSearch(this.value)">
+    <div class="search-results" id="search-results" role="listbox"></div>
+    <div class="search-foot"><kbd>&#8593;</kbd><kbd>&#8595;</kbd> move <kbd>Enter</kbd> open <kbd>Esc</kbd> close</div>
+  </div>
+</div>
+
+<!-- ===== keyboard shortcuts ===== -->
+<div class="kbd-help" id="kbd-help" hidden>
+  <div class="kbd-box" role="dialog" aria-label="Keyboard shortcuts">
+    <div class="kbd-title">Keyboard shortcuts</div>
+    <table>
+      <tr><td><kbd>/</kbd> <kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>search</td></tr>
+      <tr><td><kbd>f</kbd></td><td>filter the sidebar; <kbd>Enter</kbd> opens the first match, <kbd>Esc</kbd> clears</td></tr>
+      <tr><td><kbd>h</kbd></td><td>home</td></tr>
+      <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>previous / next page</td></tr>
+      <tr><td><kbd>j</kbd> <kbd>k</kbd></td><td>next / previous heading</td></tr>
+      <tr><td><kbd>b</kbd></td><td>toggle the sidebar</td></tr>
+      <tr><td><kbd>w</kbd></td><td>reset the sidebar width</td></tr>
+      <tr><td><kbd>o</kbd></td><td>toggle "on this page"</td></tr>
+      <tr><td><kbd>t</kbd></td><td>colour scheme: auto, light, dark</td></tr>
+      <tr><td><kbd>-</kbd> <kbd>=</kbd> <kbd>0</kbd></td><td>text smaller / larger / reset</td></tr>
+      <tr><td><kbd>?</kbd></td><td>this panel</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>close</td></tr>
+    </table>
+  </div>
+</div>
+<script src="nav.js"></script>
+</body>
+</html>
