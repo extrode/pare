@@ -343,6 +343,15 @@ convention). Update at the end of every session.
   a worktree at `v0.6.0`, each verified in its container, and uploaded. Quickstart at
   0.6.0: every command re-run against the osx-arm64 archive and the tool packages; the sample
   page checked in Chromium and Firefox.
+- **0.6.1 released (2026-10-30):** tag `v0.6.1`, the PARE200 same-name fix. First release through
+  `.github/workflows/release.yml` (NuGet trusted publishing, `packages` environment with a
+  required reviewer, `vars.NUGET_USER`). `Extrode.Pare`, `.Build` and `.AspNetCore` are on
+  nuget.org at 0.6.1; the repo is public. The first push got 403 on `Extrode.Pare` (the policy
+  glob `Extrode.Pare.*` needs the dot); fixed on nuget.org, job re-run. The workflow does not
+  publish `Extrode.Pare.Cli` or the CLI and libpare archives: those are packed with
+  `scripts/pack-cli.sh` (needs Docker) and uploaded by hand, as for 0.6.0. Not done at 0.6.1.
+  Docs rewritten as a site (`docs/0*-*`, `scripts/build-docs.sh`), README rewritten, SECURITY.md
+  and CONTRIBUTING.md added. Husk handoff answered in `../husk`.
 
 ## Next
 
@@ -364,7 +373,9 @@ Not in the plan yet: nothing. (Error-code page `docs/error-codes.md`, stale `.js
 
 - Lexer leniency vs TypeScript (escape and numeric-literal validation): see `work/todo.md`.
 - Pushing `main` is the user's (a hook blocks it for agents).
-- nuget.org publishing and making `extrode/pare` public: user's call.
+- Done 2026-10-30: nuget.org publishing (three libraries) and a public `extrode/pare`.
+- CLI and libpare archives for 0.6.1, and `Extrode.Pare.Cli` on nuget.org: user's call.
+- Where the docs site is hosted; repo topics; the two Rein handoffs in `docs/handoffs/`.
 
 ## Corpus pass rate
 
