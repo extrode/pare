@@ -3,7 +3,7 @@
 Reference `Extrode.Pare.Build` from the library. Apps that use the library need nothing.
 
 ```xml
-<PackageReference Include="Extrode.Pare.Build" Version="0.6.2" PrivateAssets="all" />
+<PackageReference Include="Extrode.Pare.Build" Version="0.6.3" PrivateAssets="all" />
 ```
 
 The library's `wwwroot/js/widget.ts` is then:
