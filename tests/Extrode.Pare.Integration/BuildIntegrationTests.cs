@@ -1402,7 +1402,7 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
     /// <summary>Clicks through the page in one browser engine; fails on any console or page error.</summary>
     private static async Task ClickThrough(string engine, Uri site)
     {
-        // Downloads the browser on first run; Alpine and htmx come from jsDelivr.
+        // Downloads the browser on first run; Alpine and htmx come from fixtures/cdn (RouteCdn).
         Assert.Equal(0, Microsoft.Playwright.Program.Main(engine == "chromium" ? ["install", "chromium", "--only-shell"] : ["install", engine]));
         using var playwright = await Microsoft.Playwright.Playwright.CreateAsync();
         await using var browser = await playwright[engine].LaunchAsync();
@@ -1777,7 +1777,6 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
         using var playwright = await Microsoft.Playwright.Playwright.CreateAsync();
         await using var browser = await playwright[engine].LaunchAsync();
         var page = await browser.NewPageAsync();
-        await RouteCdn(page);
         var errors = new List<string>();
         page.Console += (_, m) => { if (m.Type == "error") errors.Add(m.Text); };
         page.PageError += (_, e) => errors.Add(e);
