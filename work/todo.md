@@ -77,3 +77,7 @@ Not doing, with the reason. Kept so the same idea does not get re-raised every q
   instead; output under `obj/` (v0.2) would remove the problem. (2026-10-15)
 - `.cts` in the MSBuild default items: CommonJS does not run in a browser `wwwroot`. Explicit
   items work. (2026-10-15)
+
+- `AllocationTests` retries up to 5 times (added 2026-10-30 for a Windows CI flake): an allocation
+  that happens on some calls but not others (a buffer grown every Nth call) could pass on a clean
+  attempt. A per-call allocation still fails (break-checked). Review range fe99295..85df724.
