@@ -343,6 +343,11 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
 
     private readonly ServedProject? _served;
 
+    // The sample pages load Alpine and htmx from jsDelivr: a slow CDN on a CI runner is not a Pare failure.
+    private const float PageLoadTimeout = 90_000;
+
+    static BuildIntegrationTests() => Microsoft.Playwright.Assertions.SetDefaultExpectTimeout(30_000);
+
     public BuildIntegrationTests(ServedProject served) => _served = served;
 
     private BuildIntegrationTests() { }
@@ -1389,7 +1394,7 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
         var failed = new List<string>();
         page.RequestFailed += (_, r) => failed.Add(r.Url);
         page.Response += (_, r) => { if (r.Status >= 400) failed.Add($"{r.Status} {r.Url}"); };
-        await page.GotoAsync(site.ToString());
+        await page.GotoAsync(site.ToString(), new() { Timeout = PageLoadTimeout });
 
         var counter = page.Locator("[x-data] span");
         var button = page.Locator("[x-data] button");
@@ -1482,7 +1487,7 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
                   constructor(...args) { super(...args); this.addEventListener('open', () => window.pareSocketOpen = true); }
                 };
                 """);
-            await page.GotoAsync(http.BaseAddress.ToString());
+            await page.GotoAsync(http.BaseAddress.ToString(), new() { Timeout = PageLoadTimeout });
             await page.WaitForFunctionAsync("() => window.pareSocketOpen === true");
             var counter = page.Locator("[x-data] span");
             await Microsoft.Playwright.Assertions.Expect(counter).ToHaveTextAsync("0 clicks");
@@ -1757,7 +1762,7 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
         var failed = new List<string>();
         page.RequestFailed += (_, r) => failed.Add(r.Url);
         page.Response += (_, r) => { if (r.Status >= 400) failed.Add($"{r.Status} {r.Url}"); };
-        await page.GotoAsync(server.Address.ToString());
+        await page.GotoAsync(server.Address.ToString(), new() { Timeout = PageLoadTimeout });
 
         var status = page.Locator("#status");
         var items = page.Locator("#tasks li");
