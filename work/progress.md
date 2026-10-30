@@ -364,6 +364,10 @@ convention). Update at the end of every session.
   five times; break-checked with an injected allocation); (3) the README showed
   `AddPareDevelopment()` without its `using`. 0.6.1 archives built: osx-arm64, osx-x64,
   win-x64, win-arm64 (tmp/dist). Linux archives need Docker (not running).
+- **0.6.2 prepared (2026-10-30):** version bump only; the library and build task are unchanged
+  from 0.6.1. It carries the icon (P-shaped peeler, teal, `docs/assets/logo/`) on the four NuGet
+  packages, the README logo, the ISL-CLA files and `pages.yml`. Tag `v0.6.2` and the push to `main`
+  are the user's. Needs `pack-cli.sh` (Docker) for the archives, as for 0.6.1.
 
 ## Next
 
