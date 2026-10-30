@@ -103,6 +103,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # A re-run for a moved tag finds the release already there, with the archives uploaded
+          # by hand. Leave it alone: replacing its packages with this run's rebuilt ones would
+          # make them differ from what nuget.org holds.
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME exists; leaving it as it is."
+            exit 0
+          fi
           prerelease=""
           case "$GITHUB_REF_NAME" in
             v0.*|*-*) prerelease="--prerelease" ;;
