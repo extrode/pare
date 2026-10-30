@@ -23,6 +23,10 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>typescript;type-stripping;cli;nativeaot</PackageTags>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(PareCliFrameworkDependent)' == 'true'">
+    <Description>pare: strips TypeScript type syntax to JavaScript. Framework-dependent .NET tool, needs the .NET 10 runtime, no Node. A standalone native binary that needs no .NET is on the GitHub Releases page.</Description>
+    <PackageTags>typescript;type-stripping;cli</PackageTags>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Extrode.Pare\Extrode.Pare.csproj" />
   </ItemGroup>
