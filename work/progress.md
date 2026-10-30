@@ -352,6 +352,18 @@ convention). Update at the end of every session.
   `scripts/pack-cli.sh` (needs Docker) and uploaded by hand, as for 0.6.0. Not done at 0.6.1.
   Docs rewritten as a site (`docs/0*-*`, `scripts/build-docs.sh`), README rewritten, SECURITY.md
   and CONTRIBUTING.md added. Husk handoff answered in `../husk`.
+- **Audit (2026-10-30):** 529 tests pass on macOS (1 skip: Visual Studio MSBuild). The published
+  0.6.1 packages restore from nuget.org into a scratch web app: build, publish (`.js`, `.br`,
+  `.gz`, no `.ts`) and serve all work. Found and fixed: (1) the 0.6.0 macOS archives, and any
+  built with Homebrew's dotnet, load five Homebrew libraries (openssl@3, brotli) by absolute
+  path and stop at launch on a Mac without them; `scripts/check-macos-libs.sh` now stops
+  `pack-cli.sh` on that, and the 0.6.1 macOS archives were rebuilt with Microsoft's SDK
+  (system libraries only); (2) the first GitHub CI runs failed on Windows: 7 PARE204 tests and
+  `Compiled_sources_are_served...` expected backslashes the task does not emit (test fix, passes
+  8/8 on wp1), and `AllocationTests` failed once in three runs with 808 bytes (now retried up to
+  five times; break-checked with an injected allocation); (3) the README showed
+  `AddPareDevelopment()` without its `using`. 0.6.1 archives built: osx-arm64, osx-x64,
+  win-x64, win-arm64 (tmp/dist). Linux archives need Docker (not running).
 
 ## Next
 
