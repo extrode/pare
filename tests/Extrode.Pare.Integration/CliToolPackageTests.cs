@@ -69,6 +69,8 @@ public sealed class CliToolPackageTests : IDisposable
 
         Assert.Contains("uses: ./.github/workflows/ci.yml", release);
         Assert.Contains("\n    needs: ci\n", release);
+        // A manual run on a tag ref only checks trusted publishing.
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Count(release, @"\n    if: github\.event_name == 'push' && startsWith"));
         Assert.Contains("workflow_call:", File.ReadAllText(Path.Combine(workflows, "ci.yml")));
     }
 

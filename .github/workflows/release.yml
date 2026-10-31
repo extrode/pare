@@ -51,11 +51,11 @@ jobs:
 
   # The whole suite (unit, Integration, Conformance) on three OSes, and a NativeAOT smoke test, before anything is published.
   ci:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     uses: ./.github/workflows/ci.yml
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: ci
     runs-on: ubuntu-latest
     # Waits for a required reviewer (Settings > Environments > packages) before it runs.
