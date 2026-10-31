@@ -2,7 +2,7 @@
 # nuget.org and GitHub Packages and attaches them to a GitHub Release. Same shape as jauntyq's release.yml. Triggered by version
 # tags only:
 #
-#   git tag v0.6.3 && git push origin v0.6.3
+#   git tag v0.7.0 && git push origin v0.7.0
 #
 # The tag must match <Version> in Directory.Build.props; the guard step fails the run otherwise.
 # Extrode.Pare.Cli is published here as ONE framework-dependent .NET tool (-p:PareCliFrameworkDependent=true:

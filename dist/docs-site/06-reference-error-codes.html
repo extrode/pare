@@ -121,7 +121,7 @@
 
     <!-- content -->
     <main class="jt-content has-toc" id="jt-content">
-      <nav class="toc" aria-label="On this page"><button class="toc-tab" type="button" onclick="toggleToc()" title="Show on this page (o)">On this page</button><div class="toc-title"><span>On this page</span><button class="toc-toggle" type="button" onclick="toggleToc()" title="Hide or show (o)"></button></div><a class="toc-l2" href="#pare001">PARE001</a><a class="toc-l2" href="#pare100">PARE100</a><a class="toc-l2" href="#pare101">PARE101</a><a class="toc-l2" href="#pare102">PARE102</a><a class="toc-l2" href="#pare103">PARE103</a><a class="toc-l2" href="#pare104">PARE104</a><a class="toc-l2" href="#pare105">PARE105</a><a class="toc-l2" href="#pare106">PARE106</a><a class="toc-l2" href="#pare107">PARE107</a><a class="toc-l2" href="#pare200">PARE200</a><a class="toc-l2" href="#pare201">PARE201</a><a class="toc-l2" href="#pare202">PARE202</a><a class="toc-l2" href="#pare203">PARE203</a><a class="toc-l2" href="#pare204">PARE204</a></nav>
+      <nav class="toc" aria-label="On this page"><button class="toc-tab" type="button" onclick="toggleToc()" title="Show on this page (o)">On this page</button><div class="toc-title"><span>On this page</span><button class="toc-toggle" type="button" onclick="toggleToc()" title="Hide or show (o)"></button></div><a class="toc-l2" href="#pare001">PARE001</a><a class="toc-l2" href="#pare100">PARE100</a><a class="toc-l2" href="#pare101">PARE101</a><a class="toc-l2" href="#pare102">PARE102</a><a class="toc-l2" href="#pare103">PARE103</a><a class="toc-l2" href="#pare104">PARE104</a><a class="toc-l2" href="#pare105">PARE105</a><a class="toc-l2" href="#pare106">PARE106</a><a class="toc-l2" href="#pare107">PARE107</a><a class="toc-l2" href="#pare200">PARE200</a><a class="toc-l2" href="#pare201">PARE201</a><a class="toc-l2" href="#pare202">PARE202</a><a class="toc-l2" href="#pare203">PARE203</a><a class="toc-l2" href="#pare204">PARE204</a><a class="toc-l2" href="#pare205">PARE205</a></nav>
       <div class="content-inner">
         <nav class="breadcrumb" aria-label="Breadcrumb">Reference &#8250; Error codes</nav>
         <article>
@@ -214,6 +214,11 @@ reported in one run.</p>
 <td><a href="#pare204">PARE204</a></td>
 <td>error (MSBuild)</td>
 <td>PareCompileSource needs PareCompiler and PareOutputExtension</td>
+</tr>
+<tr>
+<td><a href="#pare205">PARE205</a></td>
+<td>error (MSBuild)</td>
+<td>a source outside the project folder cannot be written below PareOutDir</td>
 </tr>
 </tbody>
 </table>
@@ -494,6 +499,21 @@ anything. This is a fault in that package's <code>.props</code> or in the projec
   <pre data-lang="xml"><code class="language-xml"><span class="tok-punc">&lt;</span><span class="tok-tag">PareCompileSource</span> <span class="tok-attr">Include</span>=<span class="tok-str">&quot;Components/**/*.svelte&quot;</span> <span class="tok-attr">PareCompiler</span>=<span class="tok-str">&quot;husk&quot;</span> <span class="tok-attr">PareOutputExtension</span>=<span class="tok-str">&quot;.svelte.js&quot;</span> <span class="tok-punc">/&gt;</span>
 </code></pre>
 </div>
+<h2 id="pare205">PARE205</h2>
+<p><code>error PARE205: the source is outside the project folder, so its output would be written outside PareOutDir=&quot;gen&quot;. Move the source into the project, or build it from the project that owns it.</code></p>
+<p>MSBuild package only. <code>PareOutDir</code> mirrors each source's path below the project folder. A
+<code>TypeScriptSource</code> such as <code>../shared/x.ts</code> has no such path: the output would have gone to
+<code>shared/x.js</code> above the project, not under <code>gen/</code>. The build stops before writing anything.</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">XML</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="xml"><code class="language-xml"><span class="tok-punc">&lt;</span><span class="tok-tag">PropertyGroup</span><span class="tok-punc">&gt;</span><span class="tok-punc">&lt;</span><span class="tok-tag">PareOutDir</span><span class="tok-punc">&gt;</span>gen<span class="tok-punc">&lt;/</span><span class="tok-tag">PareOutDir</span><span class="tok-punc">&gt;</span><span class="tok-punc">&lt;/</span><span class="tok-tag">PropertyGroup</span><span class="tok-punc">&gt;</span>
+<span class="tok-punc">&lt;</span><span class="tok-tag">ItemGroup</span><span class="tok-punc">&gt;</span><span class="tok-punc">&lt;</span><span class="tok-tag">TypeScriptSource</span> <span class="tok-attr">Include</span>=<span class="tok-str">&quot;../shared/x.ts&quot;</span> <span class="tok-punc">/&gt;</span><span class="tok-punc">&lt;/</span><span class="tok-tag">ItemGroup</span><span class="tok-punc">&gt;</span> <span class="tok-com">&lt;!-- PARE205 --&gt;</span>
+</code></pre>
+</div>
+<p>Without <code>PareOutDir</code> the output sits next to the source, as before.</p>
 
         </article>
         <div class="page-nav" id="page-nav">
