@@ -42,7 +42,7 @@ done
 
 printf '== 2. Merged branches\n'
 for b in chore/release-0.6.3 fix/release-github-packages docs/progress-0.6.3 \
-         chore/cleanup-release-0.6.3 fix/audit-0.6.3 fix/glob-drive-root chore/cleanup-wp1-0.6.3; do
+         chore/cleanup-release-0.6.3 fix/audit-0.6.3 fix/glob-drive-root chore/cleanup-wp1-0.6.3 fix/review-2026-10-31-1 fix/audit-followups-2; do
     if ! git -C "$repo" rev-parse --verify --quiet "refs/heads/$b" >/dev/null; then
         printf 'skip:  branch %s no longer exists\n' "$b"; continue
     fi

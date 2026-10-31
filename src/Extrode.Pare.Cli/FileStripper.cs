@@ -124,7 +124,7 @@ internal static class FileStripper
                 if (IsSource(path) && !IsDeclaration(path))
                     yield return path;
             }
-            else if (Path.GetFileName(path) != "node_modules")
+            else if (levels > 1 && Path.GetFileName(path) != "node_modules")
             {
                 subdirs.Add(path);
             }

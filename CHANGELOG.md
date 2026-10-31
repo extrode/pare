@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- `release.yml` publishes only after `ci.yml` (unit, Integration and Conformance tests on Linux, Windows and macOS, plus a NativeAOT smoke test) passes; tag pushes no longer start `ci.yml` on their own. `ci.yml` and `pages.yml` actions are pinned to commits, with a weekly Dependabot update.
+- Fixed: `AddPareDevelopment` shutdown could throw from a file event that arrived after the watcher was disposed, and returned while a strip was still running.
 - Fixed: the CLI's own glob (cmd and PowerShell) lost the root of a pattern that starts at a drive or UNC share: `pare "C:\*.ts"` looked in the current directory of drive C, and `\\srv\share\*.ts` in a relative folder. A glob without `**` also reads only as many directory levels as it has segments, not the whole tree under its base.
 - `release.yml` also pushes the packages to GitHub Packages (`packages: write`), so they appear in the repository's Packages tab. 0.6.3 was published before this and is not there.
 
