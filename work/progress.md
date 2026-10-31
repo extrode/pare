@@ -461,3 +461,8 @@ check against tsgo is still M5.
   passed). Not done before tagging: Bench run on the hot-path change, full Conformance, wp1 Windows
   tests (glob, drive, UNC), a compare of the pinned action SHAs with their tags, `pack-cli.sh` and
   wp1 archives, `gh release upload`. Tag, push and `main` are the user's.
+- **Audit and CI docs (2026-10-31):** 565 tests on macOS, 564 passed, 1 skipped (VS MSBuild), 0
+  failed. Error codes in `docs/06-reference/error-codes.md` cover every code in `src`. New guide
+  `docs/03-guides/ci-and-hooks.md` (GitHub Actions, git and pre-commit hook, Docker); the hook and
+  the `--outdir` layout were run, the workflow and Dockerfile were not. Stale: benchmark rows say
+  "Pare 0.5.0" (re-run on a quiet machine, never done for the 0.7.0 hot-path change).
