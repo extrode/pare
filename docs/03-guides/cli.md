@@ -70,7 +70,8 @@ pare src --check-only
 ```
 
 fails the job with exit code 1 if any file uses syntax Pare cannot erase. To also check types, run
-`tsc --noEmit` after it; see [Type checking in CI](type-checking.md).
+`tsc --noEmit` after it; see [Type checking in CI](type-checking.md). GitHub Actions, git hook and Docker examples:
+[CI, hooks and Docker](ci-and-hooks.md).
 
 ## Install options
 

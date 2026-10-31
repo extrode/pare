@@ -10,6 +10,7 @@ Task-focused walkthroughs. Each one starts from a working project, so do
 | refresh the browser on every save | [Hot reload](hot-reload.md) |
 | ship TypeScript in a Razor class library | [Razor class libraries](razor-class-libraries.md) |
 | embed the output in a console app or NativeAOT binary | [Non-web projects](non-web-projects.md) |
+| check syntax in CI, a git hook or Docker | [CI, hooks and Docker](ci-and-hooks.md) |
 | fail the build on type errors | [Type checking in CI](type-checking.md) |
 | restore without nuget.org | [Offline and vendored packages](offline-restore.md) |
 | call Pare from C# | [Using the library](library.md) |
