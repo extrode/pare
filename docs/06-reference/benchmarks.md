@@ -14,6 +14,10 @@ BenchmarkDotNet 0.15.8, one `TypeStripper.Strip` call per source, output to a re
 
 Deep nesting is quadratic, as in TypeScript's own parser. Real code never reaches it.
 
+On Windows 11 x64 (AMD Ryzen 7 7840HS, .NET SDK 10.0.402), the same benchmarks give 8.4 ms (373 MB/s)
+for `checker.ts`, 53.5 ms (311 MB/s) for the real-world corpus and 29.9 ms for the nested case, all
+allocating nothing.
+
 ## Against other tools
 
 The same 2,392 files (TypeScript's compiler, Vue, Hono, Deno std, Svelte, Zod at pinned commits)
