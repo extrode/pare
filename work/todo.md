@@ -19,9 +19,11 @@ Real, but needs a decision, a dependency, or more information first. Say which.
   10.0.x backport found: `dotnet watch` 10.0.401 on macOS, started outside the project
   directory (`--project`), fails to read `obj\Debug/net10.0/staticwebassets.development.json`
   (`IntermediateOutputPath` keeps MSBuild's backslash) and sends no static-asset refresh. README
-  says to run it from the project directory. Re-check on a newer 10.0.x SDK.
-- `PareCompileSource` outside `wwwroot` is a `Watch` item: not checked whether `dotnet watch` in hot
-  reload mode treats saving one as an unsupported change and restarts the app. (2026-10-17)
+  says to run it from the project directory. Re-checked on 10.0.403 (2026-10-31): still fails the
+  same way, while the app serves the re-stripped files. Re-check on the next 10.0.x SDK.
+- Under `dotnet watch` in Production (no launch profile), `MapStaticAssets`' runtime patching looks
+  for an `obj/`-served output under `wwwroot/` and answers 500 (`/js/app.js` from `Scripts/app.ts`,
+  seen 2026-10-31, SDK 10.0.403). Development is fine. Not checked: whether a `wwwroot` source does the same.
 - CI flakes (5 of 30 `ci` runs to 2026-10-31, a different test each time): `Saving_a_mapped_source_by_rename_strips_it_again`
   timed out on windows-latest (cause unknown; a timeout now prints the watcher log), Playwright
   30 s timeouts on Windows, the `NativeLibraryTests` fixture once on macOS,
@@ -61,6 +63,9 @@ Not doing, with the reason. Kept so the same idea does not get re-raised every q
   - One full unit run failed once (439 tests) and never again in 60 reruns of the suite and of the watcher tests. Suspects: `Compiled_sources_that_are_up_to_date...` and `Unchanged_text_on_save...`, which count compiler calls while a live watcher runs. Keep a results file (`-xml`) on full runs so the next failure has a name.
   - Not reproduced (the last also on wp1 under code page 437, 2026-10-31; the `--stdin` UTF-8 change was reverted): `--stdin` mangling non-ASCII on Windows; an upper-case `App.TS` in `TypeScriptSource` was said to be its own output; a build leaves it alone and writes nothing.
 - Research 2026-10-31, decided: pre-commit hook and GitHub Action are `pare src --check-only`, so doc snippets only, no artifact. Deferred: opt-in identity source map (positions are kept already), node_modules policy switch (nobody asked). Dropped: npm wrapper (against the no-Node point), VS Code extension, WASM, a diagnostic for `import { T }` without `type` (no type information). Already in Pare: erasableSyntaxOnly parity, decorator policy, incremental target, static web asset registration.
+- Closed 2026-10-31: saving a `PareCompileSource` or `TypeScriptSource` outside `wwwroot` under
+  `dotnet watch` hot reload does not restart the app (same process id; "Static asset changes
+  applied"); `AddPareDevelopment` recompiles it.
 - Closed 2026-10-31: `RemoveDuplicates` kept the first declaration's metadata and, on Windows, kept
   `wwwroot/js/a.ts` and `wwwroot\js\a.ts` apart (both confirmed on wp1); the `DistinctSources` task
   replaces it.
