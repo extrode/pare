@@ -51,7 +51,7 @@ the same file; on Linux, `a.ts` and `A.ts` are two files.
 
 ## Through another package
 
-From the release after 0.7.1, the props and targets are also under `buildTransitive/`, so a
+From 0.7.2, the props and targets are also under `buildTransitive/`, so a
 package that depends on `Extrode.Pare.Build` can hand it on to the projects that use it. That
 package references Pare without `PrivateAssets="all"`:
 

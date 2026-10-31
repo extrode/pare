@@ -62,7 +62,7 @@ for rel in tmp/docs-src tmp/full-test.log tmp/native-stage \
            tmp/dedupe.proj tmp/wwwroot tmp/bump-test.log tmp/dev-test.log \
            tmp/rerun3.log tmp/unit.log tmp/break.log tmp/nosrc.log tmp/review-dev-diff.patch tmp/review-low.md \
            tmp/compare-0156.log tmp/glob.bundle \
-           tmp/retry.bundle tmp/retry-diag.patch tmp/retry-full.log; do
+           tmp/retry.bundle tmp/retry-diag.patch tmp/retry-full.log tmp/rel072-test.log; do
     remove_path "$rel"
 done
 for f in "$repo"/tmp/dist/*0.7.1-test*; do

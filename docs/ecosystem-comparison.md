@@ -60,7 +60,7 @@ One native binary, about 1.4 MB, no runtime. Counterparts: `tsc --outDir dist`,
 ## 3. Inside the .NET build (`Extrode.Pare.Build`)
 
 ```xml
-<PackageReference Include="Extrode.Pare.Build" Version="0.7.1" PrivateAssets="all" />
+<PackageReference Include="Extrode.Pare.Build" Version="0.7.2" PrivateAssets="all" />
 ```
 
 `dotnet build` then strips `wwwroot/js/app.ts` to `obj/`, serves it as `/js/app.js` (compressed,

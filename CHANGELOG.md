@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-10-31
+
 - Added (build): `Extrode.Pare.Build` ships its props and targets under `buildTransitive/` too, so a
   project that gets it through another package's dependency (Extrode.Husk.Build) still strips.
 - Fixed (build): a `TypeScriptSource` declared twice takes the last declaration's metadata, so the

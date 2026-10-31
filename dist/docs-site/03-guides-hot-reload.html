@@ -135,7 +135,7 @@ a <code>.ts</code> file is saved, so the <code>.js</code> would go stale.</p>
     <span class="code-lang">XML</span>
     <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
   </div>
-  <pre data-lang="xml"><code class="language-xml"><span class="tok-punc">&lt;</span><span class="tok-tag">PackageReference</span> <span class="tok-attr">Include</span>=<span class="tok-str">&quot;Extrode.Pare.AspNetCore&quot;</span> <span class="tok-attr">Version</span>=<span class="tok-str">&quot;0.7.1&quot;</span> <span class="tok-punc">/&gt;</span>
+  <pre data-lang="xml"><code class="language-xml"><span class="tok-punc">&lt;</span><span class="tok-tag">PackageReference</span> <span class="tok-attr">Include</span>=<span class="tok-str">&quot;Extrode.Pare.AspNetCore&quot;</span> <span class="tok-attr">Version</span>=<span class="tok-str">&quot;0.7.2&quot;</span> <span class="tok-punc">/&gt;</span>
 </code></pre>
 </div>
 <div class="code-block">
@@ -177,7 +177,7 @@ under <code>wwwroot</code>. Published output never contains them.</li>
 <code>&lt;StartupHookSupport Condition=&quot;'$(Configuration)' == 'Debug'&quot;&gt;true&lt;/StartupHookSupport&gt;</code>.
 Without it <code>dotnet watch</code> says &quot;Project does not support Hot Reload&quot;.</li>
 <li><strong>Run <code>dotnet watch</code> from the project directory.</strong> With <code>--project</code> from another folder, .NET SDK
-10.0.401 on macOS fails to read <code>obj\Debug/.../staticwebassets.development.json</code> and never
+10.0.401 to 10.0.403 on macOS fails to read <code>obj\Debug/.../staticwebassets.development.json</code> and never
 refreshes the page.</li>
 <li><strong>No package?</strong> <code>dotnet watch --no-hot-reload</code> rebuilds and restarts on every save (about 3
 seconds on the sample) and you reload the page yourself.</li>
