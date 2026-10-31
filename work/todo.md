@@ -30,8 +30,9 @@ Real, but needs a decision, a dependency, or more information first. Say which.
   timed out on windows-latest (cause unknown; a timeout now prints the watcher log), Playwright
   30 s timeouts on Windows, the `NativeLibraryTests` fixture once on macOS,
   `Stopping_cancels_every_watcher...` timing on Windows. The macOS log-line race is fixed.
-- `win-arm64` is cross-compiled on x64 and never run since the QEMU VM went. GitHub's
-  `windows-11-arm` runner could run it.
+- `ci.yml` runs `win-arm64` on `windows-11-arm` (added 2026-10-31) with `continue-on-error`:
+  Playwright's browsers run under x64 emulation there. Drop `experimental` once it has passed a
+  few times, so a win-arm64 break blocks a release.
 - Windows, `\\?\C:\src\*.ts` glob: check on wp1 (see the audit note below).
 
 ## Dropped
