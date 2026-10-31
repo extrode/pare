@@ -38,7 +38,9 @@ public sealed class DistinctSources : Microsoft.Build.Utilities.Task
             var item = Sources[i] is ITaskItem2 escaped
                 ? new TaskItem(escaped.EvaluatedIncludeEscaped, escaped.CloneCustomMetadataEscaped())
                 : new TaskItem(Sources[i].ItemSpec, Sources[i].CloneCustomMetadata());
-            item.SetMetadata("_PareRecursiveDir", RecursiveDirs[i].ItemSpec[1..]);
+            // SetMetadata takes an escaped value: a folder named a%20b must not become "a b/".
+            string dir = RecursiveDirs[i] is ITaskItem2 d ? d.EvaluatedIncludeEscaped : RecursiveDirs[i].ItemSpec;
+            item.SetMetadata("_PareRecursiveDir", dir[1..]);
             string key = Sources[i].GetMetadata("FullPath");
             if (slot.TryGetValue(key, out int at))
                 result[at] = item;
