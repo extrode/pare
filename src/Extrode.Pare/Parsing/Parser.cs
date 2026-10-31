@@ -20,6 +20,8 @@ internal ref partial struct Parser
     private PooledList<Edit> _edits;
     private PooledList<Diagnostic> _diags;
     private bool _ok;
+    // Set by Guard and kept by Restore: a speculative parse that ran out of stack must not be undone and retried deeper.
+    private bool _tooDeep;
     private int _errorStart;
     private int _errorLength;
 
@@ -228,7 +230,10 @@ internal ref partial struct Parser
     private void Guard()
     {
         if ((++_guardTick & 15) == 0 && !RuntimeHelpers.TryEnsureSufficientExecutionStack())
+        {
+            _tooDeep = true;
             Fail();
+        }
     }
 
     private struct Snapshot
@@ -261,7 +266,7 @@ internal ref partial struct Parser
         _yield = s.Yield;
         _disallowIn = s.DisallowIn;
         _ambient = s.Ambient;
-        _ok = s.Ok;
+        _ok = s.Ok && !_tooDeep;
     }
 
     // ---- Recording ----------------------------------------------------------------------------
