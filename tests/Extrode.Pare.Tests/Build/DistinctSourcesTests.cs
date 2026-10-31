@@ -65,6 +65,15 @@ public sealed class DistinctSourcesTests
     }
 
     [Fact]
+    public void No_original_item_spec_is_added()
+    {
+        var task = Run([Item("a.ts", "lib")], [""]);
+
+        Assert.Equal("", task.Distinct[0].GetMetadata("OriginalItemSpec"));
+        Assert.Equal("lib", task.Distinct[0].GetMetadata("PareServeAt"));
+    }
+
+    [Fact]
     public void Mismatched_lists_fail_the_task()
     {
         var task = new DistinctSources { BuildEngine = _engine, Sources = [Item("a.ts")], RecursiveDirs = [] };
