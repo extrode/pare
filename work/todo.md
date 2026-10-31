@@ -29,9 +29,11 @@ Real, but needs a decision, a dependency, or more information first. Say which.
   also after editing the source, `index.html` and `Program.cs` while running. **Cause unknown.**
   The response body and server log of the 500 were not kept. That run had several other
   `dotnet watch` processes on the same `obj/` (it also logged `OpenWrite` errors), which is a
-  guess, not a finding. Untested: a stale `obj/` or static-asset manifest, a build/first-request
-  race, an SDK bug that needs state the clean runs lacked. To reopen: recreate the dirty state
-  (second watcher on one project, reused `obj/`) and keep the body and log. Production does not
+  guess, not a finding. Untested: a stale `obj/` from an older Pare version, an SDK bug that needs state the clean
+  runs lacked. To reopen: recreate the dirty state
+  and keep the body and log. Tried 2026-10-31 and still 200: two watchers on one project
+  (ports 5511, 5512) with edits, plus `dotnet build` in Debug and Release over the running app
+  with a request every 0.5 s for 20 s (40 of 40 answered 200). Production does not
   re-strip a saved source (the development map is Development only), so the old `.js` stays:
   expected.
 - CI flakes, all closed by 2026-10-31: Playwright 30 s page loads on Windows (`02bf6f9`, 90 s),
