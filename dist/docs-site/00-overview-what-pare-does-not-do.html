@@ -105,7 +105,7 @@
     <span class="nav-chev">›</span>
     <span class="nav-group-label">Guides</span>
   </div>
-  <div class="nav-group-items">  <a href="03-guides-readme.html">Guides</a>  <a href="03-guides-c-library.html">Using libpare from C and other languages</a>  <a href="03-guides-cli.html">The pare command</a>  <a href="03-guides-compile-other-languages.html">Compiling other languages</a>  <a href="03-guides-hot-reload.html">Hot reload</a>  <a href="03-guides-library.html">Using the library</a>  <a href="03-guides-non-web-projects.html">Non-web projects</a>  <a href="03-guides-offline-restore.html">Offline and vendored packages</a>  <a href="03-guides-razor-class-libraries.html">Razor class libraries</a>  <a href="03-guides-type-checking.html">Type checking in CI</a>  <a href="03-guides-typescript-outside-wwwroot.html">TypeScript outside wwwroot</a>  </div>
+  <div class="nav-group-items">  <a href="03-guides-readme.html">Guides</a>  <a href="03-guides-c-library.html">Using libpare from C and other languages</a>  <a href="03-guides-ci-and-hooks.html">CI, hooks and Docker</a>  <a href="03-guides-cli.html">The pare command</a>  <a href="03-guides-compile-other-languages.html">Compiling other languages</a>  <a href="03-guides-hot-reload.html">Hot reload</a>  <a href="03-guides-library.html">Using the library</a>  <a href="03-guides-non-web-projects.html">Non-web projects</a>  <a href="03-guides-offline-restore.html">Offline and vendored packages</a>  <a href="03-guides-razor-class-libraries.html">Razor class libraries</a>  <a href="03-guides-type-checking.html">Type checking in CI</a>  <a href="03-guides-typescript-outside-wwwroot.html">TypeScript outside wwwroot</a>  </div>
 </div>
 <div class="nav-group" data-group>
   <div class="nav-group-header" onclick="toggleGroup(this)">
@@ -121,7 +121,7 @@
 
     <!-- content -->
     <main class="jt-content has-toc" id="jt-content">
-      <nav class="toc" aria-label="On this page"><button class="toc-tab" type="button" onclick="toggleToc()" title="Show on this page (o)">On this page</button><div class="toc-title"><span>On this page</span><button class="toc-toggle" type="button" onclick="toggleToc()" title="Hide or show (o)"></button></div><a class="toc-l2" href="#no-type-checking">No type checking</a><a class="toc-l2" href="#no-generated-code">No generated code</a><a class="toc-l2" href="#no-bundling-minifying-jsx-or-downleveling">No bundling, minifying, JSX or downleveling</a><a class="toc-l2" href="#no-source-maps">No source maps</a><a class="toc-l2" href="#not-in-the-browser">Not in the browser</a></nav>
+      <nav class="toc" aria-label="On this page"><button class="toc-tab" type="button" onclick="toggleToc()" title="Show on this page (o)">On this page</button><div class="toc-title"><span>On this page</span><button class="toc-toggle" type="button" onclick="toggleToc()" title="Hide or show (o)"></button></div><a class="toc-l2" href="#no-type-checking">No type checking</a><a class="toc-l2" href="#no-checking-of-javascript-details">No checking of JavaScript details</a><a class="toc-l2" href="#no-generated-code">No generated code</a><a class="toc-l2" href="#no-bundling-minifying-jsx-or-downleveling">No bundling, minifying, JSX or downleveling</a><a class="toc-l2" href="#no-source-maps">No source maps</a><a class="toc-l2" href="#not-in-the-browser">Not in the browser</a></nav>
       <div class="content-inner">
         <nav class="breadcrumb" aria-label="Breadcrumb">Overview &#8250; What Pare does not do</nav>
         <article>
@@ -140,6 +140,18 @@
 <p>Use TypeScript's own checker for types. TypeScript 7 ships a native <code>tsc</code> that runs without
 Node. With <code>PareTypeCheck=true</code> the build runs it for you; see
 <a href="03-guides-type-checking.html">Type checking in CI</a>.</p>
+<h2 id="no-checking-of-javascript-details">No checking of JavaScript details</h2>
+<p>Pare finds the syntax it has to erase and leaves the rest alone. It reports a syntax error where
+it cannot tell what to erase (PARE001), but it does not validate what a browser validates later:</p>
+<ul>
+<li>escape sequences inside strings, templates and regular expressions (<code>&quot;\u{zz}&quot;</code>),</li>
+<li>numeric literals: separator placement (<code>1__0</code>), leading zeros in strict code, digits out of range
+in binary and octal literals,</li>
+<li>identifier characters, which follow .NET's Unicode tables rather than TypeScript's.</li>
+</ul>
+<p>The tokens come out as they went in, so the browser or Node rejects such a file when it loads it,
+and <code>tsc --noEmit</code> reports it at build time (TS1125, TS1198, TS6188 and others). Turn on
+<a href="03-guides-type-checking.html">type checking</a> if you want that at build time.</p>
 <h2 id="no-generated-code">No generated code</h2>
 <p>Some TypeScript features need the compiler to write JavaScript that is not in your file. Pare only
 erases, so it rejects these and tells you what to write instead:</p>

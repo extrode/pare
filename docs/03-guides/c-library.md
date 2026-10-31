@@ -51,7 +51,7 @@ cl app.c /I<dir> <dir>\pare.lib                      # Windows; pare.dll next to
 | `pare_strip(source, length, options, &result)` | strips; returns a status code |
 | `pare_free(&result)` | frees and zeroes the result; safe on a zeroed result |
 | `pare_message(code)`, `pare_hint(code)` | static text for a diagnostic code |
-| `pare_version()` | the library version, such as `"0.7.0"` |
+| `pare_version()` | the library version, such as `"0.7.1"` |
 | `pare_abi_version()` | compare with `PARE_ABI_VERSION` to catch a header and library from different builds |
 
 Status codes: `PARE_OK` (0), `PARE_REJECTED` (1), `PARE_INVALID` (2), `PARE_INTERNAL` (3). The

@@ -6,8 +6,8 @@ them. Each [GitHub release](https://github.com/extrode/pare/releases) carries th
 Put them in a folder next to the solution:
 
 ```
-packages/Extrode.Pare.0.7.0.nupkg
-packages/Extrode.Pare.Build.0.7.0.nupkg
+packages/Extrode.Pare.0.7.1.nupkg
+packages/Extrode.Pare.Build.0.7.1.nupkg
 ```
 
 and add a `nuget.config` beside the solution (the path is relative to that file):
@@ -25,7 +25,7 @@ and add a `nuget.config` beside the solution (the path is relative to that file)
 </configuration>
 ```
 
-Pin an exact release (`Version="0.7.0"`), not a `-dev` or `-*` version.
+Pin an exact release (`Version="0.7.1"`), not a `-dev` or `-*` version.
 
 The CLI tool package works the same way: put the `Extrode.Pare.Cli.*.nupkg` files in one folder and
 run `dotnet tool install -g Extrode.Pare.Cli --add-source ./packages`.
