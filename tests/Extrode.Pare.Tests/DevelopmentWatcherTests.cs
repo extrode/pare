@@ -569,6 +569,7 @@ public sealed class DevelopmentWatcherTests : IDisposable
         var watcher = CompiledWatcher(compiler, ("App.up", ["obj/pare/App.up.js"]));
         watcher.Start();
         compiler.Started.Reset();
+        compiler.Finished = false;
         Put("App.up", "b");
         Assert.True(compiler.Started.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
 
