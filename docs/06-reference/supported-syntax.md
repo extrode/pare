@@ -1,7 +1,7 @@
 # Supported syntax
 
 What Pare erases, and what it refuses. Erasing means replacing every character with a space,
-except line terminators (`\n`, `\r`, ` `, ` `), which are kept.
+except line terminators (`\n`, `\r`, U+2028, U+2029), which are kept.
 
 ## Erased
 

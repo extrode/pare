@@ -30,4 +30,5 @@ cases and no others:
 ## Everything else
 
 Spaces. The positions of all other characters, including comments and tabs, are the same as in your
-source.
+source. A comment inside an erased range, such as between a parameter list and its return type, is
+blanked with the rest of it.

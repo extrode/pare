@@ -82,3 +82,13 @@ Not doing, with the reason. Kept so the same idea does not get re-raised every q
   that happens on some calls but not others (a buffer grown every Nth call) could pass on a clean
   attempt. A per-call allocation still fails (break-checked). Review range fe99295..85df724.
 
+
+- Audit 2026-10-31 (opus `audit` worker, 0.6.3), open items, none high:
+  - `Glob.cs:21-23`: `pare "C:\*.ts"` walks the current directory of drive C; `\\srv\share\...` loses its prefix (Windows, unverified).
+  - `TypeScriptWatcher.cs:323-329`: `Dispose` can race a queued watcher event into `_timer.Change` and does not await a running `Flush` (unverified).
+  - `namespace N { export {}; }` gives PARE101; TypeScript treats `export {}` as non-instantiated and erases it (`getModuleInstanceState`, from memory, not run).
+  - `release.yml` publishes after the unit tests only; the Integration suite is not a gate. `ci.yml`/`pages.yml` actions are tag-pinned, `release.yml` is digest-pinned.
+  - `Edit.cs:20-30` insertion sort is O(n^2) for deeply nested generic arrows in defaults (bounded by the depth guard).
+  - The `--stdin` UTF-8 fix (fix/audit-0.6.3) is untested on Windows.
+  - Not reproduced: an upper-case `App.TS` in `TypeScriptSource` was said to be its own output; a build leaves it alone and writes nothing.
+- Research 2026-10-31 (haiku `research` worker, thin sources), not yet in Pare: an opt-in identity source map; a node_modules policy switch; a diagnostic for `import { T }` without `type` (Node rejects it at runtime); packaging (npm wrapper, GitHub Action, pre-commit hook, VS Code extension, WASM). Already in Pare: erasableSyntaxOnly parity, decorator policy, incremental target, static web asset registration.
