@@ -56,7 +56,8 @@ for rel in tmp/docs-src tmp/full-test.log tmp/native-stage \
            tmp/stdin-test.ps1 tmp/glob-test.ps1 tmp/aot-070 tmp/e2e \
            tmp/bench-0.7.0.log tmp/bench-0.7.0b.log tmp/bench-nofix.log tmp/pack-cli-0.7.0.log \
            tmp/ci-mac-fail.log tmp/ci-124408059288.log tmp/ci-124408059321.log \
-           tmp/dev.bundle tmp/dev2.bundle tmp/fix.bundle tmp/hook tmp/fakebin tmp/trx tmp/compare; do
+           tmp/dev.bundle tmp/dev2.bundle tmp/fix.bundle tmp/hook tmp/fakebin tmp/trx tmp/compare \
+           tmp/packtest tmp/want.sh tmp/osx-job.log tmp/docs-build.log tmp/arts tmp/ci tmp/cl.out tmp/utmtest; do
     remove_path "$rel"
 done
 for f in "$repo"/tmp/dist/*0.7.1-test*; do
@@ -97,13 +98,22 @@ elif [ "$vm" = 1 ]; then
     if pgrep -f qemu-system-aarch64 >/dev/null; then printf 'refuse: the VM is running\n'; failed=1
     else [ "$execute" = 1 ] && { rm -rf -- "${repo:?}/$rel"; printf 'removed %s\n' "$rel"; } || printf 'would remove %s\n' "$rel"; fi
 else printf 'keep:  %s; pass --delete-vm-files to remove\n' "$rel"; fi
-for d in "$HOME"/Library/Containers/com.utmapp.*; do
-    if [ ! -e "$d" ]; then printf 'skip:  no com.utmapp containers\n'; break; fi
+# UTM was tried for the VM and replaced by plain QEMU; these are its empty sandbox folders.
+# macOS lets only Finder, or a terminal with Full Disk Access, remove another app's container.
+utm_denied=0
+for d in "$HOME"/Library/Containers/com.utmapp.* "$HOME"/Library/Group\ Containers/*.com.utmapp.*; do
+    [ -e "$d" ] || continue
     if [ -e /Applications/UTM.app ]; then printf 'keep:  %s (UTM is installed)\n' "$d"; continue; fi
     if [ "$utm" = 1 ]; then
-        if [ "$execute" = 1 ]; then rm -rf -- "$d"; printf 'removed %s\n' "$d"; else printf 'would remove %s\n' "$d"; fi
+        if [ "$execute" = 0 ]; then printf 'would remove %s\n' "$d"
+        elif rm -rf -- "$d" 2>/dev/null; then printf 'removed %s\n' "$d"
+        else printf 'denied: %s\n' "$d"; utm_denied=1; failed=1; fi
     else printf 'keep:  %s; pass --delete-utm-containers to remove\n' "$d"; fi
 done
+if [ "$utm_denied" = 1 ]; then
+    printf '        macOS protects app containers. Drag the denied folders to the Trash in Finder, or give\n'
+    printf '        your terminal Full Disk Access (System Settings > Privacy & Security) and run this again.\n'
+fi
 if ! brew list --formula qemu >/dev/null 2>&1; then printf 'skip:  qemu is not installed\n'
 elif [ "$qemu" = 1 ]; then
     if [ "$execute" = 1 ]; then brew uninstall qemu || failed=1; else printf 'would run: brew uninstall qemu\n'; fi

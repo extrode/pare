@@ -10,8 +10,8 @@ from the [releases page](https://github.com/extrode/pare/releases) (`.zip` on Wi
 and put the folder on your `PATH`:
 
 ```sh
-tar -xzf pare-0.7.0-osx-arm64.tar.gz
-export PATH="$PWD/pare-0.7.0-osx-arm64:$PATH"
+tar -xzf pare-0.7.1-osx-arm64.tar.gz
+export PATH="$PWD/pare-0.7.1-osx-arm64:$PATH"
 pare --version
 ```
 

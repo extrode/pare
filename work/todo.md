@@ -11,7 +11,7 @@ wish list; the value is in recording the ones nobody has got to yet.
 
 Real, but needs a decision, a dependency, or more information first. Say which.
 
-- .NET bug, not reported (needs the user to file it): NativeAOT on linux-musl-arm64,
+- .NET bug, not reported and will not be (decided 2026-10-31; the README workaround covers users): NativeAOT on linux-musl-arm64,
   `RuntimeHelpers.TryEnsureSufficientExecutionStack()` on the main thread returns false in 24 of
   60 runs (SDK 10.0.402, Alpine 3.24.2; JIT and glibc arm64 always true). Library callers there
   need a thread they created; README says so. Issue draft and repro: `tmp/issues/musl-stack/`.
@@ -26,8 +26,12 @@ Real, but needs a decision, a dependency, or more information first. Say which.
   metadata (a package's `wwwroot/**/*.ts` glob beats the project's `PareServeAt="lib"` for the same
   file), and on Windows a wildcard item (`wwwroot\js\a.ts`) and an explicit one (`wwwroot/js/a.ts`)
   may not compare equal, so that duplicate would still reach the SDK.
-- `release.yml` `archives` job (native runners, added 2026-10-31) has not run on GitHub: dispatch it
-  once before tagging. `win-arm64` on `windows-latest` needs the image's VS ARM64 C++ tools.
+- CI flakes (5 of 30 `ci` runs to 2026-10-31, a different test each time): `Saving_a_mapped_source_by_rename_strips_it_again`
+  timed out on windows-latest (cause unknown; a timeout now prints the watcher log), Playwright
+  30 s timeouts on Windows, the `NativeLibraryTests` fixture once on macOS,
+  `Stopping_cancels_every_watcher...` timing on Windows. The macOS log-line race is fixed.
+- `win-arm64` is cross-compiled on x64 and never run since the QEMU VM went. GitHub's
+  `windows-11-arm` runner could run it.
 - Windows, `\\?\C:\src\*.ts` glob: check on wp1 (see the audit note below).
 
 ## Dropped
@@ -62,7 +66,7 @@ Not doing, with the reason. Kept so the same idea does not get re-raised every q
 - Closed 2026-10-31 (todo sweep): the development map is written by a JSON task and a bad map
   warns instead of failing; PARE203/204/205 report every item in one build; a source declared
   twice is one source; `pack-cli.sh` stops when Docker is down and takes `--rid`; the bench runs
-  in process when worktree copies exist; `release.yml` builds the archives. Pinned action SHAs
+  in process when worktree copies exist; `release.yml` builds the archives (dispatched 2026-10-31: all 6 jobs, 16 archives). Pinned action SHAs
   were checked against their tags.
 - Dropped 2026-10-31: lexer leniency vs TypeScript (M4: escapes, numeric separators, leading-zero
   decimals, digit ranges) and the Unicode tables. Tokenization is unaffected and a browser or tsc

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-10-31
+
 - Changed (build): PARE203, PARE204 and PARE205 report every bad item in one build, not only the
   first. A `TypeScriptSource` declared twice is one source (it used to stop the SDK with a
   duplicate-asset error; PARE201 listed it twice).

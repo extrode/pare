@@ -105,7 +105,7 @@
     <span class="nav-chev">›</span>
     <span class="nav-group-label">Guides</span>
   </div>
-  <div class="nav-group-items">  <a href="03-guides-readme.html">Guides</a>  <a href="03-guides-c-library.html">Using libpare from C and other languages</a>  <a href="03-guides-cli.html">The pare command</a>  <a href="03-guides-compile-other-languages.html">Compiling other languages</a>  <a href="03-guides-hot-reload.html">Hot reload</a>  <a href="03-guides-library.html">Using the library</a>  <a href="03-guides-non-web-projects.html">Non-web projects</a>  <a href="03-guides-offline-restore.html">Offline and vendored packages</a>  <a href="03-guides-razor-class-libraries.html">Razor class libraries</a>  <a href="03-guides-type-checking.html">Type checking in CI</a>  <a href="03-guides-typescript-outside-wwwroot.html">TypeScript outside wwwroot</a>  </div>
+  <div class="nav-group-items">  <a href="03-guides-readme.html">Guides</a>  <a href="03-guides-c-library.html">Using libpare from C and other languages</a>  <a href="03-guides-ci-and-hooks.html">CI, hooks and Docker</a>  <a href="03-guides-cli.html">The pare command</a>  <a href="03-guides-compile-other-languages.html">Compiling other languages</a>  <a href="03-guides-hot-reload.html">Hot reload</a>  <a href="03-guides-library.html">Using the library</a>  <a href="03-guides-non-web-projects.html">Non-web projects</a>  <a href="03-guides-offline-restore.html">Offline and vendored packages</a>  <a href="03-guides-razor-class-libraries.html">Razor class libraries</a>  <a href="03-guides-type-checking.html">Type checking in CI</a>  <a href="03-guides-typescript-outside-wwwroot.html">TypeScript outside wwwroot</a>  </div>
 </div>
 <div class="nav-group" data-group data-open="true">
   <div class="nav-group-header" onclick="toggleGroup(this)">
@@ -126,7 +126,7 @@
         <nav class="breadcrumb" aria-label="Breadcrumb">Reference &#8250; Benchmarks</nav>
         <article>
 <h1 id="benchmarks">Benchmarks</h1>
-<p>Measured on an Apple M1 Max (osx-arm64), .NET 10.0, Release build.</p>
+<p>Measured on an Apple M1 Max (osx-arm64), .NET 10.0, Release build, Pare 0.7.0, 2026-10-31.</p>
 <h2 id="library-speed">Library speed</h2>
 <p>BenchmarkDotNet 0.15.8, one <code>TypeStripper.Strip</code> call per source, output to a reused buffer:</p>
 <table>
@@ -141,25 +141,28 @@
 <tbody>
 <tr>
 <td>TypeScript 5.9.3 <code>checker.ts</code> (3.1 MB)</td>
-<td style="text-align: right;">9.3 ms</td>
-<td style="text-align: right;">335</td>
+<td style="text-align: right;">9.4 ms</td>
+<td style="text-align: right;">333</td>
 <td style="text-align: right;">0 B</td>
 </tr>
 <tr>
 <td>Real-world corpus, 2,392 files (19.5 MB)</td>
-<td style="text-align: right;">60.2 ms</td>
-<td style="text-align: right;">272</td>
+<td style="text-align: right;">60.7 ms</td>
+<td style="text-align: right;">269</td>
 <td style="text-align: right;">0 B</td>
 </tr>
 <tr>
 <td><code>(a = </code> nested 1,000 deep</td>
-<td style="text-align: right;">32.3 ms</td>
+<td style="text-align: right;">36.5 ms</td>
 <td style="text-align: right;">0.2</td>
-<td style="text-align: right;">0 B</td>
+<td style="text-align: right;">333 B</td>
 </tr>
 </tbody>
 </table>
 <p>Deep nesting is quadratic, as in TypeScript's own parser. Real code never reaches it.</p>
+<p>On Windows 11 x64 (AMD Ryzen 7 7840HS, .NET SDK 10.0.402), the same benchmarks give 8.4 ms (373 MB/s)
+for <code>checker.ts</code>, 53.5 ms (311 MB/s) for the real-world corpus and 29.9 ms for the nested case, all
+allocating nothing.</p>
 <h2 id="against-other-tools">Against other tools</h2>
 <p>The same 2,392 files (TypeScript's compiler, Vue, Hono, Deno std, Svelte, Zod at pinned commits)
 through other tools. Each tool's output is compared with Pare's byte for byte, then as an Acornima
@@ -182,12 +185,12 @@ it), read from its cache after <code>deno cache --no-check</code>.</p>
 </thead>
 <tbody>
 <tr>
-<td>Pare 0.5.0</td>
+<td>Pare 0.7.0</td>
 <td style="text-align: right;">-</td>
 <td style="text-align: right;">-</td>
 <td style="text-align: right;">-</td>
 <td style="text-align: right;">-</td>
-<td style="text-align: right;">279 MB/s</td>
+<td style="text-align: right;">263 MB/s</td>
 <td style="text-align: right;">-</td>
 </tr>
 <tr>
@@ -196,8 +199,8 @@ it), read from its cache after <code>deno cache --no-check</code>.</p>
 <td style="text-align: right;">490</td>
 <td style="text-align: right;">-</td>
 <td style="text-align: right;">0</td>
-<td style="text-align: right;">40 MB/s</td>
-<td style="text-align: right;">7.0x faster</td>
+<td style="text-align: right;">38 MB/s</td>
+<td style="text-align: right;">6.9x faster</td>
 </tr>
 <tr>
 <td>oxc-transform 0.154.0</td>
@@ -205,8 +208,8 @@ it), read from its cache after <code>deno cache --no-check</code>.</p>
 <td style="text-align: right;">2,375</td>
 <td style="text-align: right;">0</td>
 <td style="text-align: right;">0</td>
-<td style="text-align: right;">87 MB/s</td>
-<td style="text-align: right;">3.2x faster</td>
+<td style="text-align: right;">81 MB/s</td>
+<td style="text-align: right;">3.3x faster</td>
 </tr>
 <tr>
 <td>ts-blank-space 0.9.0</td>
@@ -214,8 +217,8 @@ it), read from its cache after <code>deno cache --no-check</code>.</p>
 <td style="text-align: right;">420</td>
 <td style="text-align: right;">-</td>
 <td style="text-align: right;">1</td>
-<td style="text-align: right;">28 MB/s</td>
-<td style="text-align: right;">10.0x faster</td>
+<td style="text-align: right;">27 MB/s</td>
+<td style="text-align: right;">9.7x faster</td>
 </tr>
 <tr>
 <td>esbuild 0.28.2</td>
@@ -223,11 +226,11 @@ it), read from its cache after <code>deno cache --no-check</code>.</p>
 <td style="text-align: right;">1,961</td>
 <td style="text-align: right;">296</td>
 <td style="text-align: right;">120</td>
-<td style="text-align: right;">12 MB/s</td>
-<td style="text-align: right;">23.4x faster</td>
+<td style="text-align: right;">11 MB/s</td>
+<td style="text-align: right;">23.3x faster</td>
 </tr>
 <tr>
-<td>Deno 2.9.7 (swc)</td>
+<td>Deno 2.9.8 (swc)</td>
 <td style="text-align: right;">11</td>
 <td style="text-align: right;">2,326</td>
 <td style="text-align: right;">51</td>
@@ -249,8 +252,8 @@ loads <code>m</code> (Pare keeps it, as <code>verbatimModuleSyntax</code> requir
 expressions. None is a Pare error.</li>
 <li>Four files are left out: their output does not parse for any stripper, because they import or
 re-export a type without <code>type</code>, which needs type information to remove.</li>
-<li>Whole process over all files: the <code>pare</code> CLI (NativeAOT) 0.95 s, <code>deno cache --no-check</code> from a
-cold cache 1.1 s, one run each.</li>
+<li>Whole process over all files: the <code>pare</code> CLI (NativeAOT) 0.94 s, <code>deno cache --no-check</code> from a
+cold cache 1.2 s, one run each.</li>
 </ul>
 <p>Throughput is the best of 5 passes in one run on a laptop and moves by 10 to 20 percent between
 runs. The BenchmarkDotNet numbers above are the steady ones.</p>
