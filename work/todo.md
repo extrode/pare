@@ -24,11 +24,11 @@ Real, but needs a decision, a dependency, or more information first. Say which.
 - Under `dotnet watch` in Production (no launch profile), `MapStaticAssets`' runtime patching looks
   for an `obj/`-served output under `wwwroot/` and answers 500 (`/js/app.js` from `Scripts/app.ts`,
   seen 2026-10-31, SDK 10.0.403). Development is fine. Not checked: whether a `wwwroot` source does the same.
-- CI flakes (5 of 30 `ci` runs to 2026-10-31, a different test each time): Playwright
-  30 s timeouts on Windows, the `NativeLibraryTests` fixture once on macOS,
-  `Stopping_cancels_every_watcher...` timing on Windows. The macOS log-line race is fixed.
-- 0.7.2 is prepared on `dev` (`buildTransitive`, the duplicate-source fixes, device paths, the
-  watcher retry); the user tags it. Then Husk moves to it: `../husk/docs/handoffs/2026-10-31-pare-build-transitive.md`.
+- CI flakes, all closed by 2026-10-31: Playwright 30 s page loads on Windows (`02bf6f9`, 90 s),
+  `Stopping_cancels_every_watcher...` timing on Windows (`8eb25a1`), the macOS log-line race, the
+  watcher's held-output saves on Windows (0.7.2), and the `NativeLibraryTests` fixture's
+  deps.json race with the cli-pack builds (its own `--artifacts-path`). Reopen on a new failure.
+- 0.7.2 is released (2026-10-31). Husk moves to it: `../husk/docs/handoffs/2026-10-31-pare-build-transitive.md`.
 - Bench comparison keeps TypeScript 6.0.3: ts-blank-space 0.9.0 declares peer `typescript`
   `5.1.6 - 6.0.x`, and TypeScript 7 (native) has no JS API for it to call. Bump both when
   ts-blank-space supports 7.
