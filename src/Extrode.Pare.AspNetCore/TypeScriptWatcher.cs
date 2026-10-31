@@ -83,22 +83,25 @@ internal sealed class TypeScriptWatcher : IDisposable
         bool hasRoot = Directory.Exists(_sourceRoot);
         if (hasRoot)
             initial.UnionWith(Directory.EnumerateFiles(_sourceRoot, "*", SearchOption.AllDirectories).Where(IsSource));
-        foreach (string source in initial)
+        // Watching starts first, so a save during the first pass is queued; its flush waits for the pass.
+        lock (_flushLock)
         {
-            bool exists = File.Exists(source);
-            var written = exists ? File.GetLastWriteTimeUtc(source) : default;
-            if (Outputs(source).Select(o => new FileInfo(o)).Any(target => !exists ? target.Exists : !target.Exists || target.LastWriteTimeUtc < written))
-                Strip(source, started: false);
-        }
-
-        // No name filter: a new directory's own event is the only sign of the files written into it
-        // before Linux starts watching it.
-        if (hasRoot)
-            Watch(_sourceRoot, recursive: true);
-        foreach (string directory in _mapped.Keys.Concat(_compiled.Keys).Select(s => Path.GetDirectoryName(s)!).Distinct(PathComparer))
-        {
-            if (Directory.Exists(directory) && !(hasRoot && IsUnder(_sourceRoot, directory)))
-                Watch(directory, recursive: false);
+            // No name filter: a new directory's own event is the only sign of the files written into it
+            // before Linux starts watching it.
+            if (hasRoot)
+                Watch(_sourceRoot, recursive: true);
+            foreach (string directory in _mapped.Keys.Concat(_compiled.Keys).Select(s => Path.GetDirectoryName(s)!).Distinct(PathComparer))
+            {
+                if (Directory.Exists(directory) && !(hasRoot && IsUnder(_sourceRoot, directory)))
+                    Watch(directory, recursive: false);
+            }
+            foreach (string source in initial)
+            {
+                bool exists = File.Exists(source);
+                var written = exists ? File.GetLastWriteTimeUtc(source) : default;
+                if (Outputs(source).Select(o => new FileInfo(o)).Any(target => !exists ? target.Exists : !target.Exists || target.LastWriteTimeUtc < written))
+                    Strip(source, started: false);
+            }
         }
     }
 
@@ -113,10 +116,10 @@ internal sealed class TypeScriptWatcher : IDisposable
         watcher.Created += (_, e) => QueueTree(e.FullPath);
         watcher.Renamed += (_, e) =>
         {
-            Queue(e.OldFullPath);
+            QueueGone(e.OldFullPath);
             QueueTree(e.FullPath);
         };
-        watcher.Deleted += (_, e) => Queue(e.FullPath);
+        watcher.Deleted += (_, e) => QueueGone(e.FullPath);
         watcher.EnableRaisingEvents = true;
         _watchers.Add(watcher);
     }
@@ -162,6 +165,41 @@ internal sealed class TypeScriptWatcher : IDisposable
                 return;
             _pending.Add(path);
             _timer.Change(Settle, Timeout.InfiniteTimeSpan);
+        }
+    }
+
+    // A deleted or moved-away path. A directory is no source, yet the outputs of the sources in it are stale.
+    private void QueueGone(string path)
+    {
+        if (IsSource(path))
+        {
+            Queue(path);
+            return;
+        }
+        if (!_ownsOutput || _outRoot is null || !IsUnder(_sourceRoot, path))
+            return;
+        foreach (string source in _mapped.Keys.Concat(_compiled.Keys))
+        {
+            if (IsUnder(path, source))
+                Queue(source);
+        }
+        string outputs = Path.Combine(_outRoot, Path.GetRelativePath(_outBase, path));
+        try
+        {
+            if (!Directory.Exists(outputs))
+                return;
+            var declared = new HashSet<string>(_mapped.Values.Concat(_compiled.Values.SelectMany(c => c.Outputs)), PathComparer);
+            foreach (string output in Directory.EnumerateFiles(outputs, "*", SearchOption.AllDirectories))
+            {
+                bool module = output.EndsWith(".mjs", StringComparison.Ordinal);
+                if (declared.Contains(output) || !module && !output.EndsWith(".js", StringComparison.Ordinal))
+                    continue;
+                Queue(Path.Combine(path, Path.ChangeExtension(Path.GetRelativePath(outputs, output), module ? ".mts" : ".ts")));
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // Gone or unreadable again.
         }
     }
 
@@ -334,7 +372,17 @@ internal sealed class TypeScriptWatcher : IDisposable
         _logger.LogInformation("Removed {Target}", Path.GetRelativePath(_contentRoot, target));
     }
 
+    /// <summary>How long <see cref="WaitStopped"/> lets a running strip finish.</summary>
+    internal static readonly TimeSpan StopWait = TimeSpan.FromSeconds(5);
+
     public void Dispose()
+    {
+        BeginStop();
+        WaitStopped(DateTime.UtcNow + StopWait);
+    }
+
+    /// <summary>Stops watching and cancels a running compile; does not wait for it.</summary>
+    internal void BeginStop()
     {
         lock (_lock)
         {
@@ -346,9 +394,18 @@ internal sealed class TypeScriptWatcher : IDisposable
         foreach (var watcher in _watchers)
             watcher.Dispose();
         _timer.Dispose();
-        // A strip already running ends at its next file or at the cancelled compile; do not return before it.
-        if (_flushLock.TryEnter(TimeSpan.FromSeconds(5)))
+    }
+
+    /// <summary>Waits until <paramref name="deadline"/> for a running strip to end; logs when it does not.</summary>
+    internal void WaitStopped(DateTime deadline)
+    {
+        var left = deadline - DateTime.UtcNow;
+        if (left < TimeSpan.Zero)
+            left = TimeSpan.Zero;
+        if (_flushLock.TryEnter(left))
             _flushLock.Exit();
+        else
+            _logger.LogWarning("A strip was still running when the app stopped; its output may be incomplete");
     }
 
     private sealed class Sink : IDiagnosticSink

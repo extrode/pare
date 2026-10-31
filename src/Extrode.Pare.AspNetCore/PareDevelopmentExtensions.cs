@@ -153,8 +153,12 @@ public static class PareDevelopmentExtensions
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
+            // Cancel every watcher first, then wait on one shared deadline: a stuck compiler costs 5 s in all, not per watcher.
             foreach (var watcher in _watchers)
-                watcher.Dispose();
+                watcher.BeginStop();
+            var deadline = DateTime.UtcNow + TypeScriptWatcher.StopWait;
+            foreach (var watcher in _watchers)
+                watcher.WaitStopped(deadline);
             return Task.CompletedTask;
         }
     }
