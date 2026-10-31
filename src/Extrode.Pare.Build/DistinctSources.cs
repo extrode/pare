@@ -33,7 +33,11 @@ public sealed class DistinctSources : Microsoft.Build.Utilities.Task
         var result = new List<ITaskItem>(Sources.Length);
         for (int i = 0; i < Sources.Length; i++)
         {
-            var item = new TaskItem(Sources[i]);
+            // Not new TaskItem(Sources[i]): its CopyMetadataTo adds OriginalItemSpec, and static web
+            // asset compression would then read the .ts source instead of the output.
+            var item = Sources[i] is ITaskItem2 escaped
+                ? new TaskItem(escaped.EvaluatedIncludeEscaped, escaped.CloneCustomMetadataEscaped())
+                : new TaskItem(Sources[i].ItemSpec, Sources[i].CloneCustomMetadata());
             item.SetMetadata("_PareRecursiveDir", RecursiveDirs[i].ItemSpec[1..]);
             string key = Sources[i].GetMetadata("FullPath");
             if (slot.TryGetValue(key, out int at))
