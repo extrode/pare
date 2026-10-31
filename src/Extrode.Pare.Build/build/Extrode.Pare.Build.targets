@@ -42,6 +42,10 @@
              Condition="'$(MSBuildRuntimeType)' == 'Core'" />
   <UsingTask TaskName="Extrode.Pare.Build.StripTypeScript" AssemblyFile="$(PareTaskAssembly)"
              Runtime="NET" TaskFactory="TaskHostFactory" Condition="'$(MSBuildRuntimeType)' != 'Core'" />
+  <UsingTask TaskName="Extrode.Pare.Build.WriteDevelopmentMap" AssemblyFile="$(PareTaskAssembly)"
+             Condition="'$(MSBuildRuntimeType)' == 'Core'" />
+  <UsingTask TaskName="Extrode.Pare.Build.WriteDevelopmentMap" AssemblyFile="$(PareTaskAssembly)"
+             Runtime="NET" TaskFactory="TaskHostFactory" Condition="'$(MSBuildRuntimeType)' != 'Core'" />
 
   <Target Name="_PareComputeOutputs">
     <!-- In a target: IntermediateOutputPath is not set yet when a package's files are evaluated. -->
@@ -260,17 +264,14 @@
     </ItemGroup>
     <PropertyGroup>
       <_PareWebRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', 'wwwroot'))</_PareWebRoot>
-      <_PareMapSources>@(_PareMapSource->'{ "source": "%(Identity)", "output": "%(PareOutputPath)" }', ', ')</_PareMapSources>
-      <!-- Its own list: Pare 0.5's AddPareDevelopment strips every entry in sources. -->
-      <_PareMapCompiledSources>@(_PareMapCompiled->'{ "source": "%(Identity)", "output": "%(PareOutputPath)", "compiler": "%(PareCompiler)" }', ', ')</_PareMapCompiledSources>
-      <_PareMapText>{ "sourceRoot": "$(_PareWebRoot.Replace('\', '\\'))", "outputRoot": "$(_PareObjRoot.Replace('\', '\\'))", "sources": [$(_PareMapSources.Replace('\', '\\'))], "compiled": [$(_PareMapCompiledSources.Replace('\', '\\'))] }</_PareMapText>
       <_PareSharedMapPath>$(IntermediateOutputPath)Extrode.Pare.development.json</_PareSharedMapPath>
     </PropertyGroup>
   </Target>
 
   <Target Name="_PareShareDevelopmentMap" BeforeTargets="AssignTargetPaths" DependsOnTargets="_PareComputeDevelopmentMap"
           Condition="'$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' and '$(_PareOutRoot)' == '' and '$(PareEmbed)' != 'true' and '$(_IsPublishing)' != 'true'">
-    <WriteLinesToFile File="$(_PareSharedMapPath)" Lines="$(_PareMapText)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <WriteDevelopmentMap File="$(_PareSharedMapPath)" SourceRoot="$(_PareWebRoot)" OutputRoot="$(_PareObjRoot)"
+                         Sources="@(_PareMapSource)" Compiled="@(_PareMapCompiled)" />
     <ItemGroup>
       <FileWrites Include="$(_PareSharedMapPath)" />
       <None Include="$(_PareSharedMapPath)" Link="Extrode.Pare.development.$(MSBuildProjectName).json"
@@ -283,7 +284,8 @@
     <PropertyGroup>
       <_PareMapPath>$(OutDir)Extrode.Pare.development.json</_PareMapPath>
     </PropertyGroup>
-    <WriteLinesToFile File="$(_PareMapPath)" Lines="$(_PareMapText)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <WriteDevelopmentMap File="$(_PareMapPath)" SourceRoot="$(_PareWebRoot)" OutputRoot="$(_PareObjRoot)"
+                         Sources="@(_PareMapSource)" Compiled="@(_PareMapCompiled)" />
     <ItemGroup>
       <FileWrites Include="$(_PareMapPath)" />
     </ItemGroup>

@@ -409,6 +409,19 @@ public sealed class DevelopmentWatcherTests : IDisposable
     }
 
     [Fact]
+    public async Task AddPareDevelopment_warns_and_starts_when_a_map_is_not_valid_JSON()
+    {
+        Put("wwwroot/a.ts", "let a: T;\n");
+        Put("bin/Extrode.Pare.development.json", "{ \"sourceRoot\": \"/a\\\"b\", ");
+        await RunDevelopment(() =>
+        {
+            Assert.Equal("let a   ;\n", File.ReadAllText(P("wwwroot/a.js")));
+            Assert.Contains(_log.Lines, l => l.Contains("is not valid JSON"));
+            return Task.CompletedTask;
+        });
+    }
+
+    [Fact]
     public async Task AddPareDevelopment_reads_library_maps_with_no_map_of_its_own()
     {
         Put("Lib/Scripts/x.ts", "let x: T;\n");
