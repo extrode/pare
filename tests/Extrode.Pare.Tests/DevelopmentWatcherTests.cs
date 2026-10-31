@@ -23,12 +23,12 @@ public sealed class DevelopmentWatcherTests : IDisposable
 
     private TypeScriptWatcher Watcher(string? outDir = null) => new(_dir.FullName, P("wwwroot"), outDir, _log);
 
-    private static void WaitFor(Func<bool> condition)
+    private void WaitFor(Func<bool> condition)
     {
         var until = DateTime.UtcNow.AddSeconds(10);
         while (!condition())
         {
-            Assert.True(DateTime.UtcNow < until, "timed out");
+            Assert.True(DateTime.UtcNow < until, "timed out; log:\n" + string.Join("\n", _log.Lines));
             Thread.Sleep(20);
         }
     }
@@ -77,7 +77,8 @@ public sealed class DevelopmentWatcherTests : IDisposable
         WaitFor(() => ReadOrNull(P("wwwroot/js/a.js")) == "let a         = 'two';\n");
         Put("wwwroot/js/new.ts", "let b: T;\n");
         WaitFor(() => ReadOrNull(P("wwwroot/js/new.js")) == "let b   ;\n");
-        Assert.Contains(_log.Lines, l => l.Contains("Stripped wwwroot/js/new.ts to wwwroot/js/new.js".Replace('/', Path.DirectorySeparatorChar)));
+        // The output is written before the line is logged.
+        WaitFor(() => _log.Lines.Any(l => l.Contains("Stripped wwwroot/js/new.ts to wwwroot/js/new.js".Replace('/', Path.DirectorySeparatorChar))));
     }
 
     // Linux watches each directory on its own and adds a new one only after it is reported, so a
@@ -141,7 +142,7 @@ public sealed class DevelopmentWatcherTests : IDisposable
         File.Delete(P("wwwroot/js/a.ts"));
         WaitFor(() => !File.Exists(P("obj/pare/js/a.js")));
         Assert.True(File.Exists(P("obj/pare/js/b.js")));
-        Assert.Contains(_log.Lines, l => l.Contains("Removed " + Path.Combine("obj", "pare", "js", "a.js")));
+        WaitFor(() => _log.Lines.Any(l => l.Contains("Removed " + Path.Combine("obj", "pare", "js", "a.js"))));
     }
 
     [Fact]
