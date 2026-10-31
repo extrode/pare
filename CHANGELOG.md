@@ -4,6 +4,9 @@
 
 - Added (build): `Extrode.Pare.Build` ships its props and targets under `buildTransitive/` too, so a
   project that gets it through another package's dependency (Extrode.Husk.Build) still strips.
+- Changed (tests): Acornima 1.9.1, Jint 4.17.0, Microsoft.Playwright 1.64.1, xunit.v3 4.0.2,
+  oxc-transform 0.156.0 in the bench comparison. TypeScript stays 6.0.3 (ts-blank-space 0.9.0
+  needs 6.0.x or lower).
 
 ## [0.7.1] - 2026-10-31
 
