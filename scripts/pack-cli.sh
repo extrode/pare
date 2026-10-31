@@ -14,16 +14,20 @@
 # macOS archives must come from Microsoft's SDK: Homebrew's dotnet links Homebrew libraries into
 # the binary, and scripts/check-macos-libs.sh stops the pack when it sees one.
 # Without Docker on macOS it stops with exit 1; --no-docker packs the macOS archives only.
-# Usage: scripts/pack-cli.sh [--version 0.6.0] [--no-docker]
+# --rid <rid> (repeatable) packs only that RID's archives, native or in Docker, and skips the
+# pointer and `any` tool packages: .github/workflows/release.yml runs one RID per runner.
+# Usage: scripts/pack-cli.sh [--version 0.6.0] [--no-docker] [--rid linux-musl-x64]
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 out="$root/tmp/dist"
 version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$root/Directory.Build.props")
 docker=yes
+only=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --version) version="$2"; shift 2 ;;
     --no-docker) docker=no; shift ;;
+    --rid) only="$only $2"; shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -52,8 +56,11 @@ native_archive() { # rid library-file
   echo "libpare-$version-$1.tar.gz"
 }
 
-pack
-pack -r any
+want() { [ -z "$only" ] || case "$only " in *" $1 "*) return 0 ;; esac; return 1; }
+if [ -z "$only" ]; then
+  pack
+  pack -r any
+fi
 case "$(uname -s)-$(uname -m)" in
   Darwin-*) rids="osx-arm64 osx-x64" ;;
   Linux-x86_64) rids="linux-x64" ;;
@@ -61,6 +68,7 @@ case "$(uname -s)-$(uname -m)" in
   *) echo "unsupported host: $(uname -s)-$(uname -m)" >&2; exit 2 ;;
 esac
 for rid in $rids; do
+  want "$rid" || continue
   pack -r "$rid"
   [ "$(uname -s)" != Darwin ] || "$root/scripts/check-macos-libs.sh" "$root/src/Extrode.Pare.Cli/bin/Release/net10.0/$rid/publish/pare"
   archive "$rid" "$root/src/Extrode.Pare.Cli/bin/Release/net10.0/$rid/publish"
@@ -82,22 +90,30 @@ in_docker() { # rid platform image setup-command [pack arguments]
     dotnet pack src/Extrode.Pare.Cli -c Release -r $1 -o /out -p:Version=$version -v q -nologo $extra
     mkdir -p /out/.publish-$1 && cp src/Extrode.Pare.Cli/bin/Release/net10.0/$1/publish/pare /out/.publish-$1/
     dotnet publish src/Extrode.Pare.Native -c Release -r $1 -p:Version=$version -v q -nologo $extra
-    cp src/Extrode.Pare.Native/bin/Release/net10.0/$1/publish/libpare.so /out/.publish-$1/"
+    cp src/Extrode.Pare.Native/bin/Release/net10.0/$1/publish/libpare.so /out/.publish-$1/
+    chmod -R a+rwX /out"
   archive "$1" "$out/.publish-$1"
   native_archive "$1" "$out/.publish-$1/libpare.so"
   rm -rf "$out/.publish-$1"
 }
-if [ "$(uname -s)" = Darwin ] && [ "$docker" = yes ]; then
+in_docker_if() { want "$1" || return 0; in_docker "$@"; }
+if [ "$docker" = yes ] && { [ "$(uname -s)" = Darwin ] || [ -n "$only" ]; }; then
   debian="apt-get update -qq >/dev/null && apt-get install -y -qq clang zlib1g-dev >/dev/null 2>&1"
   alpine="apk add -q clang build-base zlib-dev >/dev/null"
-  in_docker linux-arm64 linux/arm64 mcr.microsoft.com/dotnet/sdk:10.0 "$debian"
-  in_docker linux-x64 linux/amd64 mcr.microsoft.com/dotnet/sdk:10.0 "$debian"
-  in_docker linux-musl-arm64 linux/arm64 mcr.microsoft.com/dotnet/sdk:10.0-alpine "$alpine"
+  [ "$(uname -s)" != Darwin ] || {
+    in_docker_if linux-arm64 linux/arm64 mcr.microsoft.com/dotnet/sdk:10.0 "$debian"
+    in_docker_if linux-x64 linux/amd64 mcr.microsoft.com/dotnet/sdk:10.0 "$debian"
+  }
+  in_docker_if linux-musl-arm64 linux/arm64 mcr.microsoft.com/dotnet/sdk:10.0-alpine "$alpine"
   # ilc aborts (exit 134) on emulated x64 Alpine, so musl x64 is cross-compiled on arm64
   # against an x64 Alpine sysroot. llvm-objcopy splits the x64 debug symbols.
   repo='$(sed -n "s:/main$::p" /etc/apk/repositories | head -1)'
   x64root="apk add -q clang lld llvm build-base zlib-dev >/dev/null && mkdir /x64 && apk add -q --arch x86_64 --root /x64 --initdb --allow-untrusted --no-scripts -X $repo/main -X $repo/community musl-dev libgcc gcc libstdc++-dev zlib-dev zlib-static >/dev/null"
-  in_docker linux-musl-x64 linux/arm64 mcr.microsoft.com/dotnet/sdk:10.0-alpine "$x64root" "-p:SysRoot=/x64 -p:LinkerFlavor=lld"
+  if [ "$(uname -m)" = x86_64 ]; then
+    in_docker_if linux-musl-x64 linux/amd64 mcr.microsoft.com/dotnet/sdk:10.0-alpine "$alpine"
+  else
+    in_docker_if linux-musl-x64 linux/arm64 mcr.microsoft.com/dotnet/sdk:10.0-alpine "$x64root" "-p:SysRoot=/x64 -p:LinkerFlavor=lld"
+  fi
 
   # Each Linux build on its own platform: the archive's binary 20 times (a flaky stack check
   # once failed one run in four), then `dotnet tool install`, which must pick that RID, then
@@ -105,6 +121,13 @@ if [ "$(uname -s)" = Darwin ] && [ "$docker" = yes ]; then
   for spec in linux-arm64:linux/arm64:10.0 linux-x64:linux/amd64:10.0 \
       linux-musl-arm64:linux/arm64:10.0-alpine linux-musl-x64:linux/amd64:10.0-alpine; do
     rid=${spec%%:*}; rest=${spec#*:}; platform=${rest%%:*}; tag=${rest#*:}
+    want "$rid" || continue
+    [ "$(uname -s)" = Darwin ] || [ "$platform" = "linux/$([ "$(uname -m)" = x86_64 ] && echo amd64 || echo arm64)" ] || continue
+    # The pointer package is only packed for a full run.
+    tool_check=""
+    [ -n "$only" ] || tool_check="dotnet tool install Extrode.Pare.Cli --version $version --tool-path /t --add-source /dist >/dev/null 2>&1
+      test -d /t/.store/extrode.pare.cli/$version/extrode.pare.cli.$rid
+      /t/pare --stdin < /in.ts | cmp -s - /want.js"
     case "$tag" in *alpine) cc_setup="apk add -q build-base >/dev/null" ;; *) cc_setup="apt-get update -qq >/dev/null && apt-get install -y -qq gcc libc6-dev >/dev/null 2>&1" ;; esac
     docker run --rm --platform "$platform" -v "$out":/dist:ro -v "$root/tests/Extrode.Pare.Integration/native":/smoke:ro "mcr.microsoft.com/dotnet/sdk:$tag" sh -c "
       set -e
@@ -117,11 +140,9 @@ if [ "$(uname -s)" = Darwin ] && [ "$docker" = yes ]; then
       printf 'type T = 1;\nlet x: number = 1;\n' > /in.ts
       printf '           \nlet x         = 1;\n' > /want.js
       for i in \$(seq 20); do /a/pare-$version-$rid/pare --stdin < /in.ts > /got.js; cmp -s /got.js /want.js; done
-      dotnet tool install Extrode.Pare.Cli --version $version --tool-path /t --add-source /dist >/dev/null 2>&1
-      test -d /t/.store/extrode.pare.cli/$version/extrode.pare.cli.$rid
-      /t/pare --stdin < /in.ts | cmp -s - /want.js"
+      $tool_check"
     echo "verified $rid"
   done
 fi
 echo "packed Extrode.Pare.Cli $version into tmp/dist:"
-ls "$out" | sed -n "s:^pare-$version-\(.*\)\.\(tar\.gz\|zip\)\$:  \1:p" | sort | tr '\n' ' '; echo
+ls "$out" | grep "^pare-$version-" | sed "s/^pare-$version-//; s/\.tar\.gz\$//" | sort | tr '\n' ' '; echo
