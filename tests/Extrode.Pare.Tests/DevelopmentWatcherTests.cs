@@ -313,6 +313,7 @@ public sealed class DevelopmentWatcherTests : IDisposable
         Assert.DoesNotContain(_log.Lines, l => l.Contains("being used"));
     }
 
+    // Unix deletes an open file, so only Windows exercises the retry here.
     [Fact]
     public void An_output_held_open_for_a_moment_is_still_removed()
     {
