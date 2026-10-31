@@ -606,10 +606,10 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
         var (exit, output) = Build();
 
         Assert.NotEqual(0, exit);
-        var errors = output.Split('\n').Distinct().Where(line => line.Contains("error PARE203", StringComparison.Ordinal)).ToList();
+        var errors = output.Split('\n').Distinct().Where(line => line.Contains("error PARE203", StringComparison.Ordinal)).Select(line => line.Replace(@"Scripts\s", "Scripts/s", StringComparison.Ordinal)).ToList();
         for (int i = 0; i < bad.Length; i++)
         {
-            string expected = Path.Combine("Scripts", $"s{i}.ts") + $" : error PARE203: PareServeAt=\"{bad[i]}\" is not a URL folder.";
+            string expected = $"Scripts/s{i}.ts : error PARE203: PareServeAt=\"{bad[i]}\" is not a URL folder.";
             Assert.True(errors.Count(e => e.Contains(expected, StringComparison.Ordinal)) == 1, $"{expected}\n{string.Join('\n', errors)}");
         }
         Assert.Equal(bad.Length, errors.Count);
