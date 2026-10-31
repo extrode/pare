@@ -97,6 +97,8 @@ internal static class Program
         }
         if (inputs.Count == 0)
             return UsageError(stderr, "no input files");
+        if (outDir is { Length: 0 })
+            return UsageError(stderr, "--outdir needs a directory");
         if (outDir is not null && checkOnly)
             return UsageError(stderr, "--outdir and --check-only exclude each other");
         return FileStripper.Run(inputs, outDir, checkOnly, stderr);
