@@ -11,7 +11,7 @@ wish list; the value is in recording the ones nobody has got to yet.
 
 Real, but needs a decision, a dependency, or more information first. Say which.
 
-- .NET bug, not reported (needs the user to file it): NativeAOT on linux-musl-arm64,
+- .NET bug, not reported and will not be (decided 2026-10-31; the README workaround covers users): NativeAOT on linux-musl-arm64,
   `RuntimeHelpers.TryEnsureSufficientExecutionStack()` on the main thread returns false in 24 of
   60 runs (SDK 10.0.402, Alpine 3.24.2; JIT and glibc arm64 always true). Library callers there
   need a thread they created; README says so. Issue draft and repro: `tmp/issues/musl-stack/`.

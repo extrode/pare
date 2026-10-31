@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en" class="jt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CI, hooks and Docker — pare docs</title>
+<link rel="stylesheet" href="site.css">
+<script>
+/* Inline, in the head, and before anything paints. A saved preference applied
+   from nav.js would arrive after the first frame, and the reader would watch
+   the page flash the wrong theme on every navigation. */
+(function () {
+  var d = document.documentElement;
+  var KEYS = ['theme', 'fs', 'nav-w', 'toc', 'nav'];
+  /* Over file:// Firefox gives every page its own empty localStorage, so the link
+     that brought the reader here carries the preferences too: ?dg=nav-w:336,ts:…
+     The newer of the two wins, by the ts each side records at its last change, so
+     a reload after a change keeps the change and a stale bookmark loses to storage. */
+  var fromLink = {};
+  var m = /[?&]dg=([^&#]*)/.exec(location.search);
+  if (m) decodeURIComponent(m[1]).split(',').forEach(function (kv) {
+    var i = kv.indexOf(':');
+    if (i > 0) fromLink[kv.slice(0, i)] = kv.slice(i + 1);
+  });
+  var pref = {};
+  try {
+    var stored = parseInt(localStorage.getItem('dg-ts'), 10) || 0;
+    var linked = parseInt(fromLink.ts, 10) || 0;
+    if (m && linked >= stored) {
+      KEYS.forEach(function (k) {
+        pref[k] = fromLink[k] || null;
+        if (pref[k]) localStorage.setItem('dg-' + k, pref[k]); else localStorage.removeItem('dg-' + k);
+      });
+      localStorage.setItem('dg-ts', String(linked));
+    } else {
+      KEYS.forEach(function (k) { pref[k] = localStorage.getItem('dg-' + k); });
+    }
+  } catch (e) { /* private mode, file:// with storage denied -- the link still counts */
+    KEYS.forEach(function (k) { pref[k] = fromLink[k] || null; });
+  }
+  if (pref.theme === 'light' || pref.theme === 'dark') d.setAttribute('data-theme', pref.theme);
+  var s = parseFloat(pref.fs);
+  if (s >= 0.75 && s <= 1.75) d.style.setProperty('--fs-scale', String(s));
+  var w = parseInt(pref['nav-w'], 10);
+  if (w >= 180 && w <= 480) d.style.setProperty('--nav-w', w + 'px');
+  if (pref.toc === 'hidden') d.setAttribute('data-toc', 'hidden');
+  if (pref.nav === 'hidden') d.setAttribute('data-nav', 'hidden');
+})();
+</script>
+</head>
+<body class="jt">
+<div class="jt-shell">
+
+  <!-- ===== header ===== -->
+  <header class="jt-header">
+    <button class="hamburger" aria-label="Toggle navigation" onclick="toggleNav()">&#9776;</button>
+    <div class="header-brand">
+      <span class="brand-name">pare</span>
+      <span class="brand-crumb">Guides &#8250; CI, hooks and Docker</span>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-tools">
+      <button class="tool-btn search-btn" type="button" onclick="openSearch()" title="Search (/)">
+        <span class="search-word">search</span><kbd>/</kbd>
+      </button>
+      <div class="fs-group" role="group" aria-label="Text size">
+        <button class="tool-btn" onclick="fontSize(-1)" title="Smaller text">A&#8722;</button>
+        <button class="tool-btn" onclick="fontSize(0)" title="Reset text size">A</button>
+        <button class="tool-btn" onclick="fontSize(1)" title="Larger text">A+</button>
+      </div>
+      <button class="tool-btn theme-btn" id="theme-btn" onclick="cycleTheme()"
+              title="Colour scheme" aria-live="polite">auto</button>
+    </div>
+  </header>
+
+  <!-- ===== body ===== -->
+  <div class="jt-body">
+
+    <!-- sidebar backdrop (mobile) -->
+    <div class="nav-backdrop" id="nav-backdrop" onclick="toggleNav()"></div>
+
+    <!-- sidebar -->
+    <nav class="jt-sidebar" id="jt-sidebar" aria-label="Documentation navigation">
+      <div class="sidebar-filter">
+        <span class="filter-icon">/</span>
+        <input type="text" id="nav-filter" placeholder="filter nav" oninput="filterNav(this.value)" autocomplete="off">
+      </div>
+      <div class="sidebar-scroll" id="sidebar-scroll">
+        <div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Overview</span>
+  </div>
+  <div class="nav-group-items">  <a href="00-overview-readme.html">Pare documentation</a>  <a href="00-overview-comparison.html">Pare and the alternatives</a>  <a href="00-overview-how-it-works.html">How Pare works</a>  <a href="00-overview-what-pare-does-not-do.html">What Pare does not do</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Getting started</span>
+  </div>
+  <div class="nav-group-items">  <a href="01-getting-started-readme.html">Getting started</a>  <a href="01-getting-started-first-static-site.html">Your first static site</a>  <a href="01-getting-started-first-web-app.html">Your first web app</a>  </div>
+</div>
+<div class="nav-group" data-group data-open="true">
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Guides</span>
+  </div>
+  <div class="nav-group-items">  <a href="03-guides-readme.html">Guides</a>  <a href="03-guides-c-library.html">Using libpare from C and other languages</a>  <a href="03-guides-ci-and-hooks.html" class="active" aria-current="page">CI, hooks and Docker</a>  <a href="03-guides-cli.html">The pare command</a>  <a href="03-guides-compile-other-languages.html">Compiling other languages</a>  <a href="03-guides-hot-reload.html">Hot reload</a>  <a href="03-guides-library.html">Using the library</a>  <a href="03-guides-non-web-projects.html">Non-web projects</a>  <a href="03-guides-offline-restore.html">Offline and vendored packages</a>  <a href="03-guides-razor-class-libraries.html">Razor class libraries</a>  <a href="03-guides-type-checking.html">Type checking in CI</a>  <a href="03-guides-typescript-outside-wwwroot.html">TypeScript outside wwwroot</a>  </div>
+</div>
+<div class="nav-group" data-group>
+  <div class="nav-group-header" onclick="toggleGroup(this)">
+    <span class="nav-chev">›</span>
+    <span class="nav-group-label">Reference</span>
+  </div>
+  <div class="nav-group-items">  <a href="06-reference-readme.html">Reference</a>  <a href="06-reference-benchmarks.html">Benchmarks</a>  <a href="06-reference-c-api.html">C API</a>  <a href="06-reference-error-codes.html">Error codes</a>  <a href="06-reference-license.html">License</a>  <a href="06-reference-msbuild-properties.html">MSBuild properties</a>  <a href="06-reference-output-changes.html">Output changes</a>  <a href="06-reference-supported-syntax.html">Supported syntax</a>  <a href="06-reference-troubleshooting.html">Troubleshooting</a>  </div>
+</div>
+
+      </div>
+      <div class="nav-resizer" id="nav-resizer" title="Drag to resize, double-click to reset"></div>
+    </nav>
+
+    <!-- content -->
+    <main class="jt-content has-toc" id="jt-content">
+      <nav class="toc" aria-label="On this page"><button class="toc-tab" type="button" onclick="toggleToc()" title="Show on this page (o)">On this page</button><div class="toc-title"><span>On this page</span><button class="toc-toggle" type="button" onclick="toggleToc()" title="Hide or show (o)"></button></div><a class="toc-l2" href="#github-actions">GitHub Actions</a><a class="toc-l2" href="#a-git-pre-commit-hook">A git pre-commit hook</a><a class="toc-l2" href="#docker">Docker</a></nav>
+      <div class="content-inner">
+        <nav class="breadcrumb" aria-label="Breadcrumb">Guides &#8250; CI, hooks and Docker</nav>
+        <article>
+<h1 id="ci-hooks-and-docker">CI, hooks and Docker</h1>
+<p>Pare has no server and no config file, so each of these is a few lines. All of them run
+<code>pare --check-only</code>, which reports syntax Pare cannot erase and writes nothing. Exit code 1 means
+a rejection, 2 means an I/O or usage error; see <a href="03-guides-cli.html">The pare command</a>.</p>
+<h2 id="github-actions">GitHub Actions</h2>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">YAML</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="yaml"><code class="language-yaml"><span class="tok-key">steps</span>:
+<span class="tok-key">  - uses</span>: actions/checkout@v7
+<span class="tok-key">  - uses</span>: actions/setup-dotnet@v6
+<span class="tok-key">    with</span>:
+<span class="tok-key">      dotnet-version</span>: 10.0.x
+<span class="tok-key">  - run</span>: dotnet tool install -g Extrode.Pare.Cli
+<span class="tok-key">  - run</span>: pare src --check-only
+</code></pre>
+</div>
+<p>The .NET tool needs the .NET 10 runtime, which <code>setup-dotnet</code> installs. To skip .NET, download the
+archive for <code>linux-x64</code> from the <a href="https://github.com/extrode/pare/releases">releases page</a> and put
+<code>pare</code> on the <code>PATH</code>. For type errors, add a <code>tsc --noEmit</code> step; see
+<a href="03-guides-type-checking.html">Type checking in CI</a>.</p>
+<p>For a project that uses the MSBuild package, <code>dotnet build</code> already fails on a rejection, so no
+extra step is needed.</p>
+<h2 id="a-git-pre-commit-hook">A git pre-commit hook</h2>
+<p>Save as <code>.git/hooks/pre-commit</code> and make it executable (<code>chmod +x</code>). It checks only the staged
+<code>.ts</code> and <code>.mts</code> files, so a commit that touches none of them costs nothing.</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">bash</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="sh"><code class="language-sh"><span class="tok-com">#!/bin/sh</span>
+<span class="tok-fn">files</span>=$(<span class="tok-fn">git</span> diff <span class="tok-attr">--cached</span> <span class="tok-attr">--name-only</span> <span class="tok-attr">--diff-filter</span>=ACM -- <span class="tok-str">'*.ts'</span> <span class="tok-str">'*.mts'</span> <span class="tok-str">':!*.d.ts'</span>)
+[ <span class="tok-attr">-z</span> <span class="tok-str">&quot;$files&quot;</span> ] &amp;&amp; <span class="tok-kw">exit</span> <span class="tok-num">0</span>
+<span class="tok-fn">pare</span> <span class="tok-attr">--check-only</span> <span class="tok-var">$files</span>
+</code></pre>
+</div>
+<p>A staged <code>enum</code> stops the commit with <code>bad.ts:1:1: error PARE100: ...</code>. File names with spaces
+need a <code>while read</code> loop instead of the unquoted <code>$files</code>.</p>
+<p>Hook frameworks work the same way. For <a href="https://pre-commit.com">pre-commit</a>, a local hook:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">YAML</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="yaml"><code class="language-yaml"><span class="tok-key">repos</span>:
+<span class="tok-key">  - repo</span>: local
+<span class="tok-key">    hooks</span>:
+<span class="tok-key">      - id</span>: pare
+<span class="tok-key">        name</span>: pare --check-only
+<span class="tok-key">        entry</span>: pare --check-only
+<span class="tok-key">        language</span>: system
+<span class="tok-key">        files</span>: <span class="tok-str">'\.m?ts$'</span>
+<span class="tok-key">        exclude</span>: <span class="tok-str">'\.d\.ts$'</span>
+</code></pre>
+</div>
+<h2 id="docker">Docker</h2>
+<p>Strip in a build stage and copy only the output. The tool image needs the .NET 10 SDK:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">dockerfile</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="dockerfile"><code class="language-dockerfile">FROM mcr.microsoft.com/dotnet/sdk:10.0 AS strip
+RUN dotnet tool install -g Extrode.Pare.Cli
+ENV PATH=&quot;$PATH:/root/.dotnet/tools&quot;
+COPY src /src
+RUN pare /src --outdir /out
+
+FROM nginx:alpine
+COPY --from=strip /out /usr/share/nginx/html
+</code></pre>
+</div>
+<p><code>--outdir</code> mirrors the input folder under <code>/out</code> (<code>src/lib/a.ts</code> becomes <code>/out/lib/a.js</code>).</p>
+
+        </article>
+        <div class="page-nav" id="page-nav">
+          <div class="prev-next"><a class="pn-prev" href="03-guides-c-library.html">
+  <span class="pn-label">&#8592; prev</span>
+  <span class="pn-title">Using libpare from C and other languages</span>
+</a><a class="pn-next" href="03-guides-cli.html">
+  <span class="pn-label">next &#8594;</span>
+  <span class="pn-title">The pare command</span>
+</a></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===== status bar ===== -->
+  <footer class="jt-statusbar">
+    <span class="status-dot">&#9679; pare docs</span>
+    <span class="status-spacer"></span>
+    <button class="status-kbd" type="button" onclick="toggleHelp()"><kbd>?</kbd> shortcuts</button>
+  </footer>
+</div>
+
+<!-- ===== search (opened with / or Ctrl+K; the index loads on first use) ===== -->
+<div class="search-overlay" id="search-overlay" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <input type="search" id="search-input" placeholder="search the docs" autocomplete="off"
+           spellcheck="false" oninput="runSearch(this.value)">
+    <div class="search-results" id="search-results" role="listbox"></div>
+    <div class="search-foot"><kbd>&#8593;</kbd><kbd>&#8595;</kbd> move <kbd>Enter</kbd> open <kbd>Esc</kbd> close</div>
+  </div>
+</div>
+
+<!-- ===== keyboard shortcuts ===== -->
+<div class="kbd-help" id="kbd-help" hidden>
+  <div class="kbd-box" role="dialog" aria-label="Keyboard shortcuts">
+    <div class="kbd-title">Keyboard shortcuts</div>
+    <table>
+      <tr><td><kbd>/</kbd> <kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>search</td></tr>
+      <tr><td><kbd>f</kbd></td><td>filter the sidebar; <kbd>Enter</kbd> opens the first match, <kbd>Esc</kbd> clears</td></tr>
+      <tr><td><kbd>h</kbd></td><td>home</td></tr>
+      <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>previous / next page</td></tr>
+      <tr><td><kbd>j</kbd> <kbd>k</kbd></td><td>next / previous heading</td></tr>
+      <tr><td><kbd>b</kbd></td><td>toggle the sidebar</td></tr>
+      <tr><td><kbd>w</kbd></td><td>reset the sidebar width</td></tr>
+      <tr><td><kbd>o</kbd></td><td>toggle "on this page"</td></tr>
+      <tr><td><kbd>t</kbd></td><td>colour scheme: auto, light, dark</td></tr>
+      <tr><td><kbd>-</kbd> <kbd>=</kbd> <kbd>0</kbd></td><td>text smaller / larger / reset</td></tr>
+      <tr><td><kbd>?</kbd></td><td>this panel</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>close</td></tr>
+    </table>
+  </div>
+</div>
+<script src="nav.js"></script>
+</body>
+</html>

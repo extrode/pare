@@ -466,3 +466,11 @@ check against tsgo is still M5.
   `docs/03-guides/ci-and-hooks.md` (GitHub Actions, git and pre-commit hook, Docker); the hook and
   the `--outdir` layout were run, the workflow and Dockerfile were not. Stale: benchmark rows say
   "Pare 0.5.0" (re-run on a quiet machine, never done for the 0.7.0 hot-path change).
+- **0.7.1 prepared (2026-10-31):** the todo sweep. Build: the development map is written by a JSON
+  task, PARE203/204/205 report every item in one build, a source declared twice is one source.
+  `AddPareDevelopment` warns on an invalid or wrong-shape map. `release.yml` builds the NativeAOT
+  CLI and libpare archives on native runners and attaches them with `SHA256SUMS`; `pack-cli.sh`
+  takes `--rid` and stops when Docker is down. Benchmarks re-measured on 0.7.0 (Mac and wp1). Full
+  suite green on the Mac and wp1 (the one Windows failure was a test path separator, fixed). One
+  cleanup script, `scripts/cleanup/pare.sh`. Patch version: no API or output change. The musl stack
+  bug stays unreported (decided).
