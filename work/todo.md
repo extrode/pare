@@ -27,10 +27,8 @@ Real, but needs a decision, a dependency, or more information first. Say which.
 - CI flakes (5 of 30 `ci` runs to 2026-10-31, a different test each time): Playwright
   30 s timeouts on Windows, the `NativeLibraryTests` fixture once on macOS,
   `Stopping_cancels_every_watcher...` timing on Windows. The macOS log-line race is fixed.
-- Release the work after 0.7.1 (`buildTransitive`, the duplicate-source fixes, device paths):
-  waiting on the user's go. Husk waits for it: `docs/handoffs/2026-10-31-husk-pare-0.7.1-and-build-transitive.md`
-  tells Husk to reference Pare.Build with `PrivateAssets="contentfiles;analyzers;build"` and drop
-  HUSK002 once it is out. Husk's own repo is not touched from here.
+- 0.7.2 is prepared on `dev` (`buildTransitive`, the duplicate-source fixes, device paths, the
+  watcher retry); the user tags it. Then Husk moves to it: `../husk/docs/handoffs/2026-10-31-pare-build-transitive.md`.
 - Bench comparison keeps TypeScript 6.0.3: ts-blank-space 0.9.0 declares peer `typescript`
   `5.1.6 - 6.0.x`, and TypeScript 7 (native) has no JS API for it to call. Bump both when
   ts-blank-space supports 7.

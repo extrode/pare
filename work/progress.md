@@ -422,7 +422,7 @@ convention). Update at the end of every session.
   a `windows-11-arm` (win-arm64) job, non-blocking (`experimental`) until it passed 3 times (blocking since 2026-10-31);
   its first run passed 555 of 563 (8 skipped, as on win-x64). Watcher tests wait for the log line
   instead of racing it.
-- **After 0.7.1 (2026-10-31, unreleased):** `CLAUDE.md` removed (`AGENTS.md` is read directly).
+- **After 0.7.1 (2026-10-31, released as 0.7.2):** `CLAUDE.md` removed (`AGENTS.md` is read directly).
   `Extrode.Pare.Build` ships `buildTransitive/` for Husk (handoff
   `docs/handoffs/2026-10-31-husk-pare-0.7.1-and-build-transitive.md`). The `DistinctSources` task
   replaces `RemoveDuplicates`: the last declaration wins, and on Windows both separators name one
@@ -436,6 +436,11 @@ convention). Update at the end of every session.
   `scripts/check-device-paths.ps1` on wp1 shows all 11 forms working (the "ssh refuses `\\?\`"
   note was this bug hitting a Codex sandbox folder). Comparison rerun on oxc 0.156.0: same
   agreement, Pare 273 MB/s, 3.4x oxc. structure-audit (in `~/.claude`) allows `CLA.md` at the root.
+- **0.7.2 prepared (2026-10-31):** the work above, plus the watcher retrying an output write or
+  removal another process holds (the `Saving_a_mapped_source_by_rename...` CI "flake"), and
+  `win-arm64` blocking in CI after 3 green runs. Patch version: one addition (`buildTransitive`)
+  and fixes, nothing breaking. Docs site rebuilt (the Docs tool needs `DOTNET_ROLL_FORWARD=Major`
+  on a Mac with only .NET 10).
 
 ## Next
 
