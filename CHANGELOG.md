@@ -10,6 +10,10 @@
 - Fixed (cli): a Windows device path (`\\?\C:\src\a.ts`, `\\?\C:\src\*.ts`, `//?/C:/src`) is read as
   a path. The `?` of `\\?\` counted as a wildcard, so pare walked the whole drive and matched
   nothing.
+- Fixed (aspnetcore): the development watcher retries writing or removing an output while another
+  process holds it (the server, a virus scanner), as it already did for reading the source. The
+  save was lost until the next one, seen on Windows.
+- Changed (ci): the `win-arm64` job blocks a release; it was non-blocking until it passed 3 times.
 - Changed (tests): Acornima 1.9.1, Jint 4.17.0, Microsoft.Playwright 1.64.1, xunit.v3 4.0.2,
   oxc-transform 0.156.0 in the bench comparison. TypeScript stays 6.0.3 (ts-blank-space 0.9.0
   needs 6.0.x or lower).

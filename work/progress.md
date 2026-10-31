@@ -419,7 +419,7 @@ convention). Update at the end of every session.
   bug stays unreported (decided).
 - **0.7.1 released (2026-10-31):** tag `v0.7.1` on main 7c11461; the four packages on nuget.org
   and GitHub Packages; the release has 16 archives and `SHA256SUMS` built by `release.yml`. CI gained
-  a `windows-11-arm` (win-arm64) job, non-blocking (`experimental`) until it has passed a few times;
+  a `windows-11-arm` (win-arm64) job, non-blocking (`experimental`) until it passed 3 times (blocking since 2026-10-31);
   its first run passed 555 of 563 (8 skipped, as on win-x64). Watcher tests wait for the log line
   instead of racing it.
 - **After 0.7.1 (2026-10-31, unreleased):** `CLAUDE.md` removed (`AGENTS.md` is read directly).
