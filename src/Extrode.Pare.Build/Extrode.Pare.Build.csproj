@@ -26,6 +26,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="build\*" Pack="true" PackagePath="build" />
+    <None Include="buildTransitive\*" Pack="true" PackagePath="buildTransitive" />
     <None Include="..\..\LICENSE.md;..\..\NOTICE.md;..\..\README.md" Pack="true" PackagePath="" Visible="false" />
   </ItemGroup>
   <ItemGroup>

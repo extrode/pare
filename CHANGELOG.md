@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Added (build): `Extrode.Pare.Build` ships its props and targets under `buildTransitive/` too, so a
+  project that gets it through another package's dependency (Extrode.Husk.Build) still strips.
+
 ## [0.7.1] - 2026-10-31
 
 - Changed (build): PARE203, PARE204 and PARE205 report every bad item in one build, not only the

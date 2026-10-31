@@ -1,0 +1,5 @@
+<Project>
+  <!-- NuGet imports buildTransitive/ for direct and transitive references alike, so a project
+       that gets Extrode.Pare.Build through another package (Extrode.Husk.Build) still builds. -->
+  <Import Project="$(MSBuildThisFileDirectory)../build/Extrode.Pare.Build.targets" />
+</Project>
