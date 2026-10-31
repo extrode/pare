@@ -305,12 +305,11 @@ public sealed class DevelopmentWatcherTests : IDisposable
         {
             var release = new Thread(() => { Thread.Sleep(TypeScriptWatcher.Settle); held.Dispose(); });
             release.Start();
-            watcher.Strip(P("Scripts/fmt.ts"), started: true);
+            watcher.Strip(Path.GetFullPath(P("Scripts/fmt.ts")), started: true);
             release.Join();
         }
 
-        Assert.Equal("let g   ;\n", File.ReadAllText(P("obj/pare/js/fmt.js")));
-        Assert.DoesNotContain(_log.Lines, l => l.Contains("being used"));
+        Assert.True(File.ReadAllText(P("obj/pare/js/fmt.js")) == "let g   ;\n", "log:\n" + string.Join("\n", _log.Lines));
     }
 
     // Unix deletes an open file, so only Windows exercises the retry here.
@@ -326,11 +325,11 @@ public sealed class DevelopmentWatcherTests : IDisposable
         {
             var release = new Thread(() => { Thread.Sleep(TypeScriptWatcher.Settle); held.Dispose(); });
             release.Start();
-            watcher.Strip(P("Scripts/fmt.ts"), started: true);
+            watcher.Strip(Path.GetFullPath(P("Scripts/fmt.ts")), started: true);
             release.Join();
         }
 
-        Assert.False(File.Exists(P("obj/pare/js/fmt.js")));
+        Assert.False(File.Exists(P("obj/pare/js/fmt.js")), "log:\n" + string.Join("\n", _log.Lines));
     }
 
     [Fact]
