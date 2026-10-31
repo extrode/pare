@@ -57,7 +57,9 @@ for rel in tmp/docs-src tmp/full-test.log tmp/native-stage \
            tmp/bench-0.7.0.log tmp/bench-0.7.0b.log tmp/bench-nofix.log tmp/pack-cli-0.7.0.log \
            tmp/ci-mac-fail.log tmp/ci-124408059288.log tmp/ci-124408059321.log \
            tmp/dev.bundle tmp/dev2.bundle tmp/fix.bundle tmp/hook tmp/fakebin tmp/trx tmp/compare \
-           tmp/packtest tmp/want.sh tmp/osx-job.log tmp/docs-build.log tmp/arts tmp/ci tmp/cl.out tmp/utmtest tmp/rel071; do
+           tmp/packtest tmp/want.sh tmp/osx-job.log tmp/docs-build.log tmp/arts tmp/ci tmp/cl.out tmp/utmtest tmp/rel071 \
+           tmp/hr tmp/hr-hotreload.log tmp/hr-dev.log tmp/hr-project.log tmp/hr-run.sh tmp/hr-run-root.sh \
+           tmp/dedupe.proj tmp/wwwroot tmp/bump-test.log tmp/dev-test.log; do
     remove_path "$rel"
 done
 for f in "$repo"/tmp/dist/*0.7.1-test*; do
@@ -68,11 +70,11 @@ printf '== 2. wp1 leftovers (over ssh)\n'
 if ! ssh -o BatchMode=yes -o ConnectTimeout=5 wp1 exit 2>/dev/null; then
     printf 'skip:  wp1 unreachable, its leftovers left alone\n'
 else
-    wp1_scratch='C:\Users\Sy\AppData\Local\Temp\pare\tmp\native-stage, C:\home\code\extrode.com\dev.bundle, C:\home\code\extrode.com\fix.bundle'
+    wp1_scratch='C:\Users\Sy\AppData\Local\Temp\pare\tmp\native-stage, C:\home\code\extrode.com\dev.bundle, C:\home\code\extrode.com\fix.bundle, C:\Users\Sy\fix.bundle, C:\Users\Sy\dedupe.proj, C:\Users\Sy\wwwroot, C:\home\code\extrode.com\pare\tmp\devpath'
     if [ "$execute" = 1 ] && [ "$scratch" = 1 ]; then
-        ssh wp1 "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $wp1_scratch; Get-ChildItem \$env:TEMP -Directory -Filter pare-native-* | Remove-Item -Recurse -Force; cd C:\\home\\code\\extrode.com\\pare; git worktree remove C:\\Users\\Sy\\tmp\\pare-verify 2>\$null; git worktree prune; 'wp1 scratch removed'" 2>&1 | grep -v 'quantum\|store now\|server may\|vulnerable\|upgraded' || true
+        ssh wp1 "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $wp1_scratch; Get-ChildItem \$env:TEMP -Directory -Filter pare-native-* | Remove-Item -Recurse -Force; cd C:\\home\\code\\extrode.com\\pare; git worktree remove C:\\Users\\Sy\\tmp\\pare-verify 2>\$null; git worktree prune; git switch -q dev; git branch -D fix/duplicate-source-metadata 2>\$null; 'wp1 scratch removed'" 2>&1 | grep -v 'quantum\|store now\|server may\|vulnerable\|upgraded' || true
     else
-        printf 'would remove on wp1: %s, %%TEMP%%\\pare-native-*, and the pare-verify worktree\n' "$wp1_scratch"
+        printf 'would remove on wp1: %s, %%TEMP%%\\pare-native-*, the pare-verify worktree, and the wp1 checkout back on dev without fix/duplicate-source-metadata\n' "$wp1_scratch"
     fi
 fi
 
