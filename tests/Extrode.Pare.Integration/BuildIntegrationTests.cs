@@ -169,6 +169,24 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
     }
 
     [Fact]
+    public void A_project_without_sources_loads_no_pare_task()
+    {
+        Put("app/app.csproj", $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+              <Import Project="{Path.Combine(BuildDir, "Extrode.Pare.Build.props")}" />
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+                <PareTaskAssembly>{P("missing/Extrode.Pare.Build.dll")}</PareTaskAssembly>
+              </PropertyGroup>
+              <Import Project="{Path.Combine(BuildDir, "Extrode.Pare.Build.targets")}" />
+            </Project>
+            """);
+
+        var (exit, output) = Run("build", P("app/app.csproj"), "-nologo", "-nodeReuse:false", "--disable-build-servers", "-clp:NoSummary");
+        Assert.True(exit == 0, output);
+    }
+
+    [Fact]
     public void Razor_class_library_sources_publish_stripped_under_content()
     {
         Put("Lib/Lib.csproj", $"""

@@ -74,6 +74,21 @@ public sealed class DistinctSourcesTests
     }
 
     [Fact]
+    public void A_percent_in_a_folder_name_stays_literal()
+    {
+        var task = new DistinctSources
+        {
+            BuildEngine = _engine,
+            Sources = [new TaskItem("a%2520b/x.ts")],
+            RecursiveDirs = [new TaskItem("|a%2520b/")],
+        };
+
+        Assert.True(task.Execute());
+        Assert.Equal("a%20b/", task.Distinct[0].GetMetadata("_PareRecursiveDir"));
+        Assert.Equal("a%20b/x.ts", task.Distinct[0].ItemSpec);
+    }
+
+    [Fact]
     public void Mismatched_lists_fail_the_task()
     {
         var task = new DistinctSources { BuildEngine = _engine, Sources = [Item("a.ts")], RecursiveDirs = [] };

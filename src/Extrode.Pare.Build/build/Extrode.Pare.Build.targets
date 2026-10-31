@@ -63,7 +63,8 @@
     <!-- A TypeScript source declared twice (a package's .props and the project file) is one source,
          with the last declaration's metadata; the SDK would crash on its duplicate asset. (A compile
          source twice is two outputs.) See DistinctSources for why this is a task. -->
-    <DistinctSources Sources="@(TypeScriptSource)" RecursiveDirs="@(TypeScriptSource->'|%(RecursiveDir)')">
+    <DistinctSources Sources="@(TypeScriptSource)" RecursiveDirs="@(TypeScriptSource->'|%(RecursiveDir)')"
+                     Condition="'@(TypeScriptSource)' != ''">
       <Output TaskParameter="Distinct" ItemName="_PareTypeScriptSource" />
     </DistinctSources>
     <ItemGroup>
