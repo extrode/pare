@@ -7,6 +7,9 @@
 - Fixed (build): a `TypeScriptSource` declared twice takes the last declaration's metadata, so the
   project file's `PareServeAt` beats a package's default glob. On Windows, `wwwroot/js/a.ts` and
   `wwwroot\js\a.ts` are one source (they reached the SDK as a duplicate asset).
+- Fixed (cli): a Windows device path (`\\?\C:\src\a.ts`, `\\?\C:\src\*.ts`, `//?/C:/src`) is read as
+  a path. The `?` of `\\?\` counted as a wildcard, so pare walked the whole drive and matched
+  nothing.
 - Changed (tests): Acornima 1.9.1, Jint 4.17.0, Microsoft.Playwright 1.64.1, xunit.v3 4.0.2,
   oxc-transform 0.156.0 in the bench comparison. TypeScript stays 6.0.3 (ts-blank-space 0.9.0
   needs 6.0.x or lower).

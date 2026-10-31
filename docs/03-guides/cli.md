@@ -15,7 +15,8 @@ bundling, no minifying, no type checking, no Node packages.
 
 Inputs can be files, folders (searched recursively) or globs (`*`, `?`, `**`) for shells that do not
 expand them. `.d.ts` files and `node_modules` are skipped. A symlink or junction back to a folder
-already searched is skipped. The server and share of a UNC pattern (`\\srv\share`) must be written out, with no wildcard.
+already searched is skipped. The server and share of a UNC pattern (`\\srv\share`) must be written out, with no wildcard. A
+Windows device path (`\\?\C:\src\*.ts`) works like the plain path; its `?` is not a wildcard.
 
 > An existing `foo.js` next to `foo.ts` is replaced, like `tsc` and `esbuild` do. Keep hand-written
 > JavaScript out of the source folders, or use `--outdir`.
