@@ -113,6 +113,20 @@ public static class PareDevelopmentExtensions
         private static (string SourceRoot, string OutputRoot, Dictionary<string, string> Sources,
             Dictionary<string, (string Compiler, List<string> Outputs)> Compiled)? ReadMap(string path, ILogger logger)
         {
+            try
+            {
+                return ReadMapCore(path, logger);
+            }
+            catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning("{Path} cannot be read as a development map ({Message}); its sources are not re-stripped on save", path, e.Message);
+                return null;
+            }
+        }
+
+        private static (string SourceRoot, string OutputRoot, Dictionary<string, string> Sources,
+            Dictionary<string, (string Compiler, List<string> Outputs)> Compiled)? ReadMapCore(string path, ILogger logger)
+        {
             if (!File.Exists(path))
                 return null;
             JsonDocument map;

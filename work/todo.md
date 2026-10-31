@@ -22,6 +22,10 @@ Real, but needs a decision, a dependency, or more information first. Say which.
   says to run it from the project directory. Re-check on a newer 10.0.x SDK.
 - `PareCompileSource` outside `wwwroot` is a `Watch` item: not checked whether `dotnet watch` in hot
   reload mode treats saving one as an unsupported change and restarts the app. (2026-10-17)
+- Review 2026-10-31 (f102d65..00ceb0f), unverified: `RemoveDuplicates` keeps the first declaration's
+  metadata (a package's `wwwroot/**/*.ts` glob beats the project's `PareServeAt="lib"` for the same
+  file), and on Windows a wildcard item (`wwwroot\js\a.ts`) and an explicit one (`wwwroot/js/a.ts`)
+  may not compare equal, so that duplicate would still reach the SDK.
 - `release.yml` `archives` job (native runners, added 2026-10-31) has not run on GitHub: dispatch it
   once before tagging. `win-arm64` on `windows-latest` needs the image's VS ARM64 C++ tools.
 - Windows, `\\?\C:\src\*.ts` glob: check on wp1 (see the audit note below).

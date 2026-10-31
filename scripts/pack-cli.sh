@@ -73,8 +73,9 @@ for rid in $rids; do
   [ "$(uname -s)" != Darwin ] || "$root/scripts/check-macos-libs.sh" "$root/src/Extrode.Pare.Cli/bin/Release/net10.0/$rid/publish/pare"
   archive "$rid" "$root/src/Extrode.Pare.Cli/bin/Release/net10.0/$rid/publish"
   dotnet publish "$root/src/Extrode.Pare.Native" -c Release -r "$rid" -p:Version="$version" -v q -nologo
-  [ "$(uname -s)" != Darwin ] || "$root/scripts/check-macos-libs.sh" "$root/src/Extrode.Pare.Native/bin/Release/net10.0/$rid/publish/libpare.dylib"
-  native_archive "$rid" "$root/src/Extrode.Pare.Native/bin/Release/net10.0/$rid/publish/libpare.dylib"
+  lib="$root/src/Extrode.Pare.Native/bin/Release/net10.0/$rid/publish/libpare.$([ "$(uname -s)" = Darwin ] && echo dylib || echo so)"
+  [ "$(uname -s)" != Darwin ] || "$root/scripts/check-macos-libs.sh" "$lib"
+  native_archive "$rid" "$lib"
 done
 
 # Linux in Docker: glibc RIDs on the Debian SDK image, musl RIDs on the Alpine one. Sources
