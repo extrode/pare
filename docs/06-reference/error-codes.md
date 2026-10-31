@@ -28,6 +28,7 @@ reported in one run.
 | [PARE202](#pare202) | warning (MSBuild) | not served: outside wwwroot with no PareServeAt |
 | [PARE203](#pare203) | error (MSBuild) | PareServeAt is not a URL folder |
 | [PARE204](#pare204) | error (MSBuild) | PareCompileSource needs PareCompiler and PareOutputExtension |
+| [PARE205](#pare205) | error (MSBuild) | a source outside the project folder cannot be written below PareOutDir |
 
 Errors print as `file:line:col: error PARE100: message (hint)` from the CLI and the hot-reload
 watcher, and as `file(line,col): error PARE100: message (hint)` from MSBuild.
@@ -280,3 +281,18 @@ anything. This is a fault in that package's `.props` or in the project file that
 ```xml
 <PareCompileSource Include="Components/**/*.svelte" PareCompiler="husk" PareOutputExtension=".svelte.js" />
 ```
+
+## PARE205
+
+`error PARE205: the source is outside the project folder, so its output would be written outside PareOutDir="gen". Move the source into the project, or build it from the project that owns it.`
+
+MSBuild package only. `PareOutDir` mirrors each source's path below the project folder. A
+`TypeScriptSource` such as `../shared/x.ts` has no such path: the output would have gone to
+`shared/x.js` above the project, not under `gen/`. The build stops before writing anything.
+
+```xml
+<PropertyGroup><PareOutDir>gen</PareOutDir></PropertyGroup>
+<ItemGroup><TypeScriptSource Include="../shared/x.ts" /></ItemGroup> <!-- PARE205 -->
+```
+
+Without `PareOutDir` the output sits next to the source, as before.
