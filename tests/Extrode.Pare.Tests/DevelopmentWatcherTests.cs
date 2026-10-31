@@ -421,6 +421,22 @@ public sealed class DevelopmentWatcherTests : IDisposable
         });
     }
 
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("{ \"sourceRoot\": 1, \"outputRoot\": \"obj\" }")]
+    [InlineData("{ \"sourceRoot\": \"wwwroot\", \"outputRoot\": \"obj\", \"sources\": [1] }")]
+    public async Task AddPareDevelopment_warns_and_starts_when_a_map_has_the_wrong_shape(string map)
+    {
+        Put("wwwroot/a.ts", "let a: T;\n");
+        Put("bin/Extrode.Pare.development.json", map);
+        await RunDevelopment(() =>
+        {
+            Assert.Equal("let a   ;\n", File.ReadAllText(P("wwwroot/a.js")));
+            Assert.Contains(_log.Lines, l => l.Contains("cannot be read as a development map"));
+            return Task.CompletedTask;
+        });
+    }
+
     [Fact]
     public async Task AddPareDevelopment_reads_library_maps_with_no_map_of_its_own()
     {

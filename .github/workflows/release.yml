@@ -58,8 +58,9 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   # NativeAOT cannot cross OS, so each archive is built on a runner of its own kind. Each job
-  # packs only its RIDs and the script checks the result (a binary run 20 times, a C program
-  # against libpare); the final step fails when an expected archive is missing.
+  # packs only its RIDs; the final step fails when an expected archive is missing. The musl jobs
+  # (Docker) also run the archive's binary 20 times and a C program against libpare; the glibc,
+  # macOS and Windows archives are checked for presence only (ci.yml smoke-tests those builds).
   archives:
     strategy:
       fail-fast: false

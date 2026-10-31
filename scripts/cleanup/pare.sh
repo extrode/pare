@@ -56,7 +56,7 @@ for rel in tmp/docs-src tmp/full-test.log tmp/native-stage \
            tmp/stdin-test.ps1 tmp/glob-test.ps1 tmp/aot-070 tmp/e2e \
            tmp/bench-0.7.0.log tmp/bench-0.7.0b.log tmp/bench-nofix.log tmp/pack-cli-0.7.0.log \
            tmp/ci-mac-fail.log tmp/ci-124408059288.log tmp/ci-124408059321.log \
-           tmp/dev.bundle tmp/dev2.bundle tmp/fix.bundle tmp/hook tmp/fakebin tmp/res tmp/trx tmp/compare; do
+           tmp/dev.bundle tmp/dev2.bundle tmp/fix.bundle tmp/hook tmp/fakebin tmp/trx tmp/compare; do
     remove_path "$rel"
 done
 for f in "$repo"/tmp/dist/*0.7.1-test*; do

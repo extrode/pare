@@ -4,7 +4,7 @@ using Microsoft.Build.Framework;
 namespace Extrode.Pare.Build;
 
 /// <summary>
-/// Logs <see cref="Text"/> once per item in <see cref="Items"/>, as an error or a warning with the
+/// Logs <see cref="Text"/> once per item in <see cref="Items"/>, as an error with the
 /// item as the file and <see cref="Code"/> as the code. <c>{Name}</c> in the text is the item's
 /// metadata <c>Name</c>. MSBuild's own <c>Error</c> task, batched over items, stops the target at
 /// the first batch; this task reports every item in one build.

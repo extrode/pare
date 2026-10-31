@@ -13,7 +13,7 @@ if (args.Length > 0 && args[0] == "compare")
 // BenchmarkDotNet's out-of-process run finds its project file by name and stops ("Found more than
 // one matching project file") when Claude Code worktrees under .claude/worktrees hold copies of
 // it. Run in process then, as the 0.5 and later numbers were.
-if (!args.Contains("--inProcess") && WorktreeCopies())
+if (!args.Contains("--inProcess") && !args.Contains("-i") && WorktreeCopies())
 {
     Console.Error.WriteLine("note: .claude/worktrees holds copies of this project; running --inProcess (remove the worktrees for an out-of-process run)");
     args = [.. args, "--inProcess"];
