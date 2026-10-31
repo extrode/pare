@@ -428,8 +428,14 @@ convention). Update at the end of every session.
   replaces `RemoveDuplicates`: the last declaration wins, and on Windows both separators name one
   source (both confirmed on wp1, tests run there). Test dependencies bumped (TypeScript stays 6.0.3
   for ts-blank-space). Checked: `PareCompileSource` outside `wwwroot` does not restart the app under
-  hot reload; dotnet/sdk#54309 still fails on 10.0.403. Not checked: the `\\?\` glob on wp1 (ssh
-  refuses device paths).
+  hot reload; dotnet/sdk#54309 still fails on 10.0.403. `DistinctSources` first broke published
+  `.gz`/`.br` (a copied item gained `OriginalItemSpec`, so compression read the `.ts`); the full
+  suite caught it before any release. Review of a97b2e2..6c19c66: 2 of 7 claims confirmed and fixed
+  (the task ran with no sources; an escaped folder name lost its escaping). The `?` of `\\?\`
+  counted as a glob wildcard, so device paths walked the whole drive; fixed, and
+  `scripts/check-device-paths.ps1` on wp1 shows all 11 forms working (the "ssh refuses `\\?\`"
+  note was this bug hitting a Codex sandbox folder). Comparison rerun on oxc 0.156.0: same
+  agreement, Pare 273 MB/s, 3.4x oxc. structure-audit (in `~/.claude`) allows `CLA.md` at the root.
 
 ## Next
 
