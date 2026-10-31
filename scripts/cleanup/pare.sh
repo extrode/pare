@@ -59,7 +59,8 @@ for rel in tmp/docs-src tmp/full-test.log tmp/native-stage \
            tmp/dev.bundle tmp/dev2.bundle tmp/fix.bundle tmp/hook tmp/fakebin tmp/trx tmp/compare \
            tmp/packtest tmp/want.sh tmp/osx-job.log tmp/docs-build.log tmp/arts tmp/ci tmp/cl.out tmp/utmtest tmp/rel071 \
            tmp/hr tmp/hr-hotreload.log tmp/hr-dev.log tmp/hr-project.log tmp/hr-run.sh tmp/hr-run-root.sh \
-           tmp/dedupe.proj tmp/wwwroot tmp/bump-test.log tmp/dev-test.log; do
+           tmp/dedupe.proj tmp/wwwroot tmp/bump-test.log tmp/dev-test.log \
+           tmp/rerun3.log tmp/unit.log tmp/break.log tmp/nosrc.log tmp/review-dev-diff.patch tmp/review-low.md; do
     remove_path "$rel"
 done
 for f in "$repo"/tmp/dist/*0.7.1-test*; do
