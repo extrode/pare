@@ -155,11 +155,11 @@ The same 2,392 real-world files (19.5 MB) through each tool, on an Apple M1 Max:
 
 | Tool | Throughput | Pare is |
 |---|---:|---:|
-| Pare | 263 MB/s | - |
-| oxc-transform | 81 MB/s | 3.3x faster |
-| Node `stripTypeScriptTypes` | 38 MB/s | 6.9x faster |
-| ts-blank-space | 27 MB/s | 9.7x faster |
-| esbuild | 11 MB/s | 23.3x faster |
+| Pare | 273 MB/s | - |
+| oxc-transform | 81 MB/s | 3.4x faster |
+| Node `stripTypeScriptTypes` | 39 MB/s | 7.0x faster |
+| ts-blank-space | 28 MB/s | 9.8x faster |
+| esbuild | 11 MB/s | 24.4x faster |
 
 Pare's output matches TypeScript 7 `tsc` for 99.96% of the TypeScript test corpus files it strips.
 Deno's standard library tests give the same results on Pare's output for 38 of 42 packages. Methods, caveats and how to

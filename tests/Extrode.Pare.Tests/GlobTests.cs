@@ -11,6 +11,7 @@ public class GlobTests
     [InlineData("src/**/*.ts", int.MaxValue)]
     [InlineData("**/*.ts", int.MaxValue)]
     [InlineData("C:\\*.ts", 1)]
+    [InlineData("\\\\?\\C:\\src\\*.ts", 1)]
     public void Levels_is_how_deep_a_match_can_be(string pattern, int expected) =>
         Assert.Equal(expected, Glob.Levels(pattern));
 
@@ -24,6 +25,11 @@ public class GlobTests
     [InlineData("/C:/*.ts", "/C:")]
     [InlineData("C:\\src\\*.ts", "C:/src")]
     [InlineData("\\\\srv\\share\\src\\*.ts", "//srv/share/src")]
+    [InlineData("\\\\?\\C:\\src\\*.ts", "\\\\?\\C:\\src")]
+    [InlineData("\\\\?\\C:\\*.ts", "\\\\?\\C:\\")]
+    [InlineData("\\\\?\\UNC\\srv\\share\\*.ts", "\\\\?\\UNC\\srv\\share")]
+    [InlineData("//?/C:/src/**/*.ts", "//?/C:/src")]
+    [InlineData("\\\\.\\C:\\src\\*.ts", "\\\\.\\C:\\src")]
     public void Base_directory_is_the_part_before_the_first_wildcard(string pattern, string expected) =>
         Assert.Equal(expected, Glob.BaseDirectory(pattern));
 
@@ -41,5 +47,21 @@ public class GlobTests
     [InlineData("src/a*.ts", "a.ts", true)]
     [InlineData("src/*", "x/a.ts", false)]
     public void Matches_relative_paths(string pattern, string relative, bool expected) =>
+        Assert.Equal(expected, Glob.Matches(pattern, relative));
+
+    [Theory]
+    [InlineData("\\\\?\\C:\\src\\a.ts", false)]
+    [InlineData("//?/C:/src", false)]
+    [InlineData("\\\\.\\C:\\src\\a.ts", false)]
+    [InlineData("\\\\?\\C:\\src\\?.ts", true)]
+    [InlineData("src/?.ts", true)]
+    public void A_device_prefix_is_not_a_wildcard(string pattern, bool expected) =>
+        Assert.Equal(expected, Glob.HasWildcard(pattern));
+
+    [Theory]
+    [InlineData("\\\\?\\C:\\src\\*.ts", "a.ts", true)]
+    [InlineData("\\\\?\\C:\\src\\**\\*.ts", "sub\\b.ts", true)]
+    [InlineData("\\\\?\\C:\\src\\*.ts", "sub\\b.ts", false)]
+    public void Device_patterns_match_below_their_base(string pattern, string relative, bool expected) =>
         Assert.Equal(expected, Glob.Matches(pattern, relative));
 }

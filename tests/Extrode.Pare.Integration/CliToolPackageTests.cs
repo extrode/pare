@@ -75,6 +75,14 @@ public sealed class CliToolPackageTests : IDisposable
     }
 
     [Fact]
+    public void Ci_runs_the_win_arm64_build_on_arm64_windows()
+    {
+        string ci = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci.yml")).Replace("\r\n", "\n");
+
+        Assert.Contains("- os: windows-11-arm\n            rid: win-arm64\n", ci);
+    }
+
+    [Fact]
     public void Workflow_actions_are_pinned_to_a_commit()
     {
         foreach (string file in Directory.GetFiles(Path.Combine(RepoRoot, ".github", "workflows"), "*.yml"))

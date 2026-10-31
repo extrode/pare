@@ -161,7 +161,8 @@ bundling, no minifying, no type checking, no Node packages.</p>
 </table>
 <p>Inputs can be files, folders (searched recursively) or globs (<code>*</code>, <code>?</code>, <code>**</code>) for shells that do not
 expand them. <code>.d.ts</code> files and <code>node_modules</code> are skipped. A symlink or junction back to a folder
-already searched is skipped. The server and share of a UNC pattern (<code>\\srv\share</code>) must be written out, with no wildcard.</p>
+already searched is skipped. The server and share of a UNC pattern (<code>\\srv\share</code>) must be written out, with no wildcard. A
+Windows device path (<code>\\?\C:\src\*.ts</code>) works like the plain path; its <code>?</code> is not a wildcard.</p>
 <blockquote>
 <p>An existing <code>foo.js</code> next to <code>foo.ts</code> is replaced, like <code>tsc</code> and <code>esbuild</code> do. Keep hand-written
 JavaScript out of the source folders, or use <code>--outdir</code>.</p>

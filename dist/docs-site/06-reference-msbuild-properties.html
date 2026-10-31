@@ -121,7 +121,7 @@
 
     <!-- content -->
     <main class="jt-content has-toc" id="jt-content">
-      <nav class="toc" aria-label="On this page"><button class="toc-tab" type="button" onclick="toggleToc()" title="Show on this page (o)">On this page</button><div class="toc-title"><span>On this page</span><button class="toc-toggle" type="button" onclick="toggleToc()" title="Hide or show (o)"></button></div><a class="toc-l2" href="#properties">Properties</a><a class="toc-l2" href="#item-metadata">Item metadata</a><a class="toc-l2" href="#items-you-can-read">Items you can read</a><a class="toc-l2" href="#what-gets-stripped">What gets stripped</a><a class="toc-l2" href="#where-the-output-goes">Where the output goes</a></nav>
+      <nav class="toc" aria-label="On this page"><button class="toc-tab" type="button" onclick="toggleToc()" title="Show on this page (o)">On this page</button><div class="toc-title"><span>On this page</span><button class="toc-toggle" type="button" onclick="toggleToc()" title="Hide or show (o)"></button></div><a class="toc-l2" href="#properties">Properties</a><a class="toc-l2" href="#item-metadata">Item metadata</a><a class="toc-l2" href="#items-you-can-read">Items you can read</a><a class="toc-l2" href="#what-gets-stripped">What gets stripped</a><a class="toc-l2" href="#through-another-package">Through another package</a><a class="toc-l2" href="#where-the-output-goes">Where the output goes</a></nav>
       <div class="content-inner">
         <nav class="breadcrumb" aria-label="Breadcrumb">Reference &#8250; MSBuild properties</nav>
         <article>
@@ -218,6 +218,24 @@ skip the strip as up to date.</p>
 <p>Before <code>Build</code>, every <code>wwwroot/**/*.ts</code> and <code>*.mts</code> (not <code>.d.ts</code>, not <code>node_modules</code>) is stripped.
 <code>.cts</code> is not in the default glob, since CommonJS does not run in a browser. An explicit
 <code>&lt;TypeScriptSource Include=&quot;x.cts&quot; /&gt;</code> produces <code>x.cjs</code>.</p>
+<p>A file listed twice as <code>TypeScriptSource</code> (the default glob and your own item) is one source with the
+last declaration's metadata, so <code>&lt;TypeScriptSource Include=&quot;wwwroot/js/a.ts&quot; PareServeAt=&quot;lib&quot; /&gt;</code>
+in the project file wins over the default. On Windows <code>wwwroot/js/a.ts</code> and <code>wwwroot\js\a.ts</code> name
+the same file; on Linux, <code>a.ts</code> and <code>A.ts</code> are two files.</p>
+<h2 id="through-another-package">Through another package</h2>
+<p>From 0.7.2, the props and targets are also under <code>buildTransitive/</code>, so a
+package that depends on <code>Extrode.Pare.Build</code> can hand it on to the projects that use it. That
+package references Pare without <code>PrivateAssets=&quot;all&quot;</code>:</p>
+<div class="code-block">
+  <div class="code-header">
+    <span class="code-lang">XML</span>
+    <button class="copy-btn" type="button" onclick="copyCode(this)">copy</button>
+  </div>
+  <pre data-lang="xml"><code class="language-xml"><span class="tok-punc">&lt;</span><span class="tok-tag">PackageReference</span> <span class="tok-attr">Include</span>=<span class="tok-str">&quot;Extrode.Pare.Build&quot;</span> <span class="tok-attr">PrivateAssets</span>=<span class="tok-str">&quot;contentfiles;analyzers;build&quot;</span> <span class="tok-punc">/&gt;</span>
+</code></pre>
+</div>
+<p>Pare is a development dependency, so a plain <code>PackageReference</code> stops at the first project and
+nothing flows on. Referencing it both directly and through such a package imports it once.</p>
 <h2 id="where-the-output-goes">Where the output goes</h2>
 <table>
 <thead>

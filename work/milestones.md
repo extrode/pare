@@ -14,15 +14,15 @@ one of them at any given moment.
 
 | # | Milestone | Target | Status | Notes |
 |---|-----------|--------|--------|-------|
-| M0 | Repo, solution, CI, API sketch, UTF-16 decision | 2026-10-14 | shipped | CI not run yet (no remote) |
+| M0 | Repo, solution, CI, API sketch, UTF-16 decision | 2026-10-14 | shipped | CI on GitHub Actions since 2026-10-15 |
 | M1 | Lexer: JS + TS tokens, templates, regex detection, contextual keywords | 2026-10-14 | shipped | 17,582 corpus files, 0 unexpected |
 | M2 | Recognizer for JS statements and expressions | 2026-10-14 | shipped | 1,048 corpus .js files byte-identical |
 | M3 | TS type grammar + all handoff section 5 erasures | 2026-10-14 | shipped | 0 syntax errors on 13,935 corpus files |
-| M4 | Section 6 rejections, section 7 traps, ASI fixes | | in progress | done except lexer escape validation |
-| M5 | Conformance + differential harness vs tsgo | | planned | >= 99% eligible corpus |
-| M6 | CLI files/globs, MSBuild task, sample app | | in progress | CLI and MSBuild done 2026-10-14; sample app left |
+| M4 | Section 6 rejections, section 7 traps, ASI fixes | | shipped | lexer escape validation dropped 2026-10-31: documented as leniency |
+| M5 | Conformance + differential harness vs tsgo | 2026-10-15 | shipped | 99.96% of the eligible corpus |
+| M6 | CLI files/globs, MSBuild task, sample app | 2026-10-15 | shipped | sample app browser-tested |
 | M7 | Performance pass + benchmarks | 2026-10-15 | shipped | 0 B per Strip call |
-| M8 | Dev middleware (re-strip under `dotnet watch` hot reload), tsgo script polish | | planned | optional |
+| M8 | Dev middleware (re-strip under `dotnet watch` hot reload), tsgo script polish | 2026-10-15 | shipped | `AddPareDevelopment` |
 
 Status is one of `planned`, `in progress`, `shipped`, `dropped`. A dropped milestone stays in the
 table with a note saying why: the reason it was dropped is the most useful thing on the row, and

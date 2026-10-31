@@ -22,6 +22,11 @@ jobs:
             rid: win-x64
           - os: macos-latest
             rid: osx-arm64
+          # Native ARM64 Windows: the only run of the win-arm64 build. Playwright has no ARM64
+          # Windows build, so its browsers run under x64 emulation. Blocking since 2026-10-31
+          # (3 green runs); release.yml calls this workflow.
+          - os: windows-11-arm
+            rid: win-arm64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
