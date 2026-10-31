@@ -59,7 +59,7 @@ apps, which never run the hosting startup that adds it.
   `<StartupHookSupport Condition="'$(Configuration)' == 'Debug'">true</StartupHookSupport>`.
   Without it `dotnet watch` says "Project does not support Hot Reload".
 - **Run `dotnet watch` from the project directory.** With `--project` from another folder, .NET SDK
-  10.0.401 on macOS fails to read `obj\Debug/.../staticwebassets.development.json` and never
+  10.0.401 to 10.0.403 on macOS fails to read `obj\Debug/.../staticwebassets.development.json` and never
   refreshes the page.
 - **No package?** `dotnet watch --no-hot-reload` rebuilds and restarts on every save (about 3
   seconds on the sample) and you reload the page yourself.

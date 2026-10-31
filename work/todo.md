@@ -30,7 +30,15 @@ Real, but needs a decision, a dependency, or more information first. Say which.
   `Stopping_cancels_every_watcher...` timing on Windows. The macOS log-line race is fixed.
 - `ci.yml` runs `win-arm64` on `windows-11-arm` (added 2026-10-31) with `continue-on-error`:
   Playwright's browsers run under x64 emulation there. Drop `experimental` once it has passed a
-  few times, so a win-arm64 break blocks a release.
+  few times, so a win-arm64 break blocks a release. Green runs: 41184153275 (2026-10-31); the
+  `dev` push of 2026-10-31 (a00f3c3) is the next. Needs 2 to 3.
+- Release the work after 0.7.1 (`buildTransitive`, the duplicate-source fixes, device paths):
+  waiting on the user's go. Husk waits for it: `docs/handoffs/2026-10-31-husk-pare-0.7.1-and-build-transitive.md`
+  tells Husk to reference Pare.Build with `PrivateAssets="contentfiles;analyzers;build"` and drop
+  HUSK002 once it is out. Husk's own repo is not touched from here.
+- Bench comparison keeps TypeScript 6.0.3: ts-blank-space 0.9.0 declares peer `typescript`
+  `5.1.6 - 6.0.x`, and TypeScript 7 (native) has no JS API for it to call. Bump both when
+  ts-blank-space supports 7.
 
 ## Dropped
 
@@ -45,6 +53,9 @@ Not doing, with the reason. Kept so the same idea does not get re-raised every q
 - Warning or refusing when a hand-written `foo.js` sits next to `foo.ts`: indistinguishable from
   a generated one without a marker, which would break the position guarantee. Documented
   instead; output under `obj/` (v0.2) would remove the problem. (2026-10-15)
+- Bumping the MSBuild packages (Microsoft.Build.Framework, Microsoft.Build.Utilities.Core 18.9.6,
+  compile-only): the task uses no newer API, and the referenced version is the oldest MSBuild the
+  task can load in. Bump only for an API Pare needs. (2026-10-31)
 - `.cts` in the MSBuild default items: CommonJS does not run in a browser `wwwroot`. Explicit
   items work. (2026-10-15)
 
