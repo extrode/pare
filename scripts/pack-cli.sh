@@ -13,6 +13,7 @@
 # Each RID is compiled twice (CLI and library), about a minute each.
 # macOS archives must come from Microsoft's SDK: Homebrew's dotnet links Homebrew libraries into
 # the binary, and scripts/check-macos-libs.sh stops the pack when it sees one.
+# Without Docker on macOS it stops with exit 1; --no-docker packs the macOS archives only.
 # Usage: scripts/pack-cli.sh [--version 0.6.0] [--no-docker]
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -26,6 +27,10 @@ while [ $# -gt 0 ]; do
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
+if [ "$(uname -s)" = Darwin ] && [ "$docker" = yes ] && ! docker info >/dev/null 2>&1; then
+  echo "pack-cli.sh: Docker is not running, so the linux and linux-musl archives would be skipped. Start Docker, or pass --no-docker to pack without them." >&2
+  exit 1
+fi
 mkdir -p "$out"
 pack() { dotnet pack "$root/src/Extrode.Pare.Cli" -c Release -o "$out" -p:Version="$version" -v q -nologo "$@"; }
 
@@ -82,7 +87,7 @@ in_docker() { # rid platform image setup-command [pack arguments]
   native_archive "$1" "$out/.publish-$1/libpare.so"
   rm -rf "$out/.publish-$1"
 }
-if [ "$(uname -s)" = Darwin ] && [ "$docker" = yes ] && docker info >/dev/null 2>&1; then
+if [ "$(uname -s)" = Darwin ] && [ "$docker" = yes ]; then
   debian="apt-get update -qq >/dev/null && apt-get install -y -qq clang zlib1g-dev >/dev/null 2>&1"
   alpine="apk add -q clang build-base zlib-dev >/dev/null"
   in_docker linux-arm64 linux/arm64 mcr.microsoft.com/dotnet/sdk:10.0 "$debian"
@@ -118,4 +123,5 @@ if [ "$(uname -s)" = Darwin ] && [ "$docker" = yes ] && docker info >/dev/null 2
     echo "verified $rid"
   done
 fi
-echo "packed Extrode.Pare.Cli $version into tmp/dist"
+echo "packed Extrode.Pare.Cli $version into tmp/dist:"
+ls "$out" | sed -n "s:^pare-$version-\(.*\)\.\(tar\.gz\|zip\)\$:  \1:p" | sort | tr '\n' ' '; echo
