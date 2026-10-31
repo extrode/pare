@@ -1318,6 +1318,8 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
         Assert.Contains("NOTICE.md", entries);
         Assert.Contains("README.md", entries);
         Assert.Contains("pare-icon-128.png", entries);
+        Assert.Contains("buildTransitive/Extrode.Pare.Build.props", entries);
+        Assert.Contains("buildTransitive/Extrode.Pare.Build.targets", entries);
         using var nuspec = new StreamReader(package.GetEntry("Extrode.Pare.Build.nuspec")!.Open());
         string text = nuspec.ReadToEnd();
         Assert.Contains("<license type=\"file\">LICENSE.md</license>", text);
@@ -1326,6 +1328,61 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
         Assert.Contains("<authors>Extrode</authors>", text);
         using var license = new StreamReader(package.GetEntry("LICENSE.md")!.Open());
         Assert.Contains("means **`Extrode (extrode.com)`**", license.ReadToEnd());
+    }
+
+    // Husk's case: the app references a package that depends on Extrode.Pare.Build, not Pare itself.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void A_project_that_gets_the_package_through_another_strips(bool alsoDirect)
+    {
+        var (exit, output) = Run("pack", Path.Combine(RepoRoot, "src", "Extrode.Pare.Build"), "-nologo", "-nodeReuse:false", "--no-build",
+            "-c", Configuration, "-o", P("feed"), $"-p:Version={TestVersion}");
+        Assert.True(exit == 0, output);
+        Put("nuget.config", $"""
+            <configuration>
+              <packageSources>
+                <clear />
+                <add key="feed" value="{P("feed")}" />
+              </packageSources>
+            </configuration>
+            """);
+        Put("wrapper/wrapper.csproj", $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+                <PackageId>Wrapper</PackageId>
+                <Version>1.0.0</Version>
+                <IncludeBuildOutput>false</IncludeBuildOutput>
+                <NoWarn>$(NoWarn);NU5128</NoWarn>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Include="Extrode.Pare.Build" Version="{TestVersion}" PrivateAssets="contentfiles;analyzers;build" />
+              </ItemGroup>
+            </Project>
+            """);
+        (exit, output) = Run("pack", P("wrapper"), "-nologo", "-nodeReuse:false", "--disable-build-servers", "-o", P("feed"),
+            $"-p:RestorePackagesPath={P("packages")}");
+        Assert.True(exit == 0, output);
+
+        string direct = alsoDirect ? $"""<PackageReference Include="Extrode.Pare.Build" Version="{TestVersion}" PrivateAssets="all" />""" : "";
+        Put("app/app.csproj", $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageReference Include="Wrapper" Version="1.0.0" PrivateAssets="all" />
+                {direct}
+              </ItemGroup>
+            </Project>
+            """);
+        Put("app/wwwroot/a.ts", "let n: number = 1;\n");
+
+        (exit, output) = Run("build", P("app"), "-nologo", "-nodeReuse:false", "--disable-build-servers", $"-p:RestorePackagesPath={P("packages")}");
+        Assert.True(exit == 0, output);
+        Assert.Equal("let n         = 1;\n", File.ReadAllText(P("app/wwwroot/a.js")));
+        Assert.DoesNotContain("MSB4011", output);
     }
 
 #if DEBUG
