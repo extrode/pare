@@ -24,14 +24,9 @@ Real, but needs a decision, a dependency, or more information first. Say which.
 - Under `dotnet watch` in Production (no launch profile), `MapStaticAssets`' runtime patching looks
   for an `obj/`-served output under `wwwroot/` and answers 500 (`/js/app.js` from `Scripts/app.ts`,
   seen 2026-10-31, SDK 10.0.403). Development is fine. Not checked: whether a `wwwroot` source does the same.
-- CI flakes (5 of 30 `ci` runs to 2026-10-31, a different test each time): `Saving_a_mapped_source_by_rename_strips_it_again`
-  timed out on windows-latest (cause unknown; a timeout now prints the watcher log), Playwright
+- CI flakes (5 of 30 `ci` runs to 2026-10-31, a different test each time): Playwright
   30 s timeouts on Windows, the `NativeLibraryTests` fixture once on macOS,
   `Stopping_cancels_every_watcher...` timing on Windows. The macOS log-line race is fixed.
-- `ci.yml` runs `win-arm64` on `windows-11-arm` (added 2026-10-31) with `continue-on-error`:
-  Playwright's browsers run under x64 emulation there. Drop `experimental` once it has passed a
-  few times, so a win-arm64 break blocks a release. Green runs: 41184153275 (2026-10-31); the
-  `dev` push of 2026-10-31 (a00f3c3) is the next. Needs 2 to 3.
 - Release the work after 0.7.1 (`buildTransitive`, the duplicate-source fixes, device paths):
   waiting on the user's go. Husk waits for it: `docs/handoffs/2026-10-31-husk-pare-0.7.1-and-build-transitive.md`
   tells Husk to reference Pare.Build with `PrivateAssets="contentfiles;analyzers;build"` and drop
@@ -75,6 +70,11 @@ Not doing, with the reason. Kept so the same idea does not get re-raised every q
 - Closed 2026-10-31: saving a `PareCompileSource` or `TypeScriptSource` outside `wwwroot` under
   `dotnet watch` hot reload does not restart the app (same process id; "Static asset changes
   applied"); `AddPareDevelopment` recompiles it.
+- Closed 2026-10-31: the `Saving_a_mapped_source_by_rename_strips_it_again` flake was a bug. The
+  watcher retried reading a source but not writing its output, so the test's polling read held
+  `fmt.js` on Windows and the save was lost (run 41189676904). Writes and removals now retry.
+- Closed 2026-10-31: `win-arm64` in `ci.yml` is blocking (no `experimental`) after 3 green runs:
+  41184153275, 41189676904, 41191780312.
 - Closed 2026-10-31: Windows device paths. The `?` of `\\?\` counted as a wildcard, so every
   `\\?\` input, even a plain file, walked the whole drive and matched nothing; over ssh on wp1 the
   walk hit a Codex sandbox folder ("untrusted mount point"), which looked like Windows refusing

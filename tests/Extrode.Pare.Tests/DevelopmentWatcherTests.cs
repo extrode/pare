@@ -292,6 +292,46 @@ public sealed class DevelopmentWatcherTests : IDisposable
         WaitFor(() => ReadOrNull(P("obj/pare/js/fmt.js")) == "let g   ;\n");
     }
 
+    // CI 41189676904: the test's own polling read held fmt.js on Windows and the save was lost.
+    [Fact]
+    public void An_output_held_open_for_a_moment_is_still_written()
+    {
+        Put("Scripts/fmt.ts", "let f: T;\n");
+        using var watcher = MappedWatcher(("Scripts/fmt.ts", "obj/pare/js/fmt.js"));
+        watcher.Start();
+        Put("Scripts/fmt.ts", "let g: T;\n");
+
+        using (var held = new FileStream(P("obj/pare/js/fmt.js"), FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var release = new Thread(() => { Thread.Sleep(TypeScriptWatcher.Settle); held.Dispose(); });
+            release.Start();
+            watcher.Strip(Path.GetFullPath(P("Scripts/fmt.ts")), started: true);
+            release.Join();
+        }
+
+        Assert.True(File.ReadAllText(P("obj/pare/js/fmt.js")) == "let g   ;\n", "log:\n" + string.Join("\n", _log.Lines));
+    }
+
+    // Unix deletes an open file, so only Windows exercises the retry here.
+    [Fact]
+    public void An_output_held_open_for_a_moment_is_still_removed()
+    {
+        Put("Scripts/fmt.ts", "let f: T;\n");
+        using var watcher = MappedWatcher(("Scripts/fmt.ts", "obj/pare/js/fmt.js"));
+        watcher.Start();
+        File.Delete(P("Scripts/fmt.ts"));
+
+        using (var held = new FileStream(P("obj/pare/js/fmt.js"), FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var release = new Thread(() => { Thread.Sleep(TypeScriptWatcher.Settle); held.Dispose(); });
+            release.Start();
+            watcher.Strip(Path.GetFullPath(P("Scripts/fmt.ts")), started: true);
+            release.Join();
+        }
+
+        Assert.False(File.Exists(P("obj/pare/js/fmt.js")), "log:\n" + string.Join("\n", _log.Lines));
+    }
+
     [Fact]
     public void Deleting_a_mapped_source_deletes_its_output()
     {

@@ -332,22 +332,21 @@ internal sealed class TypeScriptWatcher : IDisposable
         byte[] bytes = new byte[Utf8NoBom.GetByteCount(text)];
         Utf8NoBom.GetBytes(text, bytes);
         bool created = !File.Exists(target);
-        try
+        bool unchanged = false;
+        bool written = Retrying(target, () =>
         {
             if (!created && File.ReadAllBytes(target).AsSpan().SequenceEqual(bytes))
             {
                 // Newer than its source again, so the next start and build skip it.
                 File.SetLastWriteTimeUtc(target, DateTime.UtcNow);
+                unchanged = true;
                 return;
             }
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             File.WriteAllBytes(target, bytes);
-        }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-        {
-            _logger.LogError("{File}: {Message}", Path.GetRelativePath(_contentRoot, target), e.Message);
+        });
+        if (!written || unchanged)
             return;
-        }
         // The build registers each output as a static web asset; dotnet watch serves no new one until it builds again.
         if (created && started && _ownsOutput)
             _logger.LogInformation("{Verb} {Source} to {Target}; a new file is served after the next build (Ctrl+R in dotnet watch)",
@@ -358,18 +357,40 @@ internal sealed class TypeScriptWatcher : IDisposable
 
     private void Remove(string target)
     {
-        try
+        bool existed = true;
+        bool removed = Retrying(target, () =>
         {
-            if (!File.Exists(target))
-                return;
-            File.Delete(target);
-        }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            existed = File.Exists(target);
+            if (existed)
+                File.Delete(target);
+        });
+        if (removed && existed)
+            _logger.LogInformation("Removed {Target}", Path.GetRelativePath(_contentRoot, target));
+    }
+
+    /// <summary>
+    /// Changes an output, retrying while another process (the server, a virus scanner, an editor)
+    /// holds it. Logs the error and returns false when it is still held.
+    /// </summary>
+    private bool Retrying(string target, Action change)
+    {
+        for (int attempt = 0; ; attempt++)
         {
-            _logger.LogError("{File}: {Message}", Path.GetRelativePath(_contentRoot, target), e.Message);
-            return;
+            try
+            {
+                change();
+                return true;
+            }
+            catch (IOException) when (attempt < 3)
+            {
+                Thread.Sleep(Settle);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogError("{File}: {Message}", Path.GetRelativePath(_contentRoot, target), e.Message);
+                return false;
+            }
         }
-        _logger.LogInformation("Removed {Target}", Path.GetRelativePath(_contentRoot, target));
     }
 
     /// <summary>How long <see cref="WaitStopped"/> lets a running strip finish.</summary>
