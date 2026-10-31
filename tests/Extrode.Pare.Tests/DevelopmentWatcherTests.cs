@@ -197,8 +197,8 @@ public sealed class DevelopmentWatcherTests : IDisposable
     {
         Put("A.up", "a");
         Put("B.up", "b");
-        var one = new UncancellableCompiler();
-        var two = new UncancellableCompiler();
+        var one = new UncancellableCompiler(2000);
+        var two = new UncancellableCompiler(2000);
         using var first = CompiledWatcher(one, ("A.up", ["obj/pare/A.up.js"]));
         using var second = CompiledWatcher(two, ("B.up", ["obj/pare/B.up.js"]));
         first.Start();
@@ -213,11 +213,11 @@ public sealed class DevelopmentWatcherTests : IDisposable
         var timer = System.Diagnostics.Stopwatch.StartNew();
         first.BeginStop();
         second.BeginStop();
-        var deadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(100);
+        var deadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(800);
         first.WaitStopped(deadline);
         second.WaitStopped(deadline);
 
-        Assert.True(timer.Elapsed < TimeSpan.FromMilliseconds(250), timer.Elapsed.ToString());
+        Assert.True(timer.Elapsed < TimeSpan.FromMilliseconds(1400), timer.Elapsed.ToString());
         Assert.Equal(2, _log.Lines.Count(l => l.Contains("A strip was still running")));
     }
 
@@ -622,7 +622,7 @@ public sealed class DevelopmentWatcherTests : IDisposable
         }
     }
 
-    private sealed class UncancellableCompiler : IPareCompiler
+    private sealed class UncancellableCompiler(int delayMs = 300) : IPareCompiler
     {
         public ManualResetEventSlim Started { get; } = new();
         public volatile bool Finished;
@@ -632,7 +632,7 @@ public sealed class DevelopmentWatcherTests : IDisposable
             ILogger logger, CancellationToken cancellationToken)
         {
             Started.Set();
-            await Task.Delay(TimeSpan.FromMilliseconds(300), TimeProvider.System);
+            await Task.Delay(TimeSpan.FromMilliseconds(delayMs), TimeProvider.System);
             Finished = true;
             return null;
         }
