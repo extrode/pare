@@ -22,11 +22,14 @@ Real, but needs a decision, a dependency, or more information first. Say which.
   says to run it from the project directory. Re-checked on 10.0.403 (2026-10-31): still fails the
   same way, while the app serves the re-stripped files. 10.0.403 is still the newest SDK
   (releases.json `latest-sdk`, Homebrew; checked 2026-10-31). Re-check on the next 10.0.x SDK.
-- Under `dotnet watch` in Production (no launch profile), `MapStaticAssets`' runtime patching looks
-  for an `obj/`-served output under `wwwroot/` and answers 500 (`/js/app.js` from `Scripts/app.ts`,
-  seen 2026-10-31, SDK 10.0.403). Development is fine. A `wwwroot` source does not: the sample's `wwwroot/js/*.ts` answer 200 in
-  Production under `dotnet watch` (0.7.2 from nuget.org, SDK 10.0.403, 2026-10-31), and a saved
-  edit is served re-stripped. Only a source outside `wwwroot` (`Scripts/`) is affected.
+- Under `dotnet watch` in Production (no launch profile), `MapStaticAssets`' runtime patching
+  answered 500 for `/js/app.js` from `Scripts/app.ts` (seen 2026-10-31, SDK 10.0.403). Not
+  reproduced since, with 0.7.2 from nuget.org on clean projects: `Scripts/**/*.ts` with
+  `PareServeAt="js"` and `wwwroot/js/*.ts` both answer 200, also after editing the source, the
+  `index.html` and `Program.cs` while running. The first sighting ran beside several other
+  watchers sharing the project's `obj/`, which also produced `OpenWrite` errors, so that is the
+  likely cause. Reopen with a repro. Production does not re-strip a saved source (the
+  development map is Development only), so the old `.js` stays: expected.
 - CI flakes, all closed by 2026-10-31: Playwright 30 s page loads on Windows (`02bf6f9`, 90 s),
   `Stopping_cancels_every_watcher...` timing on Windows (`8eb25a1`), the macOS log-line race, the
   watcher's held-output saves on Windows (0.7.2), and the `NativeLibraryTests` fixture's
