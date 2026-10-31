@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Text;
 using System.Runtime.ExceptionServices;
 using Extrode.Pare;
 
@@ -34,7 +35,15 @@ internal static class Program
     // thread .NET creates has a known size; 8 MB matches the Linux and macOS main thread.
     internal const int StackSize = 8 * 1024 * 1024;
 
-    private static int Main(string[] args) => OnOwnStack(() => Run(args, Console.In, Console.Out, Console.Error));
+    // UTF-8 on the redirected streams: on Windows Console.In and Console.Out use the console code page.
+    private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
+
+    private static int Main(string[] args) => OnOwnStack(() =>
+    {
+        using var stdin = new StreamReader(Console.OpenStandardInput(), Utf8NoBom);
+        using var stdout = new StreamWriter(Console.OpenStandardOutput(), Utf8NoBom) { AutoFlush = true };
+        return Run(args, stdin, stdout, Console.Error);
+    });
 
     internal static int OnOwnStack(Func<int> run)
     {
