@@ -1,6 +1,6 @@
 # Benchmarks
 
-Measured on an Apple M1 Max (osx-arm64), .NET 10.0, Release build.
+Measured on an Apple M1 Max (osx-arm64), .NET 10.0, Release build, Pare 0.7.0, 2026-10-31.
 
 ## Library speed
 
@@ -8,9 +8,9 @@ BenchmarkDotNet 0.15.8, one `TypeStripper.Strip` call per source, output to a re
 
 | Input | Mean | MB/s | Allocated |
 |---|---:|---:|---:|
-| TypeScript 5.9.3 `checker.ts` (3.1 MB) | 9.3 ms | 335 | 0 B |
-| Real-world corpus, 2,392 files (19.5 MB) | 60.2 ms | 272 | 0 B |
-| `(a = ` nested 1,000 deep | 32.3 ms | 0.2 | 0 B |
+| TypeScript 5.9.3 `checker.ts` (3.1 MB) | 9.4 ms | 333 | 0 B |
+| Real-world corpus, 2,392 files (19.5 MB) | 60.7 ms | 269 | 0 B |
+| `(a = ` nested 1,000 deep | 36.5 ms | 0.2 | 333 B |
 
 Deep nesting is quadratic, as in TypeScript's own parser. Real code never reaches it.
 
@@ -26,12 +26,12 @@ it), read from its cache after `deno cache --no-check`.
 
 | Tool | Same bytes | Same tree | Same but imports dropped or names renamed | Differ | Throughput | Pare is |
 |---|---:|---:|---:|---:|---:|---:|
-| Pare 0.5.0 | - | - | - | - | 279 MB/s | - |
-| Node 24.16 `stripTypeScriptTypes` | 1,898 | 490 | - | 0 | 40 MB/s | 7.0x faster |
-| oxc-transform 0.154.0 | 13 | 2,375 | 0 | 0 | 87 MB/s | 3.2x faster |
-| ts-blank-space 0.9.0 | 1,967 | 420 | - | 1 | 28 MB/s | 10.0x faster |
-| esbuild 0.28.2 | 11 | 1,961 | 296 | 120 | 12 MB/s | 23.4x faster |
-| Deno 2.9.7 (swc) | 11 | 2,326 | 51 | 0 | - | - |
+| Pare 0.7.0 | - | - | - | - | 263 MB/s | - |
+| Node 24.16 `stripTypeScriptTypes` | 1,898 | 490 | - | 0 | 38 MB/s | 6.9x faster |
+| oxc-transform 0.154.0 | 13 | 2,375 | 0 | 0 | 81 MB/s | 3.3x faster |
+| ts-blank-space 0.9.0 | 1,967 | 420 | - | 1 | 27 MB/s | 9.7x faster |
+| esbuild 0.28.2 | 11 | 1,961 | 296 | 120 | 11 MB/s | 23.3x faster |
+| Deno 2.9.8 (swc) | 11 | 2,326 | 51 | 0 | - | - |
 
 - Same tree but not the same bytes: Node and ts-blank-space keep tabs and write UTF-8-width spaces
   for non-ASCII comment text, and Pare writes its semicolon fixes in a few places they leave blank.
@@ -44,8 +44,8 @@ it), read from its cache after `deno cache --no-check`.
   expressions. None is a Pare error.
 - Four files are left out: their output does not parse for any stripper, because they import or
   re-export a type without `type`, which needs type information to remove.
-- Whole process over all files: the `pare` CLI (NativeAOT) 0.95 s, `deno cache --no-check` from a
-  cold cache 1.1 s, one run each.
+- Whole process over all files: the `pare` CLI (NativeAOT) 0.94 s, `deno cache --no-check` from a
+  cold cache 1.2 s, one run each.
 
 Throughput is the best of 5 passes in one run on a laptop and moves by 10 to 20 percent between
 runs. The BenchmarkDotNet numbers above are the steady ones.

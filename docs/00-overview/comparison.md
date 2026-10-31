@@ -33,11 +33,11 @@ through each tool, on an Apple M1 Max:
 
 | Tool | Throughput | Pare is |
 |---|---:|---:|
-| Pare 0.5.0 | 279 MB/s | - |
-| oxc-transform 0.154.0 | 87 MB/s | 3.2x faster |
-| Node 24.16 `stripTypeScriptTypes` | 40 MB/s | 7.0x faster |
-| ts-blank-space 0.9.0 | 28 MB/s | 10.0x faster |
-| esbuild 0.28.2 | 12 MB/s | 23.4x faster |
+| Pare 0.7.0 | 263 MB/s | - |
+| oxc-transform 0.154.0 | 81 MB/s | 3.3x faster |
+| Node 24.16 `stripTypeScriptTypes` | 38 MB/s | 6.9x faster |
+| ts-blank-space 0.9.0 | 27 MB/s | 9.7x faster |
+| esbuild 0.28.2 | 11 MB/s | 23.3x faster |
 
 Throughput moves 10 to 20 percent between runs on a laptop. The full table, including how closely
 each tool's output matches Pare's, is in [Benchmarks](../06-reference/benchmarks.md).

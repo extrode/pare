@@ -71,6 +71,19 @@ a few minutes and need network. The TypeScript corpus and the `tsc` comparison t
 themselves until you fetch their inputs (`dotnet run scripts/get-ts-corpus.cs`,
 `dotnet run scripts/get-tsc.cs`).
 
+Keep a results file on a full run (`Extrode.Pare.Tests -xml tmp/res/unit.xml`) so a rare failure
+has a name when it happens again.
+
+## Releasing
+
+Maintainers only. Pushing a `v*` tag runs `.github/workflows/release.yml`: the whole CI suite,
+then the `archives` jobs (NativeAOT CLI and `libpare` archives for every RID on native runners,
+`scripts/pack-cli.sh --rid` and `scripts/pack-cli.ps1`), then the release job, which publishes the
+four NuGet packages through trusted publishing and creates the GitHub release with the archives
+and `SHA256SUMS`. Run the workflow by hand (`workflow_dispatch`) to build the archives without
+publishing anything. `scripts/pack-cli.sh` alone packs everything locally (macOS needs Docker for
+the Linux RIDs).
+
 ## Rules that matter
 
 - **The hot path does not allocate.** No LINQ, regex, reflection, `dynamic` or boxing, and no

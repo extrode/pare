@@ -608,7 +608,10 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
         Assert.NotEqual(0, exit);
         var errors = output.Split('\n').Distinct().Where(line => line.Contains("error PARE203", StringComparison.Ordinal)).ToList();
         for (int i = 0; i < bad.Length; i++)
-            Assert.Single(errors, e => e.Contains(Path.Combine("Scripts", $"s{i}.ts") + $" : error PARE203: PareServeAt=\"{bad[i]}\" is not a URL folder.", StringComparison.Ordinal));
+        {
+            string expected = Path.Combine("Scripts", $"s{i}.ts") + $" : error PARE203: PareServeAt=\"{bad[i]}\" is not a URL folder.";
+            Assert.True(errors.Count(e => e.Contains(expected, StringComparison.Ordinal)) == 1, $"{expected}\n{string.Join('\n', errors)}");
+        }
         Assert.Equal(bad.Length, errors.Count);
         Assert.False(Directory.Exists(P(ObjOut)) && Directory.EnumerateFiles(P(ObjOut), "*.js", SearchOption.AllDirectories).Any());
         Assert.False(File.Exists(P("Scripts/s0.js")));

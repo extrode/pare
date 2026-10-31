@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+- Changed (build): PARE203, PARE204 and PARE205 report every bad item in one build, not only the
+  first. A `TypeScriptSource` declared twice is one source (it used to stop the SDK with a
+  duplicate-asset error; PARE201 listed it twice).
+- Changed (build): the development map is written by a JSON task, so a quote or backslash in a path
+  stays valid JSON. `AddPareDevelopment` logs a warning for an invalid map and starts anyway.
+- Changed (release): `release.yml` builds the NativeAOT CLI and `libpare` archives on native runners
+  and attaches them with `SHA256SUMS`. `scripts/pack-cli.sh` takes `--rid` and stops when Docker is
+  not running.
+- Fixed (bench): `Extrode.Pare.Bench` runs in process when worktree copies of its project exist.
+- Docs: a CI, hooks and Docker guide; the lexer's leniency about JavaScript details is documented;
+  benchmarks re-measured on 0.7.0.
+
 ## [0.7.0] - 2026-10-31
 
 ### Upgrading from 0.6

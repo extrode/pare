@@ -53,7 +53,7 @@ a bundler". That puts a second toolchain on every dev laptop, CI runner and buil
 removes it. `dotnet build` strips your `.ts` files, `dotnet watch` reloads the page when you save
 one, and `dotnet publish` ships the result, compressed. Nothing else needs to be installed.
 
-Because it only erases, it is also quick: about 280 MB/s on a corpus of real files, and zero allocations while it parses.
+Because it only erases, it is also quick: about 270 MB/s on a corpus of real files, and zero allocations while it parses.
 
 ## Try it
 
@@ -155,11 +155,11 @@ The same 2,392 real-world files (19.5 MB) through each tool, on an Apple M1 Max:
 
 | Tool | Throughput | Pare is |
 |---|---:|---:|
-| Pare | 279 MB/s | - |
-| oxc-transform | 87 MB/s | 3.2x faster |
-| Node `stripTypeScriptTypes` | 40 MB/s | 7.0x faster |
-| ts-blank-space | 28 MB/s | 10.0x faster |
-| esbuild | 12 MB/s | 23.4x faster |
+| Pare | 263 MB/s | - |
+| oxc-transform | 81 MB/s | 3.3x faster |
+| Node `stripTypeScriptTypes` | 38 MB/s | 6.9x faster |
+| ts-blank-space | 27 MB/s | 9.7x faster |
+| esbuild | 11 MB/s | 23.3x faster |
 
 Pare's output matches TypeScript 7 `tsc` for 99.96% of the TypeScript test corpus files it strips.
 Deno's standard library tests give the same results on Pare's output for 38 of 42 packages. Methods, caveats and how to
