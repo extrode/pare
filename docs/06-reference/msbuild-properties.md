@@ -44,6 +44,24 @@ Before `Build`, every `wwwroot/**/*.ts` and `*.mts` (not `.d.ts`, not `node_modu
 `.cts` is not in the default glob, since CommonJS does not run in a browser. An explicit
 `<TypeScriptSource Include="x.cts" />` produces `x.cjs`.
 
+A file listed twice as `TypeScriptSource` (the default glob and your own item) is one source with the
+last declaration's metadata, so `<TypeScriptSource Include="wwwroot/js/a.ts" PareServeAt="lib" />`
+in the project file wins over the default. On Windows `wwwroot/js/a.ts` and `wwwroot\js\a.ts` name
+the same file; on Linux, `a.ts` and `A.ts` are two files.
+
+## Through another package
+
+From the release after 0.7.1, the props and targets are also under `buildTransitive/`, so a
+package that depends on `Extrode.Pare.Build` can hand it on to the projects that use it. That
+package references Pare without `PrivateAssets="all"`:
+
+```xml
+<PackageReference Include="Extrode.Pare.Build" PrivateAssets="contentfiles;analyzers;build" />
+```
+
+Pare is a development dependency, so a plain `PackageReference` stops at the first project and
+nothing flows on. Referencing it both directly and through such a package imports it once.
+
 ## Where the output goes
 
 | Situation | Output |

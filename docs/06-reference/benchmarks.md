@@ -1,6 +1,7 @@
 # Benchmarks
 
-Measured on an Apple M1 Max (osx-arm64), .NET 10.0, Release build, Pare 0.7.0, 2026-10-31.
+Measured on an Apple M1 Max (osx-arm64), .NET 10.0, Release build, 2026-10-31: library speed on
+Pare 0.7.0, the comparison on Pare 0.7.1 (the core library is the same in both).
 
 ## Library speed
 
@@ -30,11 +31,11 @@ it), read from its cache after `deno cache --no-check`.
 
 | Tool | Same bytes | Same tree | Same but imports dropped or names renamed | Differ | Throughput | Pare is |
 |---|---:|---:|---:|---:|---:|---:|
-| Pare 0.7.0 | - | - | - | - | 263 MB/s | - |
-| Node 24.16 `stripTypeScriptTypes` | 1,898 | 490 | - | 0 | 38 MB/s | 6.9x faster |
-| oxc-transform 0.154.0 | 13 | 2,375 | 0 | 0 | 81 MB/s | 3.3x faster |
-| ts-blank-space 0.9.0 | 1,967 | 420 | - | 1 | 27 MB/s | 9.7x faster |
-| esbuild 0.28.2 | 11 | 1,961 | 296 | 120 | 11 MB/s | 23.3x faster |
+| Pare 0.7.1 | - | - | - | - | 273 MB/s | - |
+| Node 24.16 `stripTypeScriptTypes` | 1,898 | 490 | - | 0 | 39 MB/s | 7.0x faster |
+| oxc-transform 0.156.0 | 13 | 2,375 | 0 | 0 | 81 MB/s | 3.4x faster |
+| ts-blank-space 0.9.0 | 1,967 | 420 | - | 1 | 28 MB/s | 9.8x faster |
+| esbuild 0.28.2 | 11 | 1,961 | 296 | 120 | 11 MB/s | 24.4x faster |
 | Deno 2.9.8 (swc) | 11 | 2,326 | 51 | 0 | - | - |
 
 - Same tree but not the same bytes: Node and ts-blank-space keep tabs and write UTF-8-width spaces
@@ -48,8 +49,8 @@ it), read from its cache after `deno cache --no-check`.
   expressions. None is a Pare error.
 - Four files are left out: their output does not parse for any stripper, because they import or
   re-export a type without `type`, which needs type information to remove.
-- Whole process over all files: the `pare` CLI (NativeAOT) 0.94 s, `deno cache --no-check` from a
-  cold cache 1.2 s, one run each.
+- Whole process over all files: the `pare` CLI (NativeAOT) 0.51 s, `deno cache --no-check` from a
+  cold cache 1.1 s, one run each.
 
 Throughput is the best of 5 passes in one run on a laptop and moves by 10 to 20 percent between
 runs. The BenchmarkDotNet numbers above are the steady ones.
