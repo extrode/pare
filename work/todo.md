@@ -31,8 +31,6 @@ Real, but needs a decision, a dependency, or more information first. Say which.
 - `ci.yml` runs `win-arm64` on `windows-11-arm` (added 2026-10-31) with `continue-on-error`:
   Playwright's browsers run under x64 emulation there. Drop `experimental` once it has passed a
   few times, so a win-arm64 break blocks a release.
-- Windows, `\\?\C:\src\*.ts` glob: check on wp1 in an interactive session (see the audit note below). Over ssh
-  (2026-10-31) Windows refuses every `\\?\` path, even a plain file, with "untrusted mount point".
 
 ## Dropped
 
@@ -58,7 +56,7 @@ Not doing, with the reason. Kept so the same idea does not get re-raised every q
 - Audit 2026-10-31 (two opus passes; fixed in 0.7.0 unless listed here):
   - Closed, no change: `namespace N { export {}; }` gives PARE101, but TypeScript itself rejects an export declaration inside a namespace (TS1194), so there is no valid input to erase.
   - Dropped: the `Edit.cs` insertion sort. Measured at the deepest input the 8 MB guard allows (14000 nested generic arrows): 42000 edits, 294M moves, 0.27 s, against about 0.05 s for a flat file with as many edits; at 1000 levels 1.5M moves, under 10 ms. Far cheaper than the accepted parser quadratic above.
-  - Windows, `\\?\C:\src\*.ts`: the `?` segment counts as a wildcard, so it matches nothing. Nobody types device paths into a CLI glob. Check on wp1 when Windows is next touched.
+  - Windows, `\\?\C:\src\*.ts`: fixed 2026-10-31, see the Closed note below.
   - `\\srv\*\x.ts` (wildcard in the share) matches nothing and will not: no API lists a server's shares. Documented in cli.md.
   - One full unit run failed once (439 tests) and never again in 60 reruns of the suite and of the watcher tests. Suspects: `Compiled_sources_that_are_up_to_date...` and `Unchanged_text_on_save...`, which count compiler calls while a live watcher runs. Keep a results file (`-xml`) on full runs so the next failure has a name.
   - Not reproduced (the last also on wp1 under code page 437, 2026-10-31; the `--stdin` UTF-8 change was reverted): `--stdin` mangling non-ASCII on Windows; an upper-case `App.TS` in `TypeScriptSource` was said to be its own output; a build leaves it alone and writes nothing.
@@ -66,6 +64,11 @@ Not doing, with the reason. Kept so the same idea does not get re-raised every q
 - Closed 2026-10-31: saving a `PareCompileSource` or `TypeScriptSource` outside `wwwroot` under
   `dotnet watch` hot reload does not restart the app (same process id; "Static asset changes
   applied"); `AddPareDevelopment` recompiles it.
+- Closed 2026-10-31: Windows device paths. The `?` of `\\?\` counted as a wildcard, so every
+  `\\?\` input, even a plain file, walked the whole drive and matched nothing; over ssh on wp1 the
+  walk hit a Codex sandbox folder ("untrusted mount point"), which looked like Windows refusing
+  `\\?\` paths. `Glob` now keeps a `\\?\`, `\\.\`, `//?/` or `//./` prefix in the root;
+  `scripts/check-device-paths.ps1` on wp1: all 11 forms write what their plain-path baseline writes.
 - Closed 2026-10-31: `RemoveDuplicates` kept the first declaration's metadata and, on Windows, kept
   `wwwroot/js/a.ts` and `wwwroot\js\a.ts` apart (both confirmed on wp1); the `DistinctSources` task
   replaces it.
