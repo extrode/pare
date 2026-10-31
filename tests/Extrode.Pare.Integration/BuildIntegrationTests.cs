@@ -631,6 +631,21 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
         Assert.Equal("let a   ;", File.ReadAllText(P(ObjOut + "js/a.js")));
     }
 
+    // The default glob gives wwwroot\js\a.ts on Windows; the project writes the other separator.
+    [Fact]
+    public void The_project_files_declaration_of_a_default_source_wins()
+    {
+        Project(sdk: "Microsoft.NET.Sdk.Web", properties: "<OutputType>Library</OutputType>",
+            items: """<TypeScriptSource Include="wwwroot/js/a.ts" PareServeAt="lib" />""");
+        Put("wwwroot/js/a.ts", "let a: T;");
+
+        var (exit, output) = Build("-v:n");
+
+        Assert.True(exit == 0, output);
+        Assert.Equal("let a   ;", File.ReadAllText(P(ObjOut + "lib/a.js")));
+        Assert.False(File.Exists(P(ObjOut + "js/a.js")));
+    }
+
     [Fact]
     public void Deleting_a_source_removes_its_output()
     {

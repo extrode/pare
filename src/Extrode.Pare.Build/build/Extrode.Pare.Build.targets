@@ -50,23 +50,22 @@
              Condition="'$(MSBuildRuntimeType)' == 'Core'" />
   <UsingTask TaskName="Extrode.Pare.Build.WriteDevelopmentMap" AssemblyFile="$(PareTaskAssembly)"
              Runtime="NET" TaskFactory="TaskHostFactory" Condition="'$(MSBuildRuntimeType)' != 'Core'" />
+  <UsingTask TaskName="Extrode.Pare.Build.DistinctSources" AssemblyFile="$(PareTaskAssembly)"
+             Condition="'$(MSBuildRuntimeType)' == 'Core'" />
+  <UsingTask TaskName="Extrode.Pare.Build.DistinctSources" AssemblyFile="$(PareTaskAssembly)"
+             Runtime="NET" TaskFactory="TaskHostFactory" Condition="'$(MSBuildRuntimeType)' != 'Core'" />
 
   <Target Name="_PareComputeOutputs">
     <!-- In a target: IntermediateOutputPath is not set yet when a package's files are evaluated. -->
     <PropertyGroup>
       <_PareObjRoot Condition="('$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' or '$(PareEmbed)' == 'true') and '$(_PareOutRoot)' == ''">$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'pare'))</_PareObjRoot>
     </PropertyGroup>
-    <!-- A TypeScript source declared twice (a package's .props and the project file) is one source;
-         the SDK would crash on its duplicate asset. (A compile source twice is two outputs.) RemoveDuplicates returns new items without the
-         wildcard's RecursiveDir, so that is copied into metadata first. -->
-    <ItemGroup>
-      <_PareTypeScriptSourceAll Include="@(TypeScriptSource)">
-        <_PareRecursiveDir>%(RecursiveDir)</_PareRecursiveDir>
-      </_PareTypeScriptSourceAll>
-    </ItemGroup>
-    <RemoveDuplicates Inputs="@(_PareTypeScriptSourceAll)">
-      <Output TaskParameter="Filtered" ItemName="_PareTypeScriptSource" />
-    </RemoveDuplicates>
+    <!-- A TypeScript source declared twice (a package's .props and the project file) is one source,
+         with the last declaration's metadata; the SDK would crash on its duplicate asset. (A compile
+         source twice is two outputs.) See DistinctSources for why this is a task. -->
+    <DistinctSources Sources="@(TypeScriptSource)" RecursiveDirs="@(TypeScriptSource->'|%(RecursiveDir)')">
+      <Output TaskParameter="Distinct" ItemName="_PareTypeScriptSource" />
+    </DistinctSources>
     <ItemGroup>
       <_PareSource Include="@(_PareTypeScriptSource)"
                    Condition="('%(Extension)' == '.ts' or '%(Extension)' == '.mts' or '%(Extension)' == '.cts') and !$([System.String]::Copy('%(Filename)').EndsWith('.d'))" />

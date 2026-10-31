@@ -22,10 +22,6 @@ Real, but needs a decision, a dependency, or more information first. Say which.
   says to run it from the project directory. Re-check on a newer 10.0.x SDK.
 - `PareCompileSource` outside `wwwroot` is a `Watch` item: not checked whether `dotnet watch` in hot
   reload mode treats saving one as an unsupported change and restarts the app. (2026-10-17)
-- Review 2026-10-31 (f102d65..00ceb0f), unverified: `RemoveDuplicates` keeps the first declaration's
-  metadata (a package's `wwwroot/**/*.ts` glob beats the project's `PareServeAt="lib"` for the same
-  file), and on Windows a wildcard item (`wwwroot\js\a.ts`) and an explicit one (`wwwroot/js/a.ts`)
-  may not compare equal, so that duplicate would still reach the SDK.
 - CI flakes (5 of 30 `ci` runs to 2026-10-31, a different test each time): `Saving_a_mapped_source_by_rename_strips_it_again`
   timed out on windows-latest (cause unknown; a timeout now prints the watcher log), Playwright
   30 s timeouts on Windows, the `NativeLibraryTests` fixture once on macOS,
@@ -33,7 +29,8 @@ Real, but needs a decision, a dependency, or more information first. Say which.
 - `ci.yml` runs `win-arm64` on `windows-11-arm` (added 2026-10-31) with `continue-on-error`:
   Playwright's browsers run under x64 emulation there. Drop `experimental` once it has passed a
   few times, so a win-arm64 break blocks a release.
-- Windows, `\\?\C:\src\*.ts` glob: check on wp1 (see the audit note below).
+- Windows, `\\?\C:\src\*.ts` glob: check on wp1 in an interactive session (see the audit note below). Over ssh
+  (2026-10-31) Windows refuses every `\\?\` path, even a plain file, with "untrusted mount point".
 
 ## Dropped
 
@@ -64,6 +61,9 @@ Not doing, with the reason. Kept so the same idea does not get re-raised every q
   - One full unit run failed once (439 tests) and never again in 60 reruns of the suite and of the watcher tests. Suspects: `Compiled_sources_that_are_up_to_date...` and `Unchanged_text_on_save...`, which count compiler calls while a live watcher runs. Keep a results file (`-xml`) on full runs so the next failure has a name.
   - Not reproduced (the last also on wp1 under code page 437, 2026-10-31; the `--stdin` UTF-8 change was reverted): `--stdin` mangling non-ASCII on Windows; an upper-case `App.TS` in `TypeScriptSource` was said to be its own output; a build leaves it alone and writes nothing.
 - Research 2026-10-31, decided: pre-commit hook and GitHub Action are `pare src --check-only`, so doc snippets only, no artifact. Deferred: opt-in identity source map (positions are kept already), node_modules policy switch (nobody asked). Dropped: npm wrapper (against the no-Node point), VS Code extension, WASM, a diagnostic for `import { T }` without `type` (no type information). Already in Pare: erasableSyntaxOnly parity, decorator policy, incremental target, static web asset registration.
+- Closed 2026-10-31: `RemoveDuplicates` kept the first declaration's metadata and, on Windows, kept
+  `wwwroot/js/a.ts` and `wwwroot\js\a.ts` apart (both confirmed on wp1); the `DistinctSources` task
+  replaces it.
 - Closed 2026-10-31 (todo sweep): the development map is written by a JSON task and a bad map
   warns instead of failing; PARE203/204/205 report every item in one build; a source declared
   twice is one source; `pack-cli.sh` stops when Docker is down and takes `--rid`; the bench runs
