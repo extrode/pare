@@ -20,18 +20,21 @@ Real, but needs a decision, a dependency, or more information first. Say which.
   directory (`--project`), fails to read `obj\Debug/net10.0/staticwebassets.development.json`
   (`IntermediateOutputPath` keeps MSBuild's backslash) and sends no static-asset refresh. README
   says to run it from the project directory. Re-checked on 10.0.403 (2026-10-31): still fails the
-  same way, while the app serves the re-stripped files. Re-check on the next 10.0.x SDK.
+  same way, while the app serves the re-stripped files. 10.0.403 is still the newest SDK
+  (releases.json `latest-sdk`, Homebrew; checked 2026-10-31). Re-check on the next 10.0.x SDK.
 - Under `dotnet watch` in Production (no launch profile), `MapStaticAssets`' runtime patching looks
   for an `obj/`-served output under `wwwroot/` and answers 500 (`/js/app.js` from `Scripts/app.ts`,
-  seen 2026-10-31, SDK 10.0.403). Development is fine. Not checked: whether a `wwwroot` source does the same.
+  seen 2026-10-31, SDK 10.0.403). Development is fine. A `wwwroot` source does not: the sample's `wwwroot/js/*.ts` answer 200 in
+  Production under `dotnet watch` (0.7.2 from nuget.org, SDK 10.0.403, 2026-10-31), and a saved
+  edit is served re-stripped. Only a source outside `wwwroot` (`Scripts/`) is affected.
 - CI flakes, all closed by 2026-10-31: Playwright 30 s page loads on Windows (`02bf6f9`, 90 s),
   `Stopping_cancels_every_watcher...` timing on Windows (`8eb25a1`), the macOS log-line race, the
   watcher's held-output saves on Windows (0.7.2), and the `NativeLibraryTests` fixture's
   deps.json race with the cli-pack builds (its own `--artifacts-path`). Reopen on a new failure.
-- 0.7.2 is released (2026-10-31). Husk moves to it: `../husk/docs/handoffs/2026-10-31-pare-build-transitive.md`.
 - Bench comparison keeps TypeScript 6.0.3: ts-blank-space 0.9.0 declares peer `typescript`
   `5.1.6 - 6.0.x`, and TypeScript 7 (native) has no JS API for it to call. Bump both when
-  ts-blank-space supports 7.
+  ts-blank-space supports 7. Checked 2026-10-31: TypeScript `latest` is 7.0.2, ts-blank-space is
+  still 0.9.0 (2026-05-12) with the same peer range.
 
 ## Dropped
 
