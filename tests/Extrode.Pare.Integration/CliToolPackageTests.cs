@@ -64,7 +64,8 @@ public sealed class CliToolPackageTests : IDisposable
     public void Release_waits_for_the_whole_ci_suite()
     {
         string workflows = Path.Combine(RepoRoot, ".github", "workflows");
-        string release = File.ReadAllText(Path.Combine(workflows, "release.yml"));
+        // Git for Windows checks files out with CRLF.
+        string release = File.ReadAllText(Path.Combine(workflows, "release.yml")).Replace("\r\n", "\n");
 
         Assert.Contains("uses: ./.github/workflows/ci.yml", release);
         Assert.Contains("\n    needs: ci\n", release);
