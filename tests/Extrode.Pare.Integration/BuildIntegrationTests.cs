@@ -594,29 +594,41 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
         Assert.False(File.Exists(P("app/shared/x.js")));
     }
 
-    [Theory]
-    [InlineData("../js")]
-    [InlineData("js/./lib")]
-    [InlineData(".")]
-    [InlineData("c:/js")]
-    [InlineData("js//lib")]
-    [InlineData(@"js\\lib")]
-    [InlineData("js/app.js")]
-    [InlineData("app.MTS")]
-    [InlineData("js/app.ts/")]
-    public void A_serve_at_that_is_not_a_folder_fails_the_build(string serveAt)
+    [Fact]
+    public void Every_serve_at_that_is_not_a_folder_is_reported_in_one_build()
     {
+        string[] bad = ["../js", "js/./lib", ".", "c:/js", "js//lib", @"js\\lib", "js/app.js", "app.MTS", "js/app.ts/"];
         Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web",
-            items: $"""<TypeScriptSource Include="Scripts/*.ts" PareServeAt="{serveAt}" />""");
-        Put("Scripts/app.ts", "let a: T;");
+            items: string.Join("", bad.Select((serveAt, i) => $"""<TypeScriptSource Include="Scripts/s{i}.ts" PareServeAt="{serveAt}" />""")));
+        for (int i = 0; i < bad.Length; i++)
+            Put($"Scripts/s{i}.ts", "let a: T;");
 
         var (exit, output) = Build();
 
         Assert.NotEqual(0, exit);
-        string error = Assert.Single(output.Split('\n').Distinct(), line => line.Contains("error PARE203", StringComparison.Ordinal));
-        Assert.Contains(Path.Combine("Scripts", "app.ts") + $" : error PARE203: PareServeAt=\"{serveAt}\" is not a URL folder.", error);
+        var errors = output.Split('\n').Distinct().Where(line => line.Contains("error PARE203", StringComparison.Ordinal)).Select(line => line.Replace(@"Scripts\s", "Scripts/s", StringComparison.Ordinal)).ToList();
+        for (int i = 0; i < bad.Length; i++)
+        {
+            string expected = $"Scripts/s{i}.ts : error PARE203: PareServeAt=\"{bad[i]}\" is not a URL folder.";
+            Assert.True(errors.Count(e => e.Contains(expected, StringComparison.Ordinal)) == 1, $"{expected}\n{string.Join('\n', errors)}");
+        }
+        Assert.Equal(bad.Length, errors.Count);
         Assert.False(Directory.Exists(P(ObjOut)) && Directory.EnumerateFiles(P(ObjOut), "*.js", SearchOption.AllDirectories).Any());
-        Assert.False(File.Exists(P("Scripts/app.js")));
+        Assert.False(File.Exists(P("Scripts/s0.js")));
+    }
+
+    [Fact]
+    public void A_source_declared_twice_is_one_source()
+    {
+        Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web",
+            items: """<TypeScriptSource Include="Scripts/a.ts" PareServeAt="js" /><TypeScriptSource Include="Scripts/a.ts" PareServeAt="js" />""");
+        Put("Scripts/a.ts", "let a: T;");
+
+        var (exit, output) = Build();
+
+        Assert.True(exit == 0, output);
+        Assert.DoesNotContain("PARE201", output);
+        Assert.Equal("let a   ;", File.ReadAllText(P(ObjOut + "js/a.js")));
     }
 
     [Fact]
@@ -1128,25 +1140,24 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
             Assert.Equal("a;", Assert.Single(Resources("bin/Debug/net10.0/app.dll")).Value);
     }
 
-    [Theory]
-    [InlineData("", ".js", "error PARE204")]
-    [InlineData("fake", "", "error PARE204")]
-    [InlineData("fake", "js", "error PARE204")]
-    [InlineData("fake", ".x/y.js", "error PARE204")]
-    [InlineData("fa&quot;ke", ".js", "error PARE204")]
-    [InlineData("fa ke", ".js", "error PARE204")]
-    [InlineData("fake", ".x&quot;.js", "error PARE204")]
-    public void A_compile_source_without_a_compiler_or_an_extension_fails_the_build(string compiler, string extension, string expected)
+    [Fact]
+    public void Every_compile_source_without_a_compiler_or_an_extension_is_reported_in_one_build()
     {
+        (string Compiler, string Extension)[] bad =
+            [("", ".js"), ("fake", ""), ("fake", "js"), ("fake", ".x/y.js"), ("fa&quot;ke", ".js"), ("fa ke", ".js"), ("fake", ".x&quot;.js")];
         Project("<OutputType>Library</OutputType>", sdk: "Microsoft.NET.Sdk.Web", targets: FakeCompiler,
-            items: $"""<PareCompileSource Include="wwwroot/a.fake" PareCompiler="{compiler}" PareOutputExtension="{extension}" />""");
-        Put("wwwroot/a.fake", "a;");
+            items: string.Join("", bad.Select((b, i) =>
+                $"""<PareCompileSource Include="wwwroot/a{i}.fake" PareCompiler="{b.Compiler}" PareOutputExtension="{b.Extension}" />""")));
+        for (int i = 0; i < bad.Length; i++)
+            Put($"wwwroot/a{i}.fake", "a;");
 
         var (exit, output) = Build();
 
         Assert.NotEqual(0, exit);
-        string error = Assert.Single(output.Split('\n').Distinct(), l => l.Contains(expected, StringComparison.Ordinal));
-        Assert.Contains("wwwroot/a.fake : " + expected + ": PareCompileSource needs PareCompiler", error);
+        var errors = output.Split('\n').Distinct().Where(l => l.Contains("error PARE204", StringComparison.Ordinal)).ToList();
+        for (int i = 0; i < bad.Length; i++)
+            Assert.Single(errors, e => e.Contains($"wwwroot/a{i}.fake : error PARE204: PareCompileSource needs PareCompiler", StringComparison.Ordinal));
+        Assert.Equal(bad.Length, errors.Count);
     }
 
     [Fact]

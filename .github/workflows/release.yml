@@ -6,8 +6,11 @@
 #
 # The tag must match <Version> in Directory.Build.props; the guard step fails the run otherwise.
 # Extrode.Pare.Cli is published here as ONE framework-dependent .NET tool (-p:PareCliFrameworkDependent=true:
-# no RID packages, needs the .NET 10 runtime). The NativeAOT CLI and libpare stay archives, built per
-# OS and RID by scripts/pack-cli.sh and scripts/pack-cli.ps1 and uploaded to the Release by hand.
+# no RID packages, needs the .NET 10 runtime). The NativeAOT CLI and libpare are archives, built on
+# one native runner per RID by scripts/pack-cli.sh and scripts/pack-cli.ps1 (the `archives` job),
+# attached to the Release with a SHA256SUMS file. A manual run (workflow_dispatch) builds the
+# archives and uploads them as workflow artifacts without publishing anything: use it to check
+# the runners before tagging.
 #
 # Trusted publishing (OIDC), not a stored key: NuGet/login exchanges the workflow's short-lived
 # OIDC token for a key valid for one hour. The policy on nuget.org must name this file,
@@ -17,7 +20,7 @@ name: release
 on:
   push:
     tags: ['v*']
-  # Dispatch runs the trusted-publishing check and nothing else.
+  # Dispatch runs the trusted-publishing check and the archives, and publishes nothing.
   workflow_dispatch:
 
 permissions:
@@ -54,9 +57,59 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     uses: ./.github/workflows/ci.yml
 
+  # NativeAOT cannot cross OS, so each archive is built on a runner of its own kind. Each job
+  # packs only its RIDs; the final step fails when an expected archive is missing. The musl jobs
+  # (Docker) also run the archive's binary 20 times and a C program against libpare; the glibc,
+  # macOS and Windows archives are checked for presence only (ci.yml smoke-tests those builds).
+  archives:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-x64, os: ubuntu-latest, shell: bash, rids: 'linux-x64', args: '--no-docker --rid linux-x64' }
+          - { name: linux-arm64, os: ubuntu-24.04-arm, shell: bash, rids: 'linux-arm64', args: '--no-docker --rid linux-arm64' }
+          - { name: linux-musl-x64, os: ubuntu-latest, shell: bash, rids: 'linux-musl-x64', args: '--rid linux-musl-x64' }
+          - { name: linux-musl-arm64, os: ubuntu-24.04-arm, shell: bash, rids: 'linux-musl-arm64', args: '--rid linux-musl-arm64' }
+          - { name: osx, os: macos-latest, shell: bash, rids: 'osx-arm64 osx-x64', args: '--no-docker' }
+          - { name: win, os: windows-latest, shell: pwsh, rids: 'win-x64 win-arm64', args: '' }
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Pack archives
+        if: matrix.shell == 'bash'
+        run: scripts/pack-cli.sh ${{ matrix.args }}
+      - name: Pack archives (Windows)
+        if: matrix.shell == 'pwsh'
+        shell: pwsh
+        run: scripts/pack-cli.ps1
+      - name: Check every expected archive exists
+        shell: bash
+        run: |
+          version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props | head -1)
+          ext=tar.gz; [ "${{ matrix.shell }}" = pwsh ] && ext=zip
+          for rid in ${{ matrix.rids }}; do
+            for f in pare libpare; do
+              test -s "tmp/dist/$f-$version-$rid.$ext" || { echo "::error::missing tmp/dist/$f-$version-$rid.$ext"; exit 1; }
+            done
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: archives-${{ matrix.name }}
+          path: |
+            tmp/dist/pare-*.tar.gz
+            tmp/dist/pare-*.zip
+            tmp/dist/libpare-*.tar.gz
+            tmp/dist/libpare-*.zip
+          if-no-files-found: error
+
   release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: ci
+    needs: [ci, archives]
     runs-on: ubuntu-latest
     # Waits for a required reviewer (Settings > Environments > packages) before it runs.
     environment: packages
@@ -119,13 +172,21 @@ jobs:
               --skip-duplicate
           done
 
-      - name: GitHub Release with package assets
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: archives-*
+          path: dist/archives
+          merge-multiple: true
+
+      - name: Checksums
+        run: (cd dist/archives && sha256sum * > ../SHA256SUMS) && mv dist/SHA256SUMS dist/archives/ && cat dist/archives/SHA256SUMS
+
+      - name: GitHub Release with package and archive assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # A re-run for a moved tag finds the release already there, with the archives uploaded
-          # by hand. Leave it alone: replacing its packages with this run's rebuilt ones would
-          # make them differ from what nuget.org holds.
+          # A re-run for a moved tag finds the release already there. Leave it alone: replacing
+          # its packages with this run's rebuilt ones would make them differ from what nuget.org holds.
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             echo "Release $GITHUB_REF_NAME exists; leaving it as it is."
             exit 0
@@ -134,4 +195,4 @@ jobs:
           case "$GITHUB_REF_NAME" in
             v0.*|*-*) prerelease="--prerelease" ;;
           esac
-          gh release create "$GITHUB_REF_NAME" dist/packages/* --generate-notes --verify-tag $prerelease
+          gh release create "$GITHUB_REF_NAME" dist/packages/* dist/archives/* --generate-notes --verify-tag $prerelease

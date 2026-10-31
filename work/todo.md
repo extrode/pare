@@ -7,60 +7,28 @@ and leave by being promoted into `status/next.md` or dropped with a reason.
 Keep it honest rather than tidy. A backlog that only contains things someone intends to do is a
 wish list; the value is in recording the ones nobody has got to yet.
 
-## Now-ish
-
-Small, clear, and could be picked up without a design decision.
-
-- BenchmarkDotNet's out-of-process run fails ("Found more than one matching project file") while
-  `.claude/worktrees/agent-*` hold copies of `Extrode.Pare.Bench.csproj`; run with `--inProcess`,
-  or `scripts/cleanup/stale-agent-worktrees.sh -e` (removes the merged ones; all 14 gone 2026-10-17).
-
 ## Later
-
-- .NET bug, not reported: NativeAOT on linux-musl-arm64,
-  `RuntimeHelpers.TryEnsureSufficientExecutionStack()` on the main thread returns false in 24 of
-  60 runs (SDK 10.0.402, Alpine 3.24.2; JIT and glibc arm64 always true). Library callers there
-  need a thread they created; README says so. Issue draft and repro: `tmp/issues/musl-stack/`.
-
-- .NET SDK bug, reported as dotnet/sdk#54309, fixed on `main` by dotnet/sdk#54536 (2026-07-20), no
-  10.0.x backport found: `dotnet watch` 10.0.401 on macOS, started outside the project
-  directory (`--project`), fails to read `obj\Debug/net10.0/staticwebassets.development.json`
-  (`IntermediateOutputPath` keeps MSBuild's backslash) and sends no static-asset refresh. A plain
-  `Microsoft.NET.Sdk.Web` project shows it too; from the project directory it works, saves via
-  rename included. README says to run it from the project directory.
-
-- A new `.ts` outside `wwwroot` that a `PareServeAt` glob would match is not stripped by
-  `AddPareDevelopment` until the next build (the development map lists only built sources).
-- `release.yml` publishes the four nupkgs (the CLI as one framework-dependent tool); the NativeAOT
-  CLI and libpare archives are uploaded by hand (`scripts/pack-cli.sh`, `gh release upload`). The
-  docs point at the archives; decide whether the workflow publishes them. Tool install with
-  `--add-source`: docs/03-guides/offline-restore.md.
-- PARE203 stops at the first bad `PareServeAt` (MSBuild ends a batched `Error` at its first
-  batch), so its 9 test cases need 9 builds (~14 s). Reporting every bad item in one build would
-  let them share one. The serving tests share one build since 2026-10-15 (subset 68 s to 42 s).
-- In Development the SDK serves every `wwwroot` file through a `**` pattern, so `.ts` sources
-  return 200 (app and RCL); publish has none. Decide whether `AddPareDevelopment` should 404 them.
 
 Real, but needs a decision, a dependency, or more information first. Say which.
 
-- Lexer leniency vs TypeScript (M4): no validation of escapes inside strings, templates and
-  regex (TS1125, TS1198, TS1199), numeric separator placement (TS6188, TS6189), leading-zero
-  decimals in strict code (TS1489), binary/octal digit ranges (TS1177, TS1178). Tokenization is
-  unaffected; a browser rejects such input. Decide whether `Strip` should reject them. Run the
-  corpus test with `PARE_CORPUS_VERBOSE=1` to list them (`MISSED` lines).
-- Unicode tables: identifier classes come from .NET's `CharUnicodeInfo`, whose Unicode version
-  may differ from TypeScript's and browsers'. Only matters for exotic identifiers.
-
-- A `"` in a source or output path makes the development map invalid JSON: paths are written
-  with only `\` escaped, and `ReadMap` does not catch `JsonException`, so the app fails to start in
-  Development. (2026-10-17)
+- .NET bug, not reported (needs the user to file it): NativeAOT on linux-musl-arm64,
+  `RuntimeHelpers.TryEnsureSufficientExecutionStack()` on the main thread returns false in 24 of
+  60 runs (SDK 10.0.402, Alpine 3.24.2; JIT and glibc arm64 always true). Library callers there
+  need a thread they created; README says so. Issue draft and repro: `tmp/issues/musl-stack/`.
+- .NET SDK bug, reported as dotnet/sdk#54309, fixed on `main` by dotnet/sdk#54536 (2026-07-20), no
+  10.0.x backport found: `dotnet watch` 10.0.401 on macOS, started outside the project
+  directory (`--project`), fails to read `obj\Debug/net10.0/staticwebassets.development.json`
+  (`IntermediateOutputPath` keeps MSBuild's backslash) and sends no static-asset refresh. README
+  says to run it from the project directory. Re-check on a newer 10.0.x SDK.
 - `PareCompileSource` outside `wwwroot` is a `Watch` item: not checked whether `dotnet watch` in hot
   reload mode treats saving one as an unsupported change and restarts the app. (2026-10-17)
-- PARE201 lists the same source twice when one `PareCompileSource` is declared twice (a package's
-  `.props` plus the project file). (2026-10-17)
-- `scripts/pack-cli.sh` skips the Linux RIDs without a message when `docker info` fails, and still
-  ends "packed"; 0.6.0 went out with 17 of 29 assets because of it. Fail, or print what was
-  skipped, unless `--no-docker`. (2026-10-17)
+- Review 2026-10-31 (f102d65..00ceb0f), unverified: `RemoveDuplicates` keeps the first declaration's
+  metadata (a package's `wwwroot/**/*.ts` glob beats the project's `PareServeAt="lib"` for the same
+  file), and on Windows a wildcard item (`wwwroot\js\a.ts`) and an explicit one (`wwwroot/js/a.ts`)
+  may not compare equal, so that duplicate would still reach the SDK.
+- `release.yml` `archives` job (native runners, added 2026-10-31) has not run on GitHub: dispatch it
+  once before tagging. `win-arm64` on `windows-latest` needs the image's VS ARM64 C++ tools.
+- Windows, `\\?\C:\src\*.ts` glob: check on wp1 (see the audit note below).
 
 ## Dropped
 
@@ -91,3 +59,15 @@ Not doing, with the reason. Kept so the same idea does not get re-raised every q
   - One full unit run failed once (439 tests) and never again in 60 reruns of the suite and of the watcher tests. Suspects: `Compiled_sources_that_are_up_to_date...` and `Unchanged_text_on_save...`, which count compiler calls while a live watcher runs. Keep a results file (`-xml`) on full runs so the next failure has a name.
   - Not reproduced (the last also on wp1 under code page 437, 2026-10-31; the `--stdin` UTF-8 change was reverted): `--stdin` mangling non-ASCII on Windows; an upper-case `App.TS` in `TypeScriptSource` was said to be its own output; a build leaves it alone and writes nothing.
 - Research 2026-10-31, decided: pre-commit hook and GitHub Action are `pare src --check-only`, so doc snippets only, no artifact. Deferred: opt-in identity source map (positions are kept already), node_modules policy switch (nobody asked). Dropped: npm wrapper (against the no-Node point), VS Code extension, WASM, a diagnostic for `import { T }` without `type` (no type information). Already in Pare: erasableSyntaxOnly parity, decorator policy, incremental target, static web asset registration.
+- Closed 2026-10-31 (todo sweep): the development map is written by a JSON task and a bad map
+  warns instead of failing; PARE203/204/205 report every item in one build; a source declared
+  twice is one source; `pack-cli.sh` stops when Docker is down and takes `--rid`; the bench runs
+  in process when worktree copies exist; `release.yml` builds the archives. Pinned action SHAs
+  were checked against their tags.
+- Dropped 2026-10-31: lexer leniency vs TypeScript (M4: escapes, numeric separators, leading-zero
+  decimals, digit ranges) and the Unicode tables. Tokenization is unaffected and a browser or tsc
+  rejects such input; documented in what-pare-does-not-do.md.
+- Dropped 2026-10-31: 404 for `.ts` sources in Development (the SDK serves all of `wwwroot`; documented in hot-reload.md).
+- Dropped 2026-10-31: a new `.ts` outside `wwwroot` matching a `PareServeAt` glob is not stripped
+  until the next build. MSBuild does not expose the original glob, so a watcher would guess; the
+  log message already says a new source is served after the next build.
