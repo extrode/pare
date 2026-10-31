@@ -77,10 +77,10 @@ public partial class ErrorCodesDocTests
     public void Build_diagnostic_section_quotes_the_targets_text(string code, string kind)
     {
         var task = BuildDiagnostic().Matches(Targets).Single(m => m.Groups[2].Value == code);
-        Assert.Equal(kind, task.Groups[1].Value.ToLowerInvariant());
+        Assert.Equal(kind, task.Groups[1].Value == "LogPareDiagnostics" ? "error" : task.Groups[1].Value.ToLowerInvariant());
         Assert.Contains($"| [{code}](#{code.ToLowerInvariant()}) | {kind} (MSBuild) |", Doc);
 
-        // MSBuild expressions in the text (%(...), @(...)) stand for the example's values.
+        // MSBuild expressions in the text (%(...), @(...), and {Name} for LogPareDiagnostics) stand for the example's values.
         string text = System.Net.WebUtility.HtmlDecode(task.Groups[3].Value);
         string pattern = "\n`" + Regex.Escape($"{kind} {code}: ") +
             string.Join(".+", MSBuildExpression().Split(text).Select(Regex.Escape)) + "`\n";
@@ -93,10 +93,10 @@ public partial class ErrorCodesDocTests
     [GeneratedRegex(@"Code=""(PARE\d{3})""")]
     private static partial Regex TargetsCode();
 
-    [GeneratedRegex(@"<(Warning|Error) Code=""(PARE\d{3})""[^<]*?Text=""([^""]*)""", RegexOptions.Singleline)]
+    [GeneratedRegex(@"<(Warning|Error|LogPareDiagnostics)\s[^<]*?Code=""(PARE\d{3})""[^<]*?Text=""([^""]*)""", RegexOptions.Singleline)]
     private static partial Regex BuildDiagnostic();
 
-    [GeneratedRegex(@"[%@]\([^()]*(?:\([^()]*\)[^()]*)*\)")]
+    [GeneratedRegex(@"[%@]\([^()]*(?:\([^()]*\)[^()]*)*\)|\{[A-Za-z]+\}")]
     private static partial Regex MSBuildExpression();
 
     [GeneratedRegex(@"```ts\n(.*?)```", RegexOptions.Singleline)]

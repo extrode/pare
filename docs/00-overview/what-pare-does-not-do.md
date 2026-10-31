@@ -14,6 +14,20 @@ Use TypeScript's own checker for types. TypeScript 7 ships a native `tsc` that r
 Node. With `PareTypeCheck=true` the build runs it for you; see
 [Type checking in CI](../03-guides/type-checking.md).
 
+## No checking of JavaScript details
+
+Pare finds the syntax it has to erase and leaves the rest alone. It reports a syntax error where
+it cannot tell what to erase (PARE001), but it does not validate what a browser validates later:
+
+- escape sequences inside strings, templates and regular expressions (`"\u{zz}"`),
+- numeric literals: separator placement (`1__0`), leading zeros in strict code, digits out of range
+  in binary and octal literals,
+- identifier characters, which follow .NET's Unicode tables rather than TypeScript's.
+
+The tokens come out as they went in, so the browser or Node rejects such a file when it loads it,
+and `tsc --noEmit` reports it at build time (TS1125, TS1198, TS6188 and others). Turn on
+[type checking](../03-guides/type-checking.md) if you want that at build time.
+
 ## No generated code
 
 Some TypeScript features need the compiler to write JavaScript that is not in your file. Pare only

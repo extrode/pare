@@ -42,19 +42,40 @@
              Condition="'$(MSBuildRuntimeType)' == 'Core'" />
   <UsingTask TaskName="Extrode.Pare.Build.StripTypeScript" AssemblyFile="$(PareTaskAssembly)"
              Runtime="NET" TaskFactory="TaskHostFactory" Condition="'$(MSBuildRuntimeType)' != 'Core'" />
+  <UsingTask TaskName="Extrode.Pare.Build.LogPareDiagnostics" AssemblyFile="$(PareTaskAssembly)"
+             Condition="'$(MSBuildRuntimeType)' == 'Core'" />
+  <UsingTask TaskName="Extrode.Pare.Build.LogPareDiagnostics" AssemblyFile="$(PareTaskAssembly)"
+             Runtime="NET" TaskFactory="TaskHostFactory" Condition="'$(MSBuildRuntimeType)' != 'Core'" />
+  <UsingTask TaskName="Extrode.Pare.Build.WriteDevelopmentMap" AssemblyFile="$(PareTaskAssembly)"
+             Condition="'$(MSBuildRuntimeType)' == 'Core'" />
+  <UsingTask TaskName="Extrode.Pare.Build.WriteDevelopmentMap" AssemblyFile="$(PareTaskAssembly)"
+             Runtime="NET" TaskFactory="TaskHostFactory" Condition="'$(MSBuildRuntimeType)' != 'Core'" />
 
   <Target Name="_PareComputeOutputs">
     <!-- In a target: IntermediateOutputPath is not set yet when a package's files are evaluated. -->
     <PropertyGroup>
       <_PareObjRoot Condition="('$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' or '$(PareEmbed)' == 'true') and '$(_PareOutRoot)' == ''">$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'pare'))</_PareObjRoot>
     </PropertyGroup>
+    <!-- A TypeScript source declared twice (a package's .props and the project file) is one source;
+         the SDK would crash on its duplicate asset. (A compile source twice is two outputs.) RemoveDuplicates returns new items without the
+         wildcard's RecursiveDir, so that is copied into metadata first. -->
     <ItemGroup>
-      <_PareSource Include="@(TypeScriptSource)"
+      <_PareTypeScriptSourceAll Include="@(TypeScriptSource)">
+        <_PareRecursiveDir>%(RecursiveDir)</_PareRecursiveDir>
+      </_PareTypeScriptSourceAll>
+    </ItemGroup>
+    <RemoveDuplicates Inputs="@(_PareTypeScriptSourceAll)">
+      <Output TaskParameter="Filtered" ItemName="_PareTypeScriptSource" />
+    </RemoveDuplicates>
+    <ItemGroup>
+      <_PareSource Include="@(_PareTypeScriptSource)"
                    Condition="('%(Extension)' == '.ts' or '%(Extension)' == '.mts' or '%(Extension)' == '.cts') and !$([System.String]::Copy('%(Filename)').EndsWith('.d'))" />
       <!-- A compiler is a name; an extension is a dot and a name, with no folder in it. Either goes
            into the development map's JSON as is. Marked per item: an Exclude would also drop a valid
            item with the same Include. -->
-      <_PareCompileCandidate Include="@(PareCompileSource)" />
+      <_PareCompileCandidate Include="@(PareCompileSource)">
+        <_PareRecursiveDir>%(RecursiveDir)</_PareRecursiveDir>
+      </_PareCompileCandidate>
       <_PareCompileCandidate Condition="!$([System.Text.RegularExpressions.Regex]::IsMatch('%(_PareCompileCandidate.PareCompiler)', '^[A-Za-z0-9._-]+\z')) or !$([System.Text.RegularExpressions.Regex]::IsMatch('%(_PareCompileCandidate.PareOutputExtension)', '^\.[^/\\&quot;]+\z'))">
         <_PareBad>true</_PareBad>
       </_PareCompileCandidate>
@@ -82,7 +103,7 @@
         <_PareFolder>%(_PareSource._PareFolder)/</_PareFolder>
       </_PareSource>
       <_PareSource Condition="'%(_PareSource._PareServeAt)' != '' and '%(_PareSource.PareRelativePath)' == ''">
-        <PareRelativePath>%(_PareSource._PareFolder)%(_PareSource.RecursiveDir)%(_PareSource._PareJs)</PareRelativePath>
+        <PareRelativePath>%(_PareSource._PareFolder)%(_PareSource._PareRecursiveDir)%(_PareSource._PareJs)</PareRelativePath>
       </_PareSource>
       <_PareSource Condition="'$(PareEmbed)' == 'true' and '%(_PareSource.PareRelativePath)' == ''">
         <PareRelativePath>%(_PareDir)%(_PareJs)</PareRelativePath>
@@ -119,12 +140,12 @@
       <PareCompileSource Remove="@(PareCompileSource)" />
       <PareCompileSource Include="@(_PareSource)" Condition="'%(_PareSource._PareCompiled)' == 'true'" />
     </ItemGroup>
-    <Error Code="PARE205" File="%(_PareOutside.Identity)" Condition="'@(_PareOutside)' != ''"
+    <LogPareDiagnostics Items="@(_PareOutside)" Code="PARE205" Condition="'@(_PareOutside)' != ''"
            Text="the source is outside the project folder, so its output would be written outside PareOutDir=&quot;$(PareOutDir)&quot;. Move the source into the project, or build it from the project that owns it." />
-    <Error Code="PARE204" File="%(_PareBadCompile.Identity)" Condition="'@(_PareBadCompile)' != ''"
-           Text="PareCompileSource needs PareCompiler (the compiler's name: letters, digits, . _ -) and PareOutputExtension (the output's extension, a dot and a name such as .svelte.js); got PareCompiler=&quot;%(_PareBadCompile.PareCompiler)&quot; PareOutputExtension=&quot;%(_PareBadCompile.PareOutputExtension)&quot;." />
-    <Error Code="PARE203" File="%(_PareBadServeAt.Identity)" Condition="'@(_PareBadServeAt)' != ''"
-           Text="PareServeAt=&quot;%(_PareBadServeAt.PareServeAt)&quot; is not a URL folder. Give a folder such as js, or / for the root, with no . or .. segment, colon, double slash or file name: the file name comes from the source." />
+    <LogPareDiagnostics Items="@(_PareBadCompile)" Code="PARE204" Condition="'@(_PareBadCompile)' != ''"
+           Text="PareCompileSource needs PareCompiler (the compiler's name: letters, digits, . _ -) and PareOutputExtension (the output's extension, a dot and a name such as .svelte.js); got PareCompiler=&quot;{PareCompiler}&quot; PareOutputExtension=&quot;{PareOutputExtension}&quot;." />
+    <LogPareDiagnostics Items="@(_PareBadServeAt)" Code="PARE203" Condition="'@(_PareBadServeAt)' != ''"
+           Text="PareServeAt=&quot;{PareServeAt}&quot; is not a URL folder. Give a folder such as js, or / for the root, with no . or .. segment, colon, double slash or file name: the file name comes from the source." />
     <Error Code="PARE201" File="$(MSBuildProjectFullPath)" Condition="'@(_PareUrl->Count())' &gt; '1'"
            Text="two sources map to one URL, %(_PareUrl.Identity): @(_PareUrl->'%(_PareSourceSpec)', ', '). Serve one under a different PareServeAt folder, or remove one from its item." />
     <Warning Code="PARE202" File="%(_PareUnserved.Identity)" Condition="'@(_PareUnserved)' != ''"
@@ -260,17 +281,14 @@
     </ItemGroup>
     <PropertyGroup>
       <_PareWebRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', 'wwwroot'))</_PareWebRoot>
-      <_PareMapSources>@(_PareMapSource->'{ "source": "%(Identity)", "output": "%(PareOutputPath)" }', ', ')</_PareMapSources>
-      <!-- Its own list: Pare 0.5's AddPareDevelopment strips every entry in sources. -->
-      <_PareMapCompiledSources>@(_PareMapCompiled->'{ "source": "%(Identity)", "output": "%(PareOutputPath)", "compiler": "%(PareCompiler)" }', ', ')</_PareMapCompiledSources>
-      <_PareMapText>{ "sourceRoot": "$(_PareWebRoot.Replace('\', '\\'))", "outputRoot": "$(_PareObjRoot.Replace('\', '\\'))", "sources": [$(_PareMapSources.Replace('\', '\\'))], "compiled": [$(_PareMapCompiledSources.Replace('\', '\\'))] }</_PareMapText>
       <_PareSharedMapPath>$(IntermediateOutputPath)Extrode.Pare.development.json</_PareSharedMapPath>
     </PropertyGroup>
   </Target>
 
   <Target Name="_PareShareDevelopmentMap" BeforeTargets="AssignTargetPaths" DependsOnTargets="_PareComputeDevelopmentMap"
           Condition="'$(UsingMicrosoftNETSdkStaticWebAssets)' == 'true' and '$(_PareOutRoot)' == '' and '$(PareEmbed)' != 'true' and '$(_IsPublishing)' != 'true'">
-    <WriteLinesToFile File="$(_PareSharedMapPath)" Lines="$(_PareMapText)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <WriteDevelopmentMap File="$(_PareSharedMapPath)" SourceRoot="$(_PareWebRoot)" OutputRoot="$(_PareObjRoot)"
+                         Sources="@(_PareMapSource)" Compiled="@(_PareMapCompiled)" />
     <ItemGroup>
       <FileWrites Include="$(_PareSharedMapPath)" />
       <None Include="$(_PareSharedMapPath)" Link="Extrode.Pare.development.$(MSBuildProjectName).json"
@@ -283,7 +301,8 @@
     <PropertyGroup>
       <_PareMapPath>$(OutDir)Extrode.Pare.development.json</_PareMapPath>
     </PropertyGroup>
-    <WriteLinesToFile File="$(_PareMapPath)" Lines="$(_PareMapText)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <WriteDevelopmentMap File="$(_PareMapPath)" SourceRoot="$(_PareWebRoot)" OutputRoot="$(_PareObjRoot)"
+                         Sources="@(_PareMapSource)" Compiled="@(_PareMapCompiled)" />
     <ItemGroup>
       <FileWrites Include="$(_PareMapPath)" />
     </ItemGroup>

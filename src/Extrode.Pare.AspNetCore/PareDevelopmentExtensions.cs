@@ -115,7 +115,17 @@ public static class PareDevelopmentExtensions
         {
             if (!File.Exists(path))
                 return null;
-            using var map = JsonDocument.Parse(File.ReadAllText(path));
+            JsonDocument map;
+            try
+            {
+                map = JsonDocument.Parse(File.ReadAllText(path));
+            }
+            catch (JsonException e)
+            {
+                logger.LogWarning("{Path} is not valid JSON ({Message}); its sources are not re-stripped on save", path, e.Message);
+                return null;
+            }
+            using var _ = map;
             var root = map.RootElement;
             if (!(root.TryGetProperty("sourceRoot", out var source) && source.GetString() is { } sourceRoot &&
                   root.TryGetProperty("outputRoot", out var output) && output.GetString() is { } outputRoot))
