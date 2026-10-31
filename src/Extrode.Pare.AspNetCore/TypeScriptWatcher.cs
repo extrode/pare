@@ -37,6 +37,7 @@ internal sealed class TypeScriptWatcher : IDisposable
     private readonly Lock _lock = new();
     // Timer callbacks overlap: one flush at a time, so a later save is compiled after an earlier one.
     private readonly Lock _flushLock = new();
+    private bool _disposed;
     // Not disposed: a compile still running when the app stops may hold its token.
     private readonly CancellationTokenSource _stopping = new();
     private readonly Timer _timer;
@@ -157,6 +158,8 @@ internal sealed class TypeScriptWatcher : IDisposable
             return;
         lock (_lock)
         {
+            if (_disposed)
+                return;
             _pending.Add(path);
             _timer.Change(Settle, Timeout.InfiniteTimeSpan);
         }
@@ -333,10 +336,19 @@ internal sealed class TypeScriptWatcher : IDisposable
 
     public void Dispose()
     {
+        lock (_lock)
+        {
+            if (_disposed)
+                return;
+            _disposed = true;
+        }
         _stopping.Cancel();
         foreach (var watcher in _watchers)
             watcher.Dispose();
         _timer.Dispose();
+        // A strip already running ends at its next file or at the cancelled compile; do not return before it.
+        if (_flushLock.TryEnter(TimeSpan.FromSeconds(5)))
+            _flushLock.Exit();
     }
 
     private sealed class Sink : IDiagnosticSink

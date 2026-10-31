@@ -545,6 +545,39 @@ public sealed class DevelopmentWatcherTests : IDisposable
         }
     }
 
+    private sealed class UncancellableCompiler : IPareCompiler
+    {
+        public ManualResetEventSlim Started { get; } = new();
+        public volatile bool Finished;
+        public string Name => "stubborn";
+
+        public async Task<IReadOnlyDictionary<string, string>?> CompileAsync(string sourcePath, string source, IReadOnlyList<string> outputPaths,
+            ILogger logger, CancellationToken cancellationToken)
+        {
+            Started.Set();
+            await Task.Delay(TimeSpan.FromMilliseconds(300), TimeProvider.System);
+            Finished = true;
+            return null;
+        }
+    }
+
+    [Fact]
+    public void Dispose_waits_for_a_compile_that_is_running()
+    {
+        Put("App.up", "a");
+        var compiler = new UncancellableCompiler();
+        var watcher = CompiledWatcher(compiler, ("App.up", ["obj/pare/App.up.js"]));
+        watcher.Start();
+        compiler.Started.Reset();
+        Put("App.up", "b");
+        Assert.True(compiler.Started.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+
+        watcher.Dispose();
+
+        Assert.True(compiler.Finished);
+        watcher.Dispose();
+    }
+
     [Fact]
     public void A_later_save_is_compiled_after_an_earlier_slow_one_and_compilers_run_one_source_at_a_time()
     {

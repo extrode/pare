@@ -61,6 +61,33 @@ public sealed class CliToolPackageTests : IDisposable
     }
 
     [Fact]
+    public void Release_waits_for_the_whole_ci_suite()
+    {
+        string workflows = Path.Combine(RepoRoot, ".github", "workflows");
+        string release = File.ReadAllText(Path.Combine(workflows, "release.yml"));
+
+        Assert.Contains("uses: ./.github/workflows/ci.yml", release);
+        Assert.Contains("\n    needs: ci\n", release);
+        Assert.Contains("workflow_call:", File.ReadAllText(Path.Combine(workflows, "ci.yml")));
+    }
+
+    [Fact]
+    public void Workflow_actions_are_pinned_to_a_commit()
+    {
+        foreach (string file in Directory.GetFiles(Path.Combine(RepoRoot, ".github", "workflows"), "*.yml"))
+        {
+            foreach (string line in File.ReadAllLines(file).Where(l => l.TrimStart().TrimStart('-').TrimStart().StartsWith("uses: ", StringComparison.Ordinal)))
+            {
+                string target = line[(line.IndexOf("uses: ", StringComparison.Ordinal) + 6)..].Split(' ')[0];
+                if (target.StartsWith("./", StringComparison.Ordinal))
+                    continue;
+                string reference = target[(target.IndexOf('@') + 1)..];
+                Assert.True(reference.Length == 40 && reference.All(char.IsAsciiHexDigitLower), $"{Path.GetFileName(file)}: {line.Trim()}");
+            }
+        }
+    }
+
+    [Fact]
     public void Readmes_do_not_say_the_cli_package_is_missing_from_nuget()
     {
         foreach (string file in new[] { "README.md", "docs/01-getting-started/README.md", "docs/01-getting-started/first-static-site.md" })
