@@ -5,6 +5,16 @@ namespace Extrode.Pare.Tests;
 public class GlobTests
 {
     [Theory]
+    [InlineData("*.ts", 1)]
+    [InlineData("src/*.ts", 1)]
+    [InlineData("src/*/x?.ts", 2)]
+    [InlineData("src/**/*.ts", int.MaxValue)]
+    [InlineData("**/*.ts", int.MaxValue)]
+    [InlineData("C:\\*.ts", 1)]
+    public void Levels_is_how_deep_a_match_can_be(string pattern, int expected) =>
+        Assert.Equal(expected, Glob.Levels(pattern));
+
+    [Theory]
     [InlineData("src/**/*.ts", "src")]
     [InlineData("src/*.ts", "src")]
     [InlineData("*.ts", ".")]

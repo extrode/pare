@@ -78,7 +78,7 @@ internal static class FileStripper
             string root = Glob.BaseDirectory(input);
             if (!Directory.Exists(root))
                 return true;
-            foreach (var file in Walk(root))
+            foreach (var file in Walk(root, Glob.Levels(input)))
             {
                 if (Glob.Matches(input, Path.GetRelativePath(root, file)))
                     files.Add(Path.GetFullPath(file));
@@ -87,7 +87,7 @@ internal static class FileStripper
         }
         if (Directory.Exists(input))
         {
-            foreach (var file in Walk(input))
+            foreach (var file in Walk(input, int.MaxValue))
                 files.Add(Path.GetFullPath(file));
             return true;
         }
@@ -107,8 +107,8 @@ internal static class FileStripper
         return true;
     }
 
-    /// <summary>Source files under <paramref name="dir"/>, recursively, skipping node_modules.</summary>
-    private static IEnumerable<string> Walk(string dir)
+    /// <summary>Source files under <paramref name="dir"/>, down <paramref name="levels"/> directory levels (this one included), skipping node_modules.</summary>
+    private static IEnumerable<string> Walk(string dir, int levels)
     {
         // One directory read per directory: Directory.EnumerateFiles plus EnumerateDirectories
         // read each twice. Same options as both (Compatible: nothing skipped), and IsDirectory
@@ -129,9 +129,11 @@ internal static class FileStripper
                 subdirs.Add(path);
             }
         }
+        if (levels <= 1)
+            yield break;
         foreach (var sub in subdirs)
         {
-            foreach (var file in Walk(sub))
+            foreach (var file in Walk(sub, levels - 1))
                 yield return file;
         }
     }

@@ -26,6 +26,21 @@ internal static class Glob
         return pattern.StartsWith('/') ? "/" + dir : dir;
     }
 
+    /// <summary>How many directory levels under <see cref="BaseDirectory"/> can hold a match: all of them with a <c>**</c>, else one per segment of the wildcard part.</summary>
+    public static int Levels(string pattern)
+    {
+        var segments = Split(pattern);
+        int i = 0;
+        while (i < segments.Length && !HasWildcard(segments[i]))
+            i++;
+        for (int j = i; j < segments.Length; j++)
+        {
+            if (segments[j] == "**")
+                return int.MaxValue;
+        }
+        return segments.Length - i;
+    }
+
     /// <summary>Whether <paramref name="relative"/> (to <see cref="BaseDirectory"/>) matches the wildcard part.</summary>
     public static bool Matches(string pattern, string relative)
     {
