@@ -575,6 +575,22 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
         Assert.Equal("let c   ;", File.ReadAllText(P("Components/Counter.razor.js")));
     }
 
+    [Fact]
+    public void A_source_outside_the_project_cannot_go_below_pare_out_dir()
+    {
+        Project("<OutputType>Library</OutputType><PareOutDir>gen</PareOutDir>", items: """<TypeScriptSource Include="../shared/x.ts" />""");
+        Directory.CreateDirectory(P("app"));
+        File.Move(P("app.csproj"), P("app/app.csproj"));
+        Put("shared/x.ts", "let x: T;");
+
+        var (exit, output) = Build("app/app.csproj");
+
+        Assert.NotEqual(0, exit);
+        Assert.Contains("error PARE205", output);
+        Assert.False(File.Exists(P("shared/x.js")));
+        Assert.False(File.Exists(P("app/shared/x.js")));
+    }
+
     [Theory]
     [InlineData("../js")]
     [InlineData("js/./lib")]
