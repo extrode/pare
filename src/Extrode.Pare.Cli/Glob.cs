@@ -18,6 +18,11 @@ internal static class Glob
         if (i == 0)
             return Path.IsPathRooted(pattern) ? Path.GetPathRoot(pattern)! : ".";
         string dir = string.Join('/', segments, 0, i);
+        // "C:" alone is the current directory on drive C; the root needs its separator.
+        if (dir.Length == 2 && char.IsAsciiLetter(dir[0]) && dir[1] == ':')
+            return dir + "/";
+        if (pattern.StartsWith("//") || pattern.StartsWith("\\\\"))
+            return "//" + dir;
         return pattern.StartsWith('/') ? "/" + dir : dir;
     }
 

@@ -10,6 +10,9 @@ public class GlobTests
     [InlineData("*.ts", ".")]
     [InlineData("a/b/c?.ts", "a/b")]
     [InlineData("/abs/**/x.ts", "/abs")]
+    [InlineData("C:\\*.ts", "C:/")]
+    [InlineData("C:\\src\\*.ts", "C:/src")]
+    [InlineData("\\\\srv\\share\\src\\*.ts", "//srv/share/src")]
     public void Base_directory_is_the_part_before_the_first_wildcard(string pattern, string expected) =>
         Assert.Equal(expected, Glob.BaseDirectory(pattern));
 
