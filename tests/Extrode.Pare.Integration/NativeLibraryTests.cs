@@ -19,10 +19,14 @@ public sealed class NativeLibraryTests(NativeLibraryTests.PublishedLibrary libra
         public string FileName { get; } =
             OperatingSystem.IsWindows() ? "pare.dll" : OperatingSystem.IsMacOS() ? "libpare.dylib" : "libpare.so";
 
+        // Its own bin and obj for every project, Extrode.Pare included: the cli-pack classes build
+        // Extrode.Pare in Release in place at the same time, and both wrote its deps.json.
+        public string Artifacts => Path.Combine(_dir.FullName, "artifacts");
+
         public PublishedLibrary()
         {
             var (exit, output) = Exec(RepoRoot, "dotnet", "publish", Path.Combine(RepoRoot, "src", "Extrode.Pare.Native"),
-                "-c", "Release", "-r", RuntimeInformation.RuntimeIdentifier, "-o", Dir,
+                "-c", "Release", "-r", RuntimeInformation.RuntimeIdentifier, "-o", Dir, "--artifacts-path", Artifacts,
                 "-nologo", "-nodeReuse:false", "--disable-build-servers", "-clp:NoSummary");
             Assert.True(exit == 0, output);
         }
@@ -86,6 +90,10 @@ public sealed class NativeLibraryTests(NativeLibraryTests.PublishedLibrary libra
     private static string Text(nint p) => Marshal.PtrToStringUTF8(p)!;
 
     private static bool Zeroed(Result r) => r.Output == 0 && r.OutputLength == 0 && r.Diagnostics == 0 && r.DiagnosticCount == 0;
+
+    [Fact]
+    public void Publishing_builds_the_core_library_outside_the_repo() =>
+        Assert.True(Directory.Exists(Path.Combine(library.Artifacts, "bin", "Extrode.Pare")), library.Artifacts);
 
     [Fact]
     public void Strips_to_nul_terminated_utf8_and_free_zeroes_the_result()
