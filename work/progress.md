@@ -396,6 +396,41 @@ convention). Update at the end of every session.
   `check-macos-libs.sh`; 4 Windows zips from wp1, which was fast-forwarded to dev). Upload with
   `gh release upload v0.6.3 tmp/assets-0.6.3/*` is the user's. Windows tests not re-run.
 
+- **0.7.0 prepared (2026-10-31):** two audits and an Opus decision pass after 0.6.3. Library: sticky
+  `_tooDeep` so deep arrow defaults give PARE001 instead of a stack overflow. CLI: `--outdir` base is
+  the input roots, empty `--outdir` is a usage error, symlink loops skipped. Build: PARE205. Watcher:
+  moved directories, save during `Start`, one shared stop deadline. `release.yml` needs `ci` and runs for
+  tag pushes only. Version bumped to 0.7.0 (minor: `--outdir` output moves, PARE205 fails builds that
+  passed). Not done before tagging: Bench run on the hot-path change, full Conformance, wp1 Windows
+  tests (glob, drive, UNC), a compare of the pinned action SHAs with their tags, `pack-cli.sh` and
+  wp1 archives, `gh release upload`. Tag, push and `main` are the user's.
+- **Audit and CI docs (2026-10-31):** 565 tests on macOS, 564 passed, 1 skipped (VS MSBuild), 0
+  failed. Error codes in `docs/06-reference/error-codes.md` cover every code in `src`. New guide
+  `docs/03-guides/ci-and-hooks.md` (GitHub Actions, git and pre-commit hook, Docker); the hook and
+  the `--outdir` layout were run, the workflow and Dockerfile were not. Benchmark rows re-measured
+  on 0.7.0 in 0.7.1.
+- **0.7.1 prepared (2026-10-31):** the todo sweep. Build: the development map is written by a JSON
+  task, PARE203/204/205 report every item in one build, a source declared twice is one source.
+  `AddPareDevelopment` warns on an invalid or wrong-shape map. `release.yml` builds the NativeAOT
+  CLI and libpare archives on native runners and attaches them with `SHA256SUMS`; `pack-cli.sh`
+  takes `--rid` and stops when Docker is down. Benchmarks re-measured on 0.7.0 (Mac and wp1). Full
+  suite green on the Mac and wp1 (the one Windows failure was a test path separator, fixed). One
+  cleanup script, `scripts/cleanup/pare.sh`. Patch version: no API or output change. The musl stack
+  bug stays unreported (decided).
+- **0.7.1 released (2026-10-31):** tag `v0.7.1` on main 7c11461; the four packages on nuget.org
+  and GitHub Packages; the release has 16 archives and `SHA256SUMS` built by `release.yml`. CI gained
+  a `windows-11-arm` (win-arm64) job, non-blocking (`experimental`) until it has passed a few times;
+  its first run passed 555 of 563 (8 skipped, as on win-x64). Watcher tests wait for the log line
+  instead of racing it.
+- **After 0.7.1 (2026-10-31, unreleased):** `CLAUDE.md` removed (`AGENTS.md` is read directly).
+  `Extrode.Pare.Build` ships `buildTransitive/` for Husk (handoff
+  `docs/handoffs/2026-10-31-husk-pare-0.7.1-and-build-transitive.md`). The `DistinctSources` task
+  replaces `RemoveDuplicates`: the last declaration wins, and on Windows both separators name one
+  source (both confirmed on wp1, tests run there). Test dependencies bumped (TypeScript stays 6.0.3
+  for ts-blank-space). Checked: `PareCompileSource` outside `wwwroot` does not restart the app under
+  hot reload; dotnet/sdk#54309 still fails on 10.0.403. Not checked: the `\\?\` glob on wp1 (ssh
+  refuses device paths).
+
 ## Next
 
 Order from the 2026-10-15 fable consult:
@@ -408,17 +443,14 @@ Order from the 2026-10-15 fable consult:
 4. ~~**Dev loop:**~~ done 2026-10-15: `--no-hot-reload` via `Watch` items, default hot reload
    via M8 (see above).
 5. ~~**M7 perf**~~: done 2026-10-15 (see above).
-6. **M4 lexer validation:** only if M5 shows a divergence that matters.
+6. ~~M4 lexer validation~~: dropped 2026-10-31; the leniency is documented.
 
 Not in the plan yet: nothing. (Error-code page `docs/error-codes.md`, stale `.js` and obj/ output: done.)
 
 ## Open questions
 
-- Lexer leniency vs TypeScript (escape and numeric-literal validation): see `work/todo.md`.
 - Pushing `main` is the user's (a hook blocks it for agents).
-- Done 2026-10-30: nuget.org publishing (three libraries) and a public `extrode/pare`.
-- CLI and libpare archives for 0.6.1, and `Extrode.Pare.Cli` on nuget.org: user's call.
-- Where the docs site is hosted; repo topics; the two Rein handoffs in `docs/handoffs/`.
+- When to release the `buildTransitive` and `DistinctSources` changes (next version; Husk waits on it).
 
 ## Corpus pass rate
 
@@ -453,24 +485,3 @@ check against tsgo is still M5.
   as whitespace. Three corpus files hit this.
 - Added rejection `ParameterDecorator`: parameter decorators only exist under legacy
   `experimentalDecorators`, so they are the detectable part of that handoff row.
-- **0.7.0 prepared (2026-10-31):** two audits and an Opus decision pass after 0.6.3. Library: sticky
-  `_tooDeep` so deep arrow defaults give PARE001 instead of a stack overflow. CLI: `--outdir` base is
-  the input roots, empty `--outdir` is a usage error, symlink loops skipped. Build: PARE205. Watcher:
-  moved directories, save during `Start`, one shared stop deadline. `release.yml` needs `ci` and runs for
-  tag pushes only. Version bumped to 0.7.0 (minor: `--outdir` output moves, PARE205 fails builds that
-  passed). Not done before tagging: Bench run on the hot-path change, full Conformance, wp1 Windows
-  tests (glob, drive, UNC), a compare of the pinned action SHAs with their tags, `pack-cli.sh` and
-  wp1 archives, `gh release upload`. Tag, push and `main` are the user's.
-- **Audit and CI docs (2026-10-31):** 565 tests on macOS, 564 passed, 1 skipped (VS MSBuild), 0
-  failed. Error codes in `docs/06-reference/error-codes.md` cover every code in `src`. New guide
-  `docs/03-guides/ci-and-hooks.md` (GitHub Actions, git and pre-commit hook, Docker); the hook and
-  the `--outdir` layout were run, the workflow and Dockerfile were not. Stale: benchmark rows say
-  "Pare 0.5.0" (re-run on a quiet machine, never done for the 0.7.0 hot-path change).
-- **0.7.1 prepared (2026-10-31):** the todo sweep. Build: the development map is written by a JSON
-  task, PARE203/204/205 report every item in one build, a source declared twice is one source.
-  `AddPareDevelopment` warns on an invalid or wrong-shape map. `release.yml` builds the NativeAOT
-  CLI and libpare archives on native runners and attaches them with `SHA256SUMS`; `pack-cli.sh`
-  takes `--rid` and stops when Docker is down. Benchmarks re-measured on 0.7.0 (Mac and wp1). Full
-  suite green on the Mac and wp1 (the one Windows failure was a test path separator, fixed). One
-  cleanup script, `scripts/cleanup/pare.sh`. Patch version: no API or output change. The musl stack
-  bug stays unreported (decided).

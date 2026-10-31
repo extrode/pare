@@ -33,7 +33,7 @@ tick.
   duplicating it — two copies of a task list is one stale copy.
 - `milestones.md` is where the project is going. A tasklist is how one milestone gets done.
 
-## Current work: M6 CLI, MSBuild task, sample app
+## Last body of work: M6 CLI, MSBuild task, sample app (shipped)
 
 M2 + M3 recognizer shipped 2026-10-14 (see `CHANGELOG.md`).
 
