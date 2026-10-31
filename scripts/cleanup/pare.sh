@@ -60,7 +60,8 @@ for rel in tmp/docs-src tmp/full-test.log tmp/native-stage \
            tmp/packtest tmp/want.sh tmp/osx-job.log tmp/docs-build.log tmp/arts tmp/ci tmp/cl.out tmp/utmtest tmp/rel071 \
            tmp/hr tmp/hr-hotreload.log tmp/hr-dev.log tmp/hr-project.log tmp/hr-run.sh tmp/hr-run-root.sh \
            tmp/dedupe.proj tmp/wwwroot tmp/bump-test.log tmp/dev-test.log \
-           tmp/rerun3.log tmp/unit.log tmp/break.log tmp/nosrc.log tmp/review-dev-diff.patch tmp/review-low.md; do
+           tmp/rerun3.log tmp/unit.log tmp/break.log tmp/nosrc.log tmp/review-dev-diff.patch tmp/review-low.md \
+           tmp/compare-0156.log tmp/glob.bundle; do
     remove_path "$rel"
 done
 for f in "$repo"/tmp/dist/*0.7.1-test*; do
@@ -71,15 +72,25 @@ printf '== 2. wp1 leftovers (over ssh)\n'
 if ! ssh -o BatchMode=yes -o ConnectTimeout=5 wp1 exit 2>/dev/null; then
     printf 'skip:  wp1 unreachable, its leftovers left alone\n'
 else
-    wp1_scratch='C:\Users\Sy\AppData\Local\Temp\pare\tmp\native-stage, C:\home\code\extrode.com\dev.bundle, C:\home\code\extrode.com\fix.bundle, C:\Users\Sy\fix.bundle, C:\Users\Sy\dedupe.proj, C:\Users\Sy\wwwroot, C:\home\code\extrode.com\pare\tmp\devpath'
+    wp1_scratch='C:\Users\Sy\AppData\Local\Temp\pare\tmp\native-stage, C:\home\code\extrode.com\dev.bundle, C:\home\code\extrode.com\fix.bundle, C:\Users\Sy\fix.bundle, C:\Users\Sy\dedupe.proj, C:\Users\Sy\wwwroot, C:\home\code\extrode.com\pare\tmp\devpath, C:\Users\Sy\glob.bundle, C:\home\code\extrode.com\pare\tmp\check-device-paths.ps1, C:\home\code\extrode.com\pare\tmp\device-paths-*'
     if [ "$execute" = 1 ] && [ "$scratch" = 1 ]; then
-        ssh wp1 "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $wp1_scratch; Get-ChildItem \$env:TEMP -Directory -Filter pare-native-* | Remove-Item -Recurse -Force; cd C:\\home\\code\\extrode.com\\pare; git worktree remove C:\\Users\\Sy\\tmp\\pare-verify 2>\$null; git worktree prune; git switch -q dev; git branch -D fix/duplicate-source-metadata 2>\$null; 'wp1 scratch removed'" 2>&1 | grep -v 'quantum\|store now\|server may\|vulnerable\|upgraded' || true
+        ssh wp1 "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $wp1_scratch; Get-ChildItem \$env:TEMP -Directory -Filter pare-native-* | Remove-Item -Recurse -Force; cd C:\\home\\code\\extrode.com\\pare; git worktree remove C:\\Users\\Sy\\tmp\\pare-verify 2>\$null; git worktree prune; git switch -q dev; git branch -D fix/duplicate-source-metadata 2>\$null; git branch -D fix/glob-device-prefix 2>\$null; 'wp1 scratch removed'" 2>&1 | grep -v 'quantum\|store now\|server may\|vulnerable\|upgraded' || true
     else
-        printf 'would remove on wp1: %s, %%TEMP%%\\pare-native-*, the pare-verify worktree, and the wp1 checkout back on dev without fix/duplicate-source-metadata\n' "$wp1_scratch"
+        printf 'would remove on wp1: %s, %%TEMP%%\\pare-native-*, the pare-verify worktree, and the wp1 checkout back on dev without fix/duplicate-source-metadata and fix/glob-device-prefix\n' "$wp1_scratch"
     fi
 fi
 
 printf '== 3. Merged branches (git branch -d)\n'
+# A pare worktree created by mistake in ~/.claude (cow-worktree.js uses the current directory's repo).
+stray="$HOME/.claude/.worktrees/chore+audit-allow-cla"
+if git -C "$repo" worktree list --porcelain | grep -qxF "worktree $stray"; then
+    if [ "$execute" = 1 ]; then
+        git -C "$repo" worktree remove "$stray" && rmdir "$HOME/.claude/.worktrees" 2>/dev/null
+        printf 'removed worktree %s\n' "$stray"
+    else
+        printf 'would run: git worktree remove %s (then branch chore/audit-allow-cla goes below)\n' "$stray"
+    fi
+fi
 checked_out="$(git -C "$repo" worktree list --porcelain | sed -n 's:^branch refs/heads/::p')"
 merged="$(git -C "$repo" for-each-ref --merged dev --format='%(refname:short)' refs/heads/ | grep -vxE 'dev|main' || true)"
 if [ -z "$merged" ]; then printf 'skip:  no merged branches\n'; fi
