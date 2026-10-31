@@ -58,7 +58,8 @@ Other details:
 
 - `.ts` and `.d.ts` files are removed from `Content`, so they are not static web assets and are not
   published. `PareKeepSources=true` keeps them.
-- The build deletes the output of a deleted source.
+- In a web project without `PareOutDir`, the build deletes the output of a deleted source. Output
+  written next to the source (a non-web project) or under `PareOutDir` stays; delete it yourself.
 - A `foo.js` next to `foo.ts` in `wwwroot` (left by Pare 0.2, or hand-written) is not served;
   `warning PARE200` names it. Delete it.
 - Outside `obj/`, an existing `foo.js` next to `foo.ts` is replaced on the next build that strips
