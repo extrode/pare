@@ -44,6 +44,7 @@ archive() { # rid publish-dir
   cp "$2/pare" "$root/LICENSE.md" "$root/NOTICE.md" "$root/README.md" "$stage/"
   COPYFILE_DISABLE=1 tar --no-xattrs -czf "$out/pare-$version-$1.tar.gz" -C "$root/tmp/dist-stage" "pare-$version-$1"
   rm -rf "$root/tmp/dist-stage"
+  packed="$packed $1"
   echo "pare-$version-$1.tar.gz"
 }
 
@@ -56,6 +57,7 @@ native_archive() { # rid library-file
   echo "libpare-$version-$1.tar.gz"
 }
 
+packed=""
 want() { # rid: packed when no --rid was given, or it is one of them
   [ -n "$only" ] || return 0
   case "$only " in *" $1 "*) return 0 ;; esac
@@ -149,9 +151,8 @@ if [ "$docker" = yes ] && { [ "$(uname -s)" = Darwin ] || [ -n "$only" ]; }; the
     echo "verified $rid"
   done
 fi
-packed=$(ls "$out" | grep "^pare-$version-" | sed "s/^pare-$version-//; s/\.tar\.gz\$//" | sort | tr '\n' ' ')
 if [ -z "$packed" ]; then
   echo "pack-cli.sh: no archive was packed for $version" >&2
   exit 1
 fi
-echo "packed Extrode.Pare.Cli $version into tmp/dist: $packed"
+echo "packed Extrode.Pare.Cli $version into tmp/dist:$packed"
