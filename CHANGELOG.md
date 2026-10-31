@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Fixed: the CLI's own glob (cmd and PowerShell) lost the root of a pattern that starts at a drive or UNC share: `pare "C:\*.ts"` looked in the current directory of drive C, and `\\srv\share\*.ts` in a relative folder. A glob without `**` also reads only as many directory levels as it has segments, not the whole tree under its base.
 - `release.yml` also pushes the packages to GitHub Packages (`packages: write`), so they appear in the repository's Packages tab. 0.6.3 was published before this and is not there.
 
 ## [0.6.3] - 2026-10-31
