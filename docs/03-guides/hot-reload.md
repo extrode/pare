@@ -7,7 +7,7 @@ a `.ts` file is saved, so the `.js` would go stale.
 ## Turn it on
 
 ```xml
-<PackageReference Include="Extrode.Pare.AspNetCore" Version="0.6.3" />
+<PackageReference Include="Extrode.Pare.AspNetCore" Version="0.7.0" />
 ```
 
 ```csharp

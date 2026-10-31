@@ -53,7 +53,7 @@ a bundler". That puts a second toolchain on every dev laptop, CI runner and buil
 removes it. `dotnet build` strips your `.ts` files, `dotnet watch` reloads the page when you save
 one, and `dotnet publish` ships the result, compressed. Nothing else needs to be installed.
 
-Because it only erases, it is also quick: about 330 MB/s, and zero allocations while it parses.
+Because it only erases, it is also quick: about 280 MB/s on a corpus of real files, and zero allocations while it parses.
 
 ## Try it
 

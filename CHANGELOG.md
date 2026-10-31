@@ -2,7 +2,36 @@
 
 ## [Unreleased]
 
-- `release.yml` also pushes the packages to GitHub Packages (`packages: write`), so they appear in the repository's Packages tab. 0.6.3 was published before this and is not there.
+## [0.7.0] - 2026-10-31
+
+### Upgrading from 0.6
+
+- `pare <dir> --outdir out` now mirrors the input folder: the base is the common folder of the
+  inputs (a folder, a glob's fixed part, or a file's folder), not of the files found. With only
+  `src/pages/home.ts`, `pare src --outdir js` writes `js/pages/home.js`, as the guide always said;
+  0.6 wrote `js/home.js` and moved every output when a second folder gained a file. Delete the old
+  `--outdir` output after upgrading.
+- A `TypeScriptSource` outside the project folder (such as `../shared/x.ts`) with `PareOutDir` set
+  now stops the build with `error PARE205`. 0.6 wrote its output above the project, outside
+  `PareOutDir`.
+
+### Changes
+
+- Fixed: deeply nested arrow parameter defaults (`(a = (a = ...) => a) => a`, 15000 levels) crashed the
+  process with a stack overflow; they are rejected with PARE001 like other deep nesting.
+- Fixed (CLI): an empty `--outdir` is a usage error (exit 2), not an unhandled exception. A symlink or
+  junction back to a folder already walked is skipped, not followed until the OS stopped it. Two
+  inputs on different drives with `--outdir` are a usage error. Drive letters compare without case on Windows.
+- Fixed (CLI): a glob that starts at a drive or UNC share (`pare "C:\*.ts"`, `\\srv\share\*.ts`) lost the
+  root of the pattern. A glob without `**` reads only as many folder levels as it has segments.
+- Fixed (`AddPareDevelopment`): moving or deleting a source folder removes the outputs of the sources in
+  it; a save made while the first pass runs is no longer lost; stopping the app cancels every watcher
+  first and waits at most 5 s in all for a running strip, logging a warning if one is still running.
+  Shutdown could also throw from a file event that arrived after the watcher was disposed.
+- `release.yml` publishes only after `ci.yml` passes (unit, Integration and Conformance tests on Linux,
+  Windows and macOS, and a NativeAOT smoke test), and only for a tag push: a manual run on a tag only
+  checks trusted publishing. It also pushes the packages to GitHub Packages (`packages: write`); 0.6.3
+  is not there. `ci.yml` and `pages.yml` actions are pinned to commits, with weekly Dependabot updates.
 
 ## [0.6.3] - 2026-10-31
 

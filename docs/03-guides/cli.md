@@ -8,13 +8,14 @@ bundling, no minifying, no type checking, no Node packages.
 | Command | What it does |
 |---|---|
 | `pare src` | Writes each `src/**/*.ts` as `.js` next to its source. `.mts` becomes `.mjs`, `.cts` becomes `.cjs`. |
-| `pare src --outdir js` | Writes under `js/` instead, keeping the folder structure below `src/`. |
+| `pare src --outdir js` | Writes under `js/` instead, keeping the folder structure below `src/`. The base is the input folder itself, so `src/pages/home.ts` becomes `js/pages/home.js`. |
 | `pare src --check-only` | Reports errors and writes nothing. Use it in CI or a pre-commit hook. |
 | `pare --stdin < in.ts > out.js` | Reads one file from stdin and writes JavaScript to stdout. For editors and pipelines. |
 | `pare --version` | Prints the version. |
 
 Inputs can be files, folders (searched recursively) or globs (`*`, `?`, `**`) for shells that do not
-expand them. `.d.ts` files and `node_modules` are skipped.
+expand them. `.d.ts` files and `node_modules` are skipped. A symlink or junction back to a folder
+already searched is skipped. The server and share of a UNC pattern (`\\srv\share`) must be written out, with no wildcard.
 
 > An existing `foo.js` next to `foo.ts` is replaced, like `tsc` and `esbuild` do. Keep hand-written
 > JavaScript out of the source folders, or use `--outdir`.

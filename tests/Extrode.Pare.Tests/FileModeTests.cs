@@ -140,6 +140,79 @@ public sealed class FileModeTests : IDisposable
     }
 
     [Fact]
+    public void A_symlink_back_to_a_directory_already_walked_is_skipped()
+    {
+        if (OperatingSystem.IsWindows())
+            Assert.Skip("symlinks need Developer Mode");
+        Put("src/a.ts", "a;");
+        Put("src/sub/b.ts", "b;");
+        Directory.CreateSymbolicLink(P("src/sub/loop"), P("src"));
+
+        var (exit, _) = Run(P("src"), "--outdir=" + P("out"));
+
+        Assert.Equal(0, exit);
+        Assert.Equal(["a.js", "sub/b.js"],
+            Directory.GetFiles(P("out"), "*", SearchOption.AllDirectories)
+                .Select(f => Path.GetRelativePath(P("out"), f).Replace('\\', '/')).Order());
+    }
+
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public void A_symlink_loop_is_skipped_whatever_the_form_of_the_input_path(bool throughAlias, bool trailingSeparator)
+    {
+        if (OperatingSystem.IsWindows())
+            Assert.Skip("symlinks need Developer Mode");
+        Put("real/src/a.ts", "a;");
+        Put("real/src/sub/b.ts", "b;");
+        Directory.CreateSymbolicLink(P("real/src/sub/loop"), P("real/src"));
+        Directory.CreateSymbolicLink(P("alias"), P("real"));
+        string input = P(throughAlias ? "alias/src" : "real/src") + (trailingSeparator ? "/" : "");
+
+        var (exit, _) = Run(input, "--outdir=" + P("out"));
+
+        Assert.Equal(0, exit);
+        Assert.Equal(["a.js", "sub/b.js"],
+            Directory.GetFiles(P("out"), "*", SearchOption.AllDirectories)
+                .Select(f => Path.GetRelativePath(P("out"), f).Replace('\\', '/')).Order());
+    }
+
+    [Fact]
+    public void Outdir_keeps_the_input_directory_when_one_subfolder_has_every_file()
+    {
+        Put("src/pages/home.ts", "h;");
+
+        var (exit, _) = Run(P("src"), "--outdir", P("out"));
+
+        Assert.Equal(0, exit);
+        Assert.True(File.Exists(P("out/pages/home.js")));
+    }
+
+    [Fact]
+    public void Outdir_for_a_glob_keeps_the_path_below_the_glob_base()
+    {
+        Put("src/pages/home.ts", "h;");
+
+        var (exit, _) = Run(P("src") + "/**/*.ts", "--outdir", P("out"));
+
+        Assert.Equal(0, exit);
+        Assert.True(File.Exists(P("out/pages/home.js")));
+    }
+
+    [Theory]
+    [InlineData("--outdir=")]
+    [InlineData("--outdir ")]
+    public void An_empty_outdir_is_a_usage_error(string option)
+    {
+        Put("src/a.ts", "a;");
+
+        var (exit, err) = option.EndsWith('=') ? Run(P("src"), option) : Run(P("src"), "--outdir", "");
+
+        Assert.Equal(2, exit);
+        Assert.Contains("--outdir needs a directory", err);
+    }
+
+    [Fact]
     public void Glob_input_selects_matching_sources()
     {
         Put("src/a.ts", "a;");

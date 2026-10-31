@@ -12,12 +12,13 @@ internal static class FileStripper
     public static int Run(List<string> inputs, string? outDir, bool checkOnly, TextWriter stderr)
     {
         var files = new SortedSet<string>(StringComparer.Ordinal);
+        var roots = new List<string>();
         int exit = Program.ExitOk;
         foreach (var input in inputs)
         {
             try
             {
-                if (!Collect(input, files, stderr))
+                if (!Collect(input, files, roots, stderr))
                     exit = Program.ExitUsage;
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
@@ -35,7 +36,12 @@ internal static class FileStripper
         }
 
         string? outRoot = outDir is null ? null : Path.GetFullPath(outDir);
-        string baseDir = CommonDirectory(files);
+        string? baseDir = CommonDirectory(roots);
+        if (outRoot is not null && baseDir is null)
+        {
+            stderr.WriteLine("pare: --outdir needs inputs under one root directory or drive");
+            return Program.ExitUsage;
+        }
         var output = new ArrayBufferWriter<char>();
         var sink = new Program.ListSink();
         foreach (var file in files)
@@ -55,7 +61,7 @@ internal static class FileStripper
                 }
                 if (checkOnly)
                     continue;
-                string target = OutputPath(file, baseDir, outRoot);
+                string target = OutputPath(file, baseDir!, outRoot);
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                 using var stream = new FileStream(target, FileMode.Create, FileAccess.Write);
                 using var writer = new StreamWriter(stream, Utf8NoBom);
@@ -70,15 +76,19 @@ internal static class FileStripper
         return exit;
     }
 
-    /// <summary>Adds the source files named by a file, directory or glob. False when it names nothing usable.</summary>
-    private static bool Collect(string input, SortedSet<string> files, TextWriter stderr)
+    /// <summary>
+    /// Adds the source files named by a file, directory or glob, and the directory each is relative to
+    /// (<paramref name="roots"/>). False when it names nothing usable.
+    /// </summary>
+    private static bool Collect(string input, SortedSet<string> files, List<string> roots, TextWriter stderr)
     {
         if (Glob.HasWildcard(input))
         {
             string root = Glob.BaseDirectory(input);
             if (!Directory.Exists(root))
                 return true;
-            foreach (var file in Walk(root))
+            roots.Add(Path.GetFullPath(root));
+            foreach (var file in Walk(root, Canonical(root), Glob.Levels(input), new HashSet<string>(SeenComparer) { Canonical(root) }))
             {
                 if (Glob.Matches(input, Path.GetRelativePath(root, file)))
                     files.Add(Path.GetFullPath(file));
@@ -87,7 +97,8 @@ internal static class FileStripper
         }
         if (Directory.Exists(input))
         {
-            foreach (var file in Walk(input))
+            roots.Add(Path.GetFullPath(input));
+            foreach (var file in Walk(input, Canonical(input), int.MaxValue, new HashSet<string>(SeenComparer) { Canonical(input) }))
                 files.Add(Path.GetFullPath(file));
             return true;
         }
@@ -104,11 +115,12 @@ internal static class FileStripper
             return false;
         }
         files.Add(Path.GetFullPath(input));
+        roots.Add(Path.GetDirectoryName(Path.GetFullPath(input))!);
         return true;
     }
 
-    /// <summary>Source files under <paramref name="dir"/>, recursively, skipping node_modules.</summary>
-    private static IEnumerable<string> Walk(string dir)
+    /// <summary>Source files under <paramref name="dir"/> (<paramref name="seen"/>: directories already walked), down <paramref name="levels"/> directory levels (this one included), skipping node_modules.</summary>
+    private static IEnumerable<string> Walk(string dir, string real, int levels, HashSet<string> seen)
     {
         // One directory read per directory: Directory.EnumerateFiles plus EnumerateDirectories
         // read each twice. Same options as both (Compatible: nothing skipped), and IsDirectory
@@ -116,7 +128,7 @@ internal static class FileStripper
         var entries = new FileSystemEnumerable<(string Path, bool IsDirectory)>(dir,
             (ref FileSystemEntry e) => (e.ToFullPath(), e.IsDirectory),
             new EnumerationOptions { AttributesToSkip = 0, IgnoreInaccessible = false });
-        var subdirs = new List<string>();
+        var subdirs = new List<(string Path, string Real)>();
         foreach (var (path, isDirectory) in entries)
         {
             if (!isDirectory)
@@ -124,16 +136,36 @@ internal static class FileStripper
                 if (IsSource(path) && !IsDeclaration(path))
                     yield return path;
             }
-            else if (Path.GetFileName(path) != "node_modules")
+            else if (levels > 1 && Path.GetFileName(path) != "node_modules")
             {
-                subdirs.Add(path);
+                // A link back to a directory already walked would be followed until the OS gives up.
+                string subReal = new DirectoryInfo(path).LinkTarget is null ? Path.Combine(real, Path.GetFileName(path)) : Canonical(path);
+                if (seen.Add(subReal))
+                    subdirs.Add((path, subReal));
             }
         }
-        foreach (var sub in subdirs)
+        if (levels <= 1)
+            yield break;
+        foreach (var (sub, subReal) in subdirs)
         {
-            foreach (var file in Walk(sub))
+            foreach (var file in Walk(sub, subReal, levels - 1, seen))
                 yield return file;
         }
+    }
+
+    /// <summary>The full path with every symlink or junction along it resolved, without a trailing separator.</summary>
+    private static string Canonical(string path, int depth = 0)
+    {
+        string full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        string current = Path.GetPathRoot(full)!;
+        foreach (string part in full[current.Length..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, part);
+            // The target's own folders may be links too (/tmp on macOS). A chain longer than the OS follows ends here.
+            if (depth < 40 && new DirectoryInfo(current).ResolveLinkTarget(returnFinalTarget: true) is { } target)
+                current = Canonical(target.FullName, depth + 1);
+        }
+        return current;
     }
 
     private static bool IsSource(string path) =>
@@ -151,18 +183,24 @@ internal static class FileStripper
         return outRoot is null ? js : Path.Combine(outRoot, Path.GetRelativePath(baseDir, js));
     }
 
-    private static string CommonDirectory(SortedSet<string> files)
+    /// <summary>The deepest directory above every root, or null when they share none (two drives).</summary>
+    private static string? CommonDirectory(List<string> roots)
     {
-        string common = Path.GetDirectoryName(files.Min)!;
-        foreach (var file in files)
+        string? common = roots[0];
+        foreach (var root in roots)
         {
-            while (!IsUnder(file, common))
-                common = Path.GetDirectoryName(common)!;
+            while (common is not null && !IsUnder(root, common))
+                common = Path.GetDirectoryName(common);
         }
         return common;
     }
 
-    private static bool IsUnder(string file, string dir) =>
-        file.StartsWith(dir, StringComparison.Ordinal) &&
-        (dir.EndsWith(Path.DirectorySeparatorChar) || file.Length > dir.Length && file[dir.Length] == Path.DirectorySeparatorChar);
+    private static readonly StringComparer SeenComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+
+    private static readonly StringComparison PathComparison =
+        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
+    private static bool IsUnder(string path, string dir) =>
+        path.StartsWith(dir, PathComparison) &&
+        (path.Length == dir.Length || dir.EndsWith(Path.DirectorySeparatorChar) || path[dir.Length] == Path.DirectorySeparatorChar);
 }

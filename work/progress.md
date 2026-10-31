@@ -453,3 +453,11 @@ check against tsgo is still M5.
   as whitespace. Three corpus files hit this.
 - Added rejection `ParameterDecorator`: parameter decorators only exist under legacy
   `experimentalDecorators`, so they are the detectable part of that handoff row.
+- **0.7.0 prepared (2026-10-31):** two audits and an Opus decision pass after 0.6.3. Library: sticky
+  `_tooDeep` so deep arrow defaults give PARE001 instead of a stack overflow. CLI: `--outdir` base is
+  the input roots, empty `--outdir` is a usage error, symlink loops skipped. Build: PARE205. Watcher:
+  moved directories, save during `Start`, one shared stop deadline. `release.yml` needs `ci` and runs for
+  tag pushes only. Version bumped to 0.7.0 (minor: `--outdir` output moves, PARE205 fails builds that
+  passed). Not done before tagging: Bench run on the hot-path change, full Conformance, wp1 Windows
+  tests (glob, drive, UNC), a compare of the pinned action SHAs with their tags, `pack-cli.sh` and
+  wp1 archives, `gh release upload`. Tag, push and `main` are the user's.

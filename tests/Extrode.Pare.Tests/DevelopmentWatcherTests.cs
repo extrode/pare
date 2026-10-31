@@ -145,6 +145,83 @@ public sealed class DevelopmentWatcherTests : IDisposable
     }
 
     [Fact]
+    public void Moving_a_source_directory_deletes_its_build_output()
+    {
+        Put("wwwroot/old/a.ts", "let a: T;\n");
+        Put("wwwroot/keep/k.ts", "let k: T;\n");
+        using var watcher = BuildOutputWatcher();
+        watcher.Start();
+
+        Directory.Move(P("wwwroot/old"), P("wwwroot/new"));
+        WaitFor(() => !File.Exists(P("obj/pare/old/a.js")) && File.Exists(P("obj/pare/new/a.js")));
+        Assert.True(File.Exists(P("obj/pare/keep/k.js")));
+    }
+
+    [Fact]
+    public void Moving_a_source_directory_out_of_the_root_deletes_its_build_output()
+    {
+        Put("wwwroot/sub/a.ts", "let a: T;\n");
+        using var watcher = BuildOutputWatcher();
+        watcher.Start();
+
+        Directory.Move(P("wwwroot/sub"), P("elsewhere"));
+        WaitFor(() => !File.Exists(P("obj/pare/sub/a.js")));
+    }
+
+    private sealed class EditsItsSourceCompiler : IPareCompiler
+    {
+        private int _calls;
+        public string Name => "edits";
+
+        public Task<IReadOnlyDictionary<string, string>?> CompileAsync(string sourcePath, string source, IReadOnlyList<string> outputPaths,
+            ILogger logger, CancellationToken cancellationToken)
+        {
+            if (Interlocked.Increment(ref _calls) == 1)
+                File.WriteAllText(sourcePath, "b");
+            return Task.FromResult<IReadOnlyDictionary<string, string>?>(outputPaths.ToDictionary(o => o, _ => source.ToUpperInvariant()));
+        }
+    }
+
+    [Fact]
+    public void A_save_made_while_start_is_still_running_is_picked_up()
+    {
+        Put("App.up", "a");
+        using var watcher = CompiledWatcher(new EditsItsSourceCompiler(), ("App.up", ["obj/pare/App.up.js"]));
+        watcher.Start();
+
+        WaitFor(() => ReadOrNull(P("obj/pare/App.up.js")) == "B");
+    }
+
+    [Fact]
+    public void Stopping_cancels_every_watcher_first_and_waits_on_one_deadline()
+    {
+        Put("A.up", "a");
+        Put("B.up", "b");
+        var one = new UncancellableCompiler();
+        var two = new UncancellableCompiler();
+        using var first = CompiledWatcher(one, ("A.up", ["obj/pare/A.up.js"]));
+        using var second = CompiledWatcher(two, ("B.up", ["obj/pare/B.up.js"]));
+        first.Start();
+        second.Start();
+        one.Started.Reset();
+        two.Started.Reset();
+        Put("A.up", "a2");
+        Put("B.up", "b2");
+        Assert.True(one.Started.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+        Assert.True(two.Started.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+
+        var timer = System.Diagnostics.Stopwatch.StartNew();
+        first.BeginStop();
+        second.BeginStop();
+        var deadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(100);
+        first.WaitStopped(deadline);
+        second.WaitStopped(deadline);
+
+        Assert.True(timer.Elapsed < TimeSpan.FromMilliseconds(250), timer.Elapsed.ToString());
+        Assert.Equal(2, _log.Lines.Count(l => l.Contains("A strip was still running")));
+    }
+
+    [Fact]
     public void Deleting_a_source_keeps_a_js_next_to_it()
     {
         Put("wwwroot/a.ts", "let a: T;\n");
@@ -543,6 +620,40 @@ public sealed class DevelopmentWatcherTests : IDisposable
                 Running.Exit();
             }
         }
+    }
+
+    private sealed class UncancellableCompiler : IPareCompiler
+    {
+        public ManualResetEventSlim Started { get; } = new();
+        public volatile bool Finished;
+        public string Name => "stubborn";
+
+        public async Task<IReadOnlyDictionary<string, string>?> CompileAsync(string sourcePath, string source, IReadOnlyList<string> outputPaths,
+            ILogger logger, CancellationToken cancellationToken)
+        {
+            Started.Set();
+            await Task.Delay(TimeSpan.FromMilliseconds(300), TimeProvider.System);
+            Finished = true;
+            return null;
+        }
+    }
+
+    [Fact]
+    public void Dispose_waits_for_a_compile_that_is_running()
+    {
+        Put("App.up", "a");
+        var compiler = new UncancellableCompiler();
+        var watcher = CompiledWatcher(compiler, ("App.up", ["obj/pare/App.up.js"]));
+        watcher.Start();
+        compiler.Started.Reset();
+        compiler.Finished = false;
+        Put("App.up", "b");
+        Assert.True(compiler.Started.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+
+        watcher.Dispose();
+
+        Assert.True(compiler.Finished);
+        watcher.Dispose();
     }
 
     [Fact]

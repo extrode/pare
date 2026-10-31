@@ -31,7 +31,7 @@ Small, clear, and could be picked up without a design decision.
 
 - A new `.ts` outside `wwwroot` that a `PareServeAt` glob would match is not stripped by
   `AddPareDevelopment` until the next build (the development map lists only built sources).
-- `Extrode.Pare.Cli` is not on nuget.org and release.yml attaches only the three nupkgs, so the
+- `release.yml` publishes the four nupkgs (the CLI as one framework-dependent tool); the NativeAOT
   CLI and libpare archives are uploaded by hand (`scripts/pack-cli.sh`, `gh release upload`). The
   docs point at the archives; decide whether the workflow publishes them. Tool install with
   `--add-source`: docs/03-guides/offline-restore.md.
@@ -70,7 +70,7 @@ Not doing, with the reason. Kept so the same idea does not get re-raised every q
   replace-after-erase guard: each is redundant today but guards a boundary other code can cross
   (public API, user-supplied items, edit order). Kept. (2026-10-15)
 - Fixing quadratic time on pathological nesting (`(a = (a = ...` 5000 deep: 6.7 s): same shape as
-  TypeScript's parser, inputs are the user's own files, `Guard()` already stops deep recursion.
+  TypeScript's parser, inputs are the user's own files, `Guard()` stops deep recursion (not for arrow defaults before 0.7.0, which overflowed; fixed by the sticky `_tooDeep` in Restore).
   M7 adds a bench row so a regression shows. (2026-10-15)
 - Warning or refusing when a hand-written `foo.js` sits next to `foo.ts`: indistinguishable from
   a generated one without a marker, which would break the position guarantee. Documented
@@ -82,3 +82,12 @@ Not doing, with the reason. Kept so the same idea does not get re-raised every q
   that happens on some calls but not others (a buffer grown every Nth call) could pass on a clean
   attempt. A per-call allocation still fails (break-checked). Review range fe99295..85df724.
 
+
+- Audit 2026-10-31 (two opus passes; fixed in 0.7.0 unless listed here):
+  - Closed, no change: `namespace N { export {}; }` gives PARE101, but TypeScript itself rejects an export declaration inside a namespace (TS1194), so there is no valid input to erase.
+  - Dropped: the `Edit.cs` insertion sort. Measured at the deepest input the 8 MB guard allows (14000 nested generic arrows): 42000 edits, 294M moves, 0.27 s, against about 0.05 s for a flat file with as many edits; at 1000 levels 1.5M moves, under 10 ms. Far cheaper than the accepted parser quadratic above.
+  - Windows, `\\?\C:\src\*.ts`: the `?` segment counts as a wildcard, so it matches nothing. Nobody types device paths into a CLI glob. Check on wp1 when Windows is next touched.
+  - `\\srv\*\x.ts` (wildcard in the share) matches nothing and will not: no API lists a server's shares. Documented in cli.md.
+  - One full unit run failed once (439 tests) and never again in 60 reruns of the suite and of the watcher tests. Suspects: `Compiled_sources_that_are_up_to_date...` and `Unchanged_text_on_save...`, which count compiler calls while a live watcher runs. Keep a results file (`-xml`) on full runs so the next failure has a name.
+  - Not reproduced (the last also on wp1 under code page 437, 2026-10-31; the `--stdin` UTF-8 change was reverted): `--stdin` mangling non-ASCII on Windows; an upper-case `App.TS` in `TypeScriptSource` was said to be its own output; a build leaves it alone and writes nothing.
+- Research 2026-10-31, decided: pre-commit hook and GitHub Action are `pare src --check-only`, so doc snippets only, no artifact. Deferred: opt-in identity source map (positions are kept already), node_modules policy switch (nobody asked). Dropped: npm wrapper (against the no-Node point), VS Code extension, WASM, a diagnostic for `import { T }` without `type` (no type information). Already in Pare: erasableSyntaxOnly parity, decorator policy, incremental target, static web asset registration.

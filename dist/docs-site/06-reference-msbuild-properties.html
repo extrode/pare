@@ -253,7 +253,8 @@ skip the strip as up to date.</p>
 <ul>
 <li><code>.ts</code> and <code>.d.ts</code> files are removed from <code>Content</code>, so they are not static web assets and are not
 published. <code>PareKeepSources=true</code> keeps them.</li>
-<li>The build deletes the output of a deleted source.</li>
+<li>In a web project without <code>PareOutDir</code>, the build deletes the output of a deleted source. Output
+written next to the source (a non-web project) or under <code>PareOutDir</code> stays; delete it yourself.</li>
 <li>A <code>foo.js</code> next to <code>foo.ts</code> in <code>wwwroot</code> (left by Pare 0.2, or hand-written) is not served;
 <code>warning PARE200</code> names it. Delete it.</li>
 <li>Outside <code>obj/</code>, an existing <code>foo.js</code> next to <code>foo.ts</code> is replaced on the next build that strips

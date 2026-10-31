@@ -42,6 +42,8 @@ public class TypeStripperTests
     [InlineData("", "function f() {", "", "}")]
     [InlineData("let x: ", "A<", "B", ">")]
     [InlineData("let x: ", "{ a: ", "B", " }")]
+    [InlineData("", "(a = ", "1", ") => a")]
+    [InlineData("", "<T>(a: T = ", "1", ") => a")]
     public void Nesting_too_deep_for_the_stack_is_a_syntax_error(string head, string open, string inner, string close)
     {
         const int depth = 200_000;

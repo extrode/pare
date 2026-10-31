@@ -576,6 +576,25 @@ public sealed class BuildIntegrationTests : IDisposable, IClassFixture<BuildInte
     }
 
     [Theory]
+    [InlineData("../shared/x.ts")]
+    [InlineData("sub/../../shared/x.ts")]
+    [InlineData("$(MSBuildProjectDirectory)/../shared/x.ts")]
+    public void A_source_outside_the_project_cannot_go_below_pare_out_dir(string include)
+    {
+        Project("<OutputType>Library</OutputType><PareOutDir>gen</PareOutDir>", items: $"""<TypeScriptSource Include="{include}" />""");
+        Directory.CreateDirectory(P("app"));
+        File.Move(P("app.csproj"), P("app/app.csproj"));
+        Put("shared/x.ts", "let x: T;");
+
+        var (exit, output) = Build("app/app.csproj");
+
+        Assert.NotEqual(0, exit);
+        Assert.Contains("error PARE205", output);
+        Assert.False(File.Exists(P("shared/x.js")));
+        Assert.False(File.Exists(P("app/shared/x.js")));
+    }
+
+    [Theory]
     [InlineData("../js")]
     [InlineData("js/./lib")]
     [InlineData(".")]

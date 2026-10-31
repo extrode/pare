@@ -143,7 +143,7 @@ bundling, no minifying, no type checking, no Node packages.</p>
 </tr>
 <tr>
 <td><code>pare src --outdir js</code></td>
-<td>Writes under <code>js/</code> instead, keeping the folder structure below <code>src/</code>.</td>
+<td>Writes under <code>js/</code> instead, keeping the folder structure below <code>src/</code>. The base is the input folder itself, so <code>src/pages/home.ts</code> becomes <code>js/pages/home.js</code>.</td>
 </tr>
 <tr>
 <td><code>pare src --check-only</code></td>
@@ -160,7 +160,8 @@ bundling, no minifying, no type checking, no Node packages.</p>
 </tbody>
 </table>
 <p>Inputs can be files, folders (searched recursively) or globs (<code>*</code>, <code>?</code>, <code>**</code>) for shells that do not
-expand them. <code>.d.ts</code> files and <code>node_modules</code> are skipped.</p>
+expand them. <code>.d.ts</code> files and <code>node_modules</code> are skipped. A symlink or junction back to a folder
+already searched is skipped. The server and share of a UNC pattern (<code>\\srv\share</code>) must be written out, with no wildcard.</p>
 <blockquote>
 <p>An existing <code>foo.js</code> next to <code>foo.ts</code> is replaced, like <code>tsc</code> and <code>esbuild</code> do. Keep hand-written
 JavaScript out of the source folders, or use <code>--outdir</code>.</p>
