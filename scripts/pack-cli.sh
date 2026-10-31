@@ -56,7 +56,11 @@ native_archive() { # rid library-file
   echo "libpare-$version-$1.tar.gz"
 }
 
-want() { [ -z "$only" ] || case "$only " in *" $1 "*) return 0 ;; esac; return 1; }
+want() { # rid: packed when no --rid was given, or it is one of them
+  [ -n "$only" ] || return 0
+  case "$only " in *" $1 "*) return 0 ;; esac
+  return 1
+}
 if [ -z "$only" ]; then
   pack
   pack -r any
@@ -145,5 +149,9 @@ if [ "$docker" = yes ] && { [ "$(uname -s)" = Darwin ] || [ -n "$only" ]; }; the
     echo "verified $rid"
   done
 fi
-echo "packed Extrode.Pare.Cli $version into tmp/dist:"
-ls "$out" | grep "^pare-$version-" | sed "s/^pare-$version-//; s/\.tar\.gz\$//" | sort | tr '\n' ' '; echo
+packed=$(ls "$out" | grep "^pare-$version-" | sed "s/^pare-$version-//; s/\.tar\.gz\$//" | sort | tr '\n' ' ')
+if [ -z "$packed" ]; then
+  echo "pack-cli.sh: no archive was packed for $version" >&2
+  exit 1
+fi
+echo "packed Extrode.Pare.Cli $version into tmp/dist: $packed"
