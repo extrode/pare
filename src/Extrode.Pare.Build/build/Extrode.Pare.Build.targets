@@ -113,7 +113,7 @@
                      Condition="'$(_PareObjRoot)' != '' and '%(_PareSource.PareRelativePath)' == '' and !$([System.String]::Copy('%(_PareSource._PareJs)').EndsWith('.razor.js')) and !$([System.String]::Copy('%(_PareSource._PareJs)').EndsWith('.cshtml.js'))" />
       <!-- A source above the project folder would land above PareOutDir too. -->
       <_PareOutside Include="@(_PareSource)"
-                    Condition="'$(_PareOutRoot)' != '' and $([System.String]::Copy('%(_PareSource.RelativeDir)').StartsWith('..'))" />
+                    Condition="'$(_PareOutRoot)' != '' and ('%(_PareSource._PareDir)' == '../' or $([System.String]::Copy('%(_PareSource._PareDir)').StartsWith('../')))" />
       <_PareStripSource Include="@(_PareSource)" Condition="'%(_PareSource._PareCompiled)' != 'true'" />
       <!-- Handed back with PareOutputPath and PareRelativePath, for the targets in PareCompileDependsOn. -->
       <PareCompileSource Remove="@(PareCompileSource)" />

@@ -88,7 +88,7 @@ internal static class FileStripper
             if (!Directory.Exists(root))
                 return true;
             roots.Add(Path.GetFullPath(root));
-            foreach (var file in Walk(root, Glob.Levels(input), [Path.GetFullPath(root)]))
+            foreach (var file in Walk(root, Canonical(root), Glob.Levels(input), new HashSet<string>(SeenComparer) { Canonical(root) }))
             {
                 if (Glob.Matches(input, Path.GetRelativePath(root, file)))
                     files.Add(Path.GetFullPath(file));
@@ -98,7 +98,7 @@ internal static class FileStripper
         if (Directory.Exists(input))
         {
             roots.Add(Path.GetFullPath(input));
-            foreach (var file in Walk(input, int.MaxValue, [Path.GetFullPath(input)]))
+            foreach (var file in Walk(input, Canonical(input), int.MaxValue, new HashSet<string>(SeenComparer) { Canonical(input) }))
                 files.Add(Path.GetFullPath(file));
             return true;
         }
@@ -120,7 +120,7 @@ internal static class FileStripper
     }
 
     /// <summary>Source files under <paramref name="dir"/> (<paramref name="seen"/>: directories already walked), down <paramref name="levels"/> directory levels (this one included), skipping node_modules.</summary>
-    private static IEnumerable<string> Walk(string dir, int levels, HashSet<string> seen)
+    private static IEnumerable<string> Walk(string dir, string real, int levels, HashSet<string> seen)
     {
         // One directory read per directory: Directory.EnumerateFiles plus EnumerateDirectories
         // read each twice. Same options as both (Compatible: nothing skipped), and IsDirectory
@@ -128,7 +128,7 @@ internal static class FileStripper
         var entries = new FileSystemEnumerable<(string Path, bool IsDirectory)>(dir,
             (ref FileSystemEntry e) => (e.ToFullPath(), e.IsDirectory),
             new EnumerationOptions { AttributesToSkip = 0, IgnoreInaccessible = false });
-        var subdirs = new List<string>();
+        var subdirs = new List<(string Path, string Real)>();
         foreach (var (path, isDirectory) in entries)
         {
             if (!isDirectory)
@@ -139,18 +139,33 @@ internal static class FileStripper
             else if (levels > 1 && Path.GetFileName(path) != "node_modules")
             {
                 // A link back to a directory already walked would be followed until the OS gives up.
-                string real = new DirectoryInfo(path).ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? path;
-                if (seen.Add(Path.TrimEndingDirectorySeparator(real)))
-                    subdirs.Add(path);
+                string subReal = new DirectoryInfo(path).LinkTarget is null ? Path.Combine(real, Path.GetFileName(path)) : Canonical(path);
+                if (seen.Add(subReal))
+                    subdirs.Add((path, subReal));
             }
         }
         if (levels <= 1)
             yield break;
-        foreach (var sub in subdirs)
+        foreach (var (sub, subReal) in subdirs)
         {
-            foreach (var file in Walk(sub, levels - 1, seen))
+            foreach (var file in Walk(sub, subReal, levels - 1, seen))
                 yield return file;
         }
+    }
+
+    /// <summary>The full path with every symlink or junction along it resolved, without a trailing separator.</summary>
+    private static string Canonical(string path, int depth = 0)
+    {
+        string full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        string current = Path.GetPathRoot(full)!;
+        foreach (string part in full[current.Length..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, part);
+            // The target's own folders may be links too (/tmp on macOS). A chain longer than the OS follows ends here.
+            if (depth < 40 && new DirectoryInfo(current).ResolveLinkTarget(returnFinalTarget: true) is { } target)
+                current = Canonical(target.FullName, depth + 1);
+        }
+        return current;
     }
 
     private static bool IsSource(string path) =>
@@ -179,6 +194,8 @@ internal static class FileStripper
         }
         return common;
     }
+
+    private static readonly StringComparer SeenComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 
     private static readonly StringComparison PathComparison =
         OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;

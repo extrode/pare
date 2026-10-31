@@ -199,8 +199,8 @@ public sealed class DevelopmentWatcherTests : IDisposable
         Put("B.up", "b");
         var one = new UncancellableCompiler();
         var two = new UncancellableCompiler();
-        var first = CompiledWatcher(one, ("A.up", ["obj/pare/A.up.js"]));
-        var second = CompiledWatcher(two, ("B.up", ["obj/pare/B.up.js"]));
+        using var first = CompiledWatcher(one, ("A.up", ["obj/pare/A.up.js"]));
+        using var second = CompiledWatcher(two, ("B.up", ["obj/pare/B.up.js"]));
         first.Start();
         second.Start();
         one.Started.Reset();
@@ -219,8 +219,6 @@ public sealed class DevelopmentWatcherTests : IDisposable
 
         Assert.True(timer.Elapsed < TimeSpan.FromMilliseconds(250), timer.Elapsed.ToString());
         Assert.Equal(2, _log.Lines.Count(l => l.Contains("A strip was still running")));
-        first.Dispose();
-        second.Dispose();
     }
 
     [Fact]
