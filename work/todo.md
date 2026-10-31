@@ -24,12 +24,16 @@ Real, but needs a decision, a dependency, or more information first. Say which.
   (releases.json `latest-sdk`, Homebrew; checked 2026-10-31). Re-check on the next 10.0.x SDK.
 - Under `dotnet watch` in Production (no launch profile), `MapStaticAssets`' runtime patching
   answered 500 for `/js/app.js` from `Scripts/app.ts` (seen 2026-10-31, SDK 10.0.403). Not
-  reproduced since, with 0.7.2 from nuget.org on clean projects: `Scripts/**/*.ts` with
-  `PareServeAt="js"` and `wwwroot/js/*.ts` both answer 200, also after editing the source, the
-  `index.html` and `Program.cs` while running. The first sighting ran beside several other
-  watchers sharing the project's `obj/`, which also produced `OpenWrite` errors, so that is the
-  likely cause. Reopen with a repro. Production does not re-strip a saved source (the
-  development map is Development only), so the old `.js` stays: expected.
+  reproduced since: with 0.7.2 from nuget.org on clean projects, `Scripts/**/*.ts` with
+  `PareServeAt="js"`, `wwwroot/js/*.ts` and a project with only `Scripts/app.ts` all answer 200,
+  also after editing the source, `index.html` and `Program.cs` while running. **Cause unknown.**
+  The response body and server log of the 500 were not kept. That run had several other
+  `dotnet watch` processes on the same `obj/` (it also logged `OpenWrite` errors), which is a
+  guess, not a finding. Untested: a stale `obj/` or static-asset manifest, a build/first-request
+  race, an SDK bug that needs state the clean runs lacked. To reopen: recreate the dirty state
+  (second watcher on one project, reused `obj/`) and keep the body and log. Production does not
+  re-strip a saved source (the development map is Development only), so the old `.js` stays:
+  expected.
 - CI flakes, all closed by 2026-10-31: Playwright 30 s page loads on Windows (`02bf6f9`, 90 s),
   `Stopping_cancels_every_watcher...` timing on Windows (`8eb25a1`), the macOS log-line race, the
   watcher's held-output saves on Windows (0.7.2), and the `NativeLibraryTests` fixture's
